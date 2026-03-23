@@ -1,0 +1,37 @@
+openapi: 3.0.0
+info:
+  title: Rakizz API
+  version: 1.0.0
+paths:
+  /api/v1/materials:
+    post:
+      summary: Upload Material Metadata
+      responses:
+        "200":
+          description: Created
+  /api/v1/assignments:
+    post:
+      summary: Create structured temporal assignment
+      responses:
+        "200":
+           description: Scheduledcomponents:
+  schemas:
+    Role:
+      type: string
+      enum: [student, parent, admin]
+    AssignmentStatus:
+      type: string
+      enum: [pending, completed]
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        created_at:
+          type: string
+          format: date-time

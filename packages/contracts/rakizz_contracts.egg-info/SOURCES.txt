@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+rakizz_contracts.egg-info/PKG-INFO
+rakizz_contracts.egg-info/SOURCES.txt
+rakizz_contracts.egg-info/dependency_links.txt
+rakizz_contracts.egg-info/requires.txt
+rakizz_contracts.egg-info/top_level.txt
+shared_python/__init__.py
+shared_python/enums.py
+shared_python/schemas/__init__.py
+shared_python/schemas/assignment.py
+shared_python/schemas/material.py
+shared_python/schemas/policy.py
+shared_python/schemas/quiz.py
+shared_python/schemas/report.py
+shared_python/schemas/user.py
