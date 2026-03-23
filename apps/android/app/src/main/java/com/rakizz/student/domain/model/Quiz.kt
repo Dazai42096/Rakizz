@@ -1,0 +1,9 @@
+package com.rakizz.student.domain.model
+
+data class Quiz(
+    val id: String,
+    val title: String,
+    val description: String,
+    val score: Int?,
+    val totalQuestions: Int
+)
