@@ -3,8 +3,8 @@ package com.rakizz.student.data.network
 import com.rakizz.student.data.local.TokenManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import okhttp.Interceptor
-import okhttp.Response
+import okhttp3.Interceptor
+import okhttp3.Response
 import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
