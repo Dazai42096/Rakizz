@@ -23,12 +23,20 @@ class LoginViewModel @Inject constructor(
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
+
             val result = authRepository.login(email, pass)
-            result.onSuccess {
-                _uiState.value = UiState.Success(it)
-            }.onFailure {
-                _uiState.value = UiState.Error(it.message ?: "Unknown error")
+
+            result.onSuccess { token ->
+                _uiState.value = UiState.Success(token)
+            }.onFailure { throwable ->
+                _uiState.value = UiState.Error(throwable.message ?: "Unknown error")
             }
+        }
+    }
+
+    fun clearError() {
+        if (_uiState.value is UiState.Error) {
+            _uiState.value = null
         }
     }
 }
