@@ -1,4 +1,4 @@
-package com.rakizz.student.presentation.auth.signup
+package com.rakizz.student.presentation.auth.parentsignup
 
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
@@ -14,14 +14,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class StudentSignUpViewModel @Inject constructor(
+class ParentSignUpViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UiState<AuthToken>?>(null)
     val uiState: StateFlow<UiState<AuthToken>?> = _uiState.asStateFlow()
 
-    fun register(
+    fun registerParent(
         fullName: String,
         email: String,
         pass: String
@@ -32,7 +32,7 @@ class StudentSignUpViewModel @Inject constructor(
 
         when {
             cleanName.length < 2 -> {
-                _uiState.value = UiState.Error("Enter your full name")
+                _uiState.value = UiState.Error("Enter parent name")
                 return
             }
 
@@ -50,18 +50,18 @@ class StudentSignUpViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
 
-            // this screen is only for student signup
+            // parent signup uses parent role
             val result = authRepository.register(
                 fullName = cleanName,
                 email = cleanEmail,
                 pass = cleanPass,
-                role = "student"
+                role = "parent"
             )
 
             result.onSuccess { token ->
                 _uiState.value = UiState.Success(token)
             }.onFailure { throwable ->
-                _uiState.value = UiState.Error(throwable.message ?: "Signup failed")
+                _uiState.value = UiState.Error(throwable.message ?: "Parent signup failed")
             }
         }
     }

@@ -4,6 +4,7 @@ import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
 import com.rakizz.student.data.remote.dto.AuthResponseDto
 import com.rakizz.student.data.remote.dto.MaterialDto
+import com.rakizz.student.data.remote.dto.PolicyCreateRequestDto
 import com.rakizz.student.data.remote.dto.PolicyDto
 import com.rakizz.student.data.remote.dto.QuizAttemptRequestDto
 import com.rakizz.student.data.remote.dto.QuizAttemptResultDto
@@ -99,6 +100,11 @@ interface RakizzApi {
 
     @GET("api/v1/policies/")
     suspend fun getPolicies(): List<PolicyDto>
+
+    @POST("api/v1/policies/")
+    suspend fun createPolicy(
+        @Body request: PolicyCreateRequestDto
+    ): PolicyDto
 
     @POST("api/v1/usage/sync")
     suspend fun syncUsage(

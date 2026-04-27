@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.rakizz.student.presentation.assignments.add.AddAssignmentScreen
 import com.rakizz.student.presentation.assignments.list.AssignmentsScreen
 import com.rakizz.student.presentation.auth.LoginScreen
+import com.rakizz.student.presentation.auth.parentsignup.ParentSignUpScreen
 import com.rakizz.student.presentation.auth.role.ChooseRoleScreen
 import com.rakizz.student.presentation.auth.signup.StudentSignUpScreen
 import com.rakizz.student.presentation.focus.FocusScreen
@@ -14,6 +15,7 @@ import com.rakizz.student.presentation.home.HomeScreen
 import com.rakizz.student.presentation.materials.detail.MaterialDetailScreen
 import com.rakizz.student.presentation.materials.list.MaterialsScreen
 import com.rakizz.student.presentation.paircode.PairCodeScreen
+import com.rakizz.student.presentation.parentfocus.ParentFocusScreen
 import com.rakizz.student.presentation.profile.ProfileScreen
 import com.rakizz.student.presentation.progress.StudentProgressScreen
 import com.rakizz.student.presentation.quizzes.detail.QuizDetailScreen
@@ -32,7 +34,9 @@ fun RakizzNavHost() {
             LoginScreen(
                 onLoginSuccess = {
                     navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        popUpTo(NavRoutes.Auth.route) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 },
@@ -52,8 +56,8 @@ fun RakizzNavHost() {
                     }
                 },
                 onContinueAsParent = {
-                    navController.navigate(NavRoutes.Auth.route) {
-                        popUpTo(NavRoutes.ChooseRole.route) { inclusive = true }
+                    // parent should open parent signup page
+                    navController.navigate(NavRoutes.ParentSignUp.route) {
                         launchSingleTop = true
                     }
                 }
@@ -67,13 +71,42 @@ fun RakizzNavHost() {
                 },
                 onCreateAccountClick = {
                     navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        popUpTo(NavRoutes.Auth.route) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 },
                 onAlreadyHaveAccountClick = {
                     navController.navigate(NavRoutes.Auth.route) {
-                        popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        popUpTo(NavRoutes.Auth.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.ParentSignUp.route) {
+            ParentSignUpScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onCreateAccountDone = {
+                    // after parent signup go to home
+                    navController.navigate(NavRoutes.Home.route) {
+                        popUpTo(NavRoutes.Auth.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                },
+                onAlreadyHaveAccountClick = {
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(NavRoutes.Auth.route) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 }
@@ -96,6 +129,12 @@ fun RakizzNavHost() {
                     navController.navigate(NavRoutes.QuizzesList.route) {
                         launchSingleTop = true
                     }
+                },
+                onOpenParentFocus = {
+                    // this opens the parent rules screen
+                    navController.navigate(NavRoutes.ParentFocus.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -107,7 +146,9 @@ fun RakizzNavHost() {
                 },
                 onOpenHome = {
                     navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Home.route) { inclusive = false }
+                        popUpTo(NavRoutes.Home.route) {
+                            inclusive = false
+                        }
                         launchSingleTop = true
                     }
                 },
@@ -122,16 +163,16 @@ fun RakizzNavHost() {
                     }
                 },
                 onAddMaterial = {
-                    // TODO: wire upload flow later
+                    // later
                 },
                 onTakePhoto = {
-                    // TODO: wire take photo flow later
+                    // later
                 },
                 onWriteTextNotes = {
-                    // TODO: wire text notes flow later
+                    // later
                 },
                 onAddLink = {
-                    // TODO: wire add link flow later
+                    // later
                 }
             )
         }
@@ -167,11 +208,15 @@ fun RakizzNavHost() {
         }
 
         composable(NavRoutes.AssignmentsList.route) {
-            AssignmentsScreen(navController = navController)
+            AssignmentsScreen(
+                navController = navController
+            )
         }
 
         composable(NavRoutes.AddAssignment.route) {
-            AddAssignmentScreen(navController = navController)
+            AddAssignmentScreen(
+                navController = navController
+            )
         }
 
         composable(NavRoutes.QuizzesList.route) {
@@ -192,7 +237,9 @@ fun RakizzNavHost() {
                 },
                 onGoHome = {
                     navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Home.route) { inclusive = false }
+                        popUpTo(NavRoutes.Home.route) {
+                            inclusive = false
+                        }
                         launchSingleTop = true
                     }
                 },
@@ -211,7 +258,7 @@ fun RakizzNavHost() {
                     navController.popBackStack()
                 },
                 onSettingsClick = {
-                    // TODO: wire settings later
+                    // later
                 },
                 onGeneratePairCodeClick = {
                     navController.navigate(NavRoutes.PairCode.route) {
@@ -219,14 +266,16 @@ fun RakizzNavHost() {
                     }
                 },
                 onNotificationsClick = {
-                    // TODO: wire notifications later
+                    // later
                 },
                 onPrivacyClick = {
-                    // TODO: wire privacy later
+                    // later
                 },
                 onLogoutClick = {
                     navController.navigate(NavRoutes.Auth.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(0) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 }
@@ -256,13 +305,21 @@ fun RakizzNavHost() {
             )
         }
 
+        composable(NavRoutes.ParentFocus.route) {
+            ParentFocusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable(NavRoutes.Progress.route) {
             StudentProgressScreen(
                 onBackClick = {
                     navController.popBackStack()
                 },
                 onDownloadClick = {
-                    // TODO: wire export later
+                    // later
                 }
             )
         }
@@ -273,13 +330,13 @@ fun RakizzNavHost() {
                     navController.popBackStack()
                 },
                 onCopyClick = {
-                    // TODO: wire copy later
+                    // later
                 },
                 onShareClick = {
-                    // TODO: wire share later
+                    // later
                 },
                 onRegenerateClick = {
-                    // TODO: wire regenerate later
+                    // later
                 }
             )
         }

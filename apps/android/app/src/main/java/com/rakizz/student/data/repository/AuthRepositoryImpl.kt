@@ -5,49 +5,76 @@ import com.rakizz.student.data.network.RakizzApi
 import com.rakizz.student.data.remote.dto.RegisterRequestDto
 import com.rakizz.student.domain.model.AuthToken
 import com.rakizz.student.domain.repository.AuthRepository
-import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
+import retrofit2.HttpException
 
 class AuthRepositoryImpl @Inject constructor(
     private val api: RakizzApi,
     private val tokenManager: TokenManager
 ) : AuthRepository {
 
-    override suspend fun login(email: String, pass: String): Result<AuthToken> {
-        return try {
-            val response = api.login(email, pass)
-            tokenManager.saveToken(response.access_token)
-            Result.success(AuthToken(response.access_token, response.token_type))
-        } catch (e: Exception) {
-            Result.failure(Exception(readableError(e)))
-        }
-    }
-
-    override suspend fun register(
-        fullName: String,
+    override suspend fun login(
         email: String,
         pass: String
     ): Result<AuthToken> {
         return try {
             val cleanEmail = email.trim().lowercase()
 
+            // email is used as the username in backend login
+            val response = api.login(
+                username = cleanEmail,
+                password = pass
+            )
+
+            // save token so the app can use protected endpoints
+            tokenManager.saveToken(response.access_token)
+
+            Result.success(
+                AuthToken(
+                    accessToken = response.access_token,
+                    tokenType = response.token_type
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(Exception(getSimpleError(e)))
+        }
+    }
+
+    override suspend fun register(
+        fullName: String,
+        email: String,
+        pass: String,
+        role: String
+    ): Result<AuthToken> {
+        return try {
+            val cleanEmail = email.trim().lowercase()
+
+            // fullName is only for the screen now
+            // backend currently saves email, password and role
             val response = api.register(
                 RegisterRequestDto(
                     email = cleanEmail,
                     password = pass,
-                    role = "student"
+                    role = role
                 )
             )
 
+            // after signup we keep the token directly
             tokenManager.saveToken(response.access_token)
-            Result.success(AuthToken(response.access_token, response.token_type))
+
+            Result.success(
+                AuthToken(
+                    accessToken = response.access_token,
+                    tokenType = response.token_type
+                )
+            )
         } catch (e: Exception) {
-            Result.failure(Exception(readableError(e)))
+            Result.failure(Exception(getSimpleError(e)))
         }
     }
 
-    private fun readableError(error: Exception): String {
+    private fun getSimpleError(error: Exception): String {
         return when (error) {
             is HttpException -> {
                 val body = try {
@@ -56,13 +83,15 @@ class AuthRepositoryImpl @Inject constructor(
                     null
                 }
 
-                body ?: "HTTP ${error.code()}"
+                body ?: "HTTP error ${error.code()}"
             }
+
             is IOException -> {
                 "Network error. Check backend connection."
             }
+
             else -> {
-                error.message ?: "Unknown error"
+                error.message ?: "Something went wrong"
             }
         }
     }

@@ -4,6 +4,7 @@ sealed class NavRoutes(val route: String) {
     data object Auth : NavRoutes("auth_route")
     data object ChooseRole : NavRoutes("choose_role")
     data object StudentSignUp : NavRoutes("student_sign_up")
+    data object ParentSignUp : NavRoutes("parent_sign_up")
     data object Home : NavRoutes("home_route")
 
     data object MaterialsList : NavRoutes("materials_list")
@@ -25,6 +26,7 @@ sealed class NavRoutes(val route: String) {
 
     data object Profile : NavRoutes("profile")
     data object Focus : NavRoutes("focus")
+    data object ParentFocus : NavRoutes("parent_focus")
     data object Progress : NavRoutes("progress")
     data object PairCode : NavRoutes("pair_code")
 }

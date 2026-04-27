@@ -13,10 +13,3 @@ data class AuthResponseDto(
     val access_token: String,
     val token_type: String
 )
-
-@Serializable
-data class RegisterRequestDto(
-    val email: String,
-    val password: String,
-    val role: String
-)

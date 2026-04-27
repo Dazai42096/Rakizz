@@ -18,6 +18,16 @@ data class PolicyDto(
 )
 
 @Serializable
+data class PolicyCreateRequestDto(
+    @SerialName("student_id")
+    val studentId: String,
+    @SerialName("rule_type")
+    val ruleType: String,
+    @SerialName("config_json")
+    val configJson: JsonObject
+)
+
+@Serializable
 data class UsageEventDto(
     @SerialName("package_name")
     val packageName: String,

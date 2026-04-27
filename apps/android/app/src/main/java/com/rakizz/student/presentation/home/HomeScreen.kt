@@ -54,7 +54,8 @@ private val WarningBorder = Color(0xFF264A8A)
 fun HomeScreen(
     onOpenMaterials: () -> Unit,
     onOpenAssignments: () -> Unit,
-    onOpenQuizzes: () -> Unit
+    onOpenQuizzes: () -> Unit,
+    onOpenParentFocus: () -> Unit
 ) {
     Scaffold(
         containerColor = Color.Black,
@@ -67,7 +68,7 @@ fun HomeScreen(
         }
     ) { paddingValues ->
 
-        // main home page scroll
+        // main scroll for home page
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -93,7 +94,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // opens the real materials screen
             FeatureCard(
                 title = "Study Materials",
                 description = "Open your library, preview stored files, download them again, and generate quizzes from selected materials.",
@@ -104,7 +104,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // opens assignments screen
             FeatureCard(
                 title = "Assignments",
                 description = "View stored assignments and add real deadlines that stay available later in the app.",
@@ -115,7 +114,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // opens quizzes screen
             FeatureCard(
                 title = "Quizzes",
                 description = "Review the stored quizzes already generated from your materials and reopen them later.",
@@ -131,6 +129,16 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             FocusModuleStatusCard()
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            FeatureCard(
+                title = "Parent Focus Tools",
+                description = "Create a daily app limit rule for a linked student. This shows that the parent controls blocking rules.",
+                buttonText = "Open Parent Tools",
+                accentColor = Color(0xFF10B981),
+                onClick = onOpenParentFocus
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -153,7 +161,9 @@ private fun HomeTopBar() {
 
 @Composable
 private fun RakizzBrand() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(
             modifier = Modifier
                 .size(20.dp)
@@ -241,7 +251,7 @@ private fun HomeSummaryCard() {
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "This home screen is the main place for the student features that are working in the current build.",
+                text = "Home screen: main place for the student features.",
                 color = SecondaryText,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -354,7 +364,7 @@ private fun FocusModuleStatusCard() {
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Focus mode foundation is connected",
+                text = "Focus mode active",
                 color = WhiteText,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -362,11 +372,10 @@ private fun FocusModuleStatusCard() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // this is honest for the checkpoint
-            // focus rules and usage reports work now
-            // full blocking will be the next part
+            // focus rules and usage reports are connected now
+            // full blocking will be added after this
             Text(
-                text = "The app now reads parent focus rules from the backend and sends usage records for reports. Full app blocking will be added in the next step.",
+                text = "Reading parent focus rules.",
                 color = Color(0xFFD3DDF6),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
@@ -394,28 +403,36 @@ private fun HomeBottomBar(
         BottomItem(
             label = "Home",
             selected = true,
-            icon = { HomeGlyph(selected = true) },
+            icon = {
+                HomeGlyph(selected = true)
+            },
             onClick = {}
         )
 
         BottomItem(
             label = "Materials",
             selected = false,
-            icon = { BookGlyph(selected = false) },
+            icon = {
+                BookGlyph(selected = false)
+            },
             onClick = onOpenMaterials
         )
 
         BottomItem(
             label = "Quiz",
             selected = false,
-            icon = { QuizGlyph(selected = false) },
+            icon = {
+                QuizGlyph(selected = false)
+            },
             onClick = onOpenQuizzes
         )
 
         BottomItem(
             label = "Tasks",
             selected = false,
-            icon = { ClipboardGlyph(selected = false) },
+            icon = {
+                ClipboardGlyph(selected = false)
+            },
             onClick = onOpenAssignments
         )
     }
@@ -428,12 +445,18 @@ private fun BottomItem(
     icon: @Composable () -> Unit,
     onClick: () -> Unit
 ) {
-    val textColor = if (selected) PrimaryBlue else SecondaryText
+    val textColor = if (selected) {
+        PrimaryBlue
+    } else {
+        SecondaryText
+    }
 
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable {
+                onClick()
+            }
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -451,10 +474,18 @@ private fun BottomItem(
 }
 
 @Composable
-private fun HomeGlyph(selected: Boolean) {
-    val color = if (selected) PrimaryBlue else SecondaryText
+private fun HomeGlyph(
+    selected: Boolean
+) {
+    val color = if (selected) {
+        PrimaryBlue
+    } else {
+        SecondaryText
+    }
 
-    Box(modifier = Modifier.size(18.dp)) {
+    Box(
+        modifier = Modifier.size(18.dp)
+    ) {
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -476,8 +507,14 @@ private fun HomeGlyph(selected: Boolean) {
 }
 
 @Composable
-private fun BookGlyph(selected: Boolean) {
-    val color = if (selected) PrimaryBlue else SecondaryText
+private fun BookGlyph(
+    selected: Boolean
+) {
+    val color = if (selected) {
+        PrimaryBlue
+    } else {
+        SecondaryText
+    }
 
     Box(
         modifier = Modifier
@@ -497,8 +534,14 @@ private fun BookGlyph(selected: Boolean) {
 }
 
 @Composable
-private fun QuizGlyph(selected: Boolean) {
-    val color = if (selected) PrimaryBlue else SecondaryText
+private fun QuizGlyph(
+    selected: Boolean
+) {
+    val color = if (selected) {
+        PrimaryBlue
+    } else {
+        SecondaryText
+    }
 
     Box(
         modifier = Modifier
@@ -517,8 +560,14 @@ private fun QuizGlyph(selected: Boolean) {
 }
 
 @Composable
-private fun ClipboardGlyph(selected: Boolean) {
-    val color = if (selected) PrimaryBlue else SecondaryText
+private fun ClipboardGlyph(
+    selected: Boolean
+) {
+    val color = if (selected) {
+        PrimaryBlue
+    } else {
+        SecondaryText
+    }
 
     Box(
         modifier = Modifier
