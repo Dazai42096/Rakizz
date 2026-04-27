@@ -5,11 +5,18 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LoginRequestDto(
     val email: String,
-    val password: String // Normally password shouldn't be here in plain text over DTO unless via HTTPS, but based on typical REST flows.
+    val password: String
 )
 
 @Serializable
 data class AuthResponseDto(
     val access_token: String,
     val token_type: String
+)
+
+@Serializable
+data class RegisterRequestDto(
+    val email: String,
+    val password: String,
+    val role: String
 )

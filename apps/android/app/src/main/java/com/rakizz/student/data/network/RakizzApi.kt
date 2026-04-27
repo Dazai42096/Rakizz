@@ -1,16 +1,27 @@
 package com.rakizz.student.data.network
 
+import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
 import com.rakizz.student.data.remote.dto.AuthResponseDto
 import com.rakizz.student.data.remote.dto.MaterialDto
+import com.rakizz.student.data.remote.dto.QuizAttemptRequestDto
+import com.rakizz.student.data.remote.dto.QuizAttemptResultDto
 import com.rakizz.student.data.remote.dto.QuizDto
 import com.rakizz.student.data.remote.dto.QuizGenerateRequestDto
+import com.rakizz.student.data.remote.dto.RegisterRequestDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 interface RakizzApi {
 
@@ -21,6 +32,11 @@ interface RakizzApi {
         @Field("password") password: String
     ): AuthResponseDto
 
+    @POST("api/v1/auth/register")
+    suspend fun register(
+        @Body request: RegisterRequestDto
+    ): AuthResponseDto
+
     @GET("api/v1/materials")
     suspend fun getMaterials(): List<MaterialDto>
 
@@ -29,8 +45,33 @@ interface RakizzApi {
         @Path("id") id: String
     ): MaterialDto
 
+    @Multipart
+    @POST("api/v1/materials")
+    suspend fun uploadMaterial(
+        @Part("title") title: RequestBody?,
+        @Part file: MultipartBody.Part
+    ): MaterialDto
+
+    @Multipart
+    @POST("api/v1/materials")
+    suspend fun createMaterialFromUrl(
+        @Part("title") title: RequestBody,
+        @Part("source_url") sourceUrl: RequestBody
+    ): MaterialDto
+
+    @Streaming
+    @GET("api/v1/materials/{id}/download")
+    suspend fun downloadMaterial(
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
     @GET("api/v1/assignments")
     suspend fun getAssignments(): List<AssignmentDto>
+
+    @POST("api/v1/assignments")
+    suspend fun createAssignment(
+        @Body request: AssignmentCreateRequestDto
+    ): AssignmentDto
 
     @GET("api/v1/quizzes")
     suspend fun getQuizzes(): List<QuizDto>
@@ -44,4 +85,10 @@ interface RakizzApi {
     suspend fun generateQuiz(
         @Body request: QuizGenerateRequestDto
     ): QuizDto
+
+    @POST("api/v1/quizzes/{id}/attempts")
+    suspend fun submitQuizAttempt(
+        @Path("id") id: String,
+        @Body request: QuizAttemptRequestDto
+    ): QuizAttemptResultDto
 }

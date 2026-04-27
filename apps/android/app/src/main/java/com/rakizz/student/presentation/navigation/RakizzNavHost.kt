@@ -1,26 +1,24 @@
 package com.rakizz.student.presentation.navigation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.rakizz.student.presentation.assignments.add.AddAssignmentScreen
+import com.rakizz.student.presentation.assignments.list.AssignmentsScreen
 import com.rakizz.student.presentation.auth.LoginScreen
+import com.rakizz.student.presentation.auth.role.ChooseRoleScreen
+import com.rakizz.student.presentation.auth.signup.StudentSignUpScreen
+import com.rakizz.student.presentation.focus.FocusScreen
 import com.rakizz.student.presentation.home.HomeScreen
+import com.rakizz.student.presentation.materials.detail.MaterialDetailScreen
+import com.rakizz.student.presentation.materials.list.MaterialsScreen
+import com.rakizz.student.presentation.paircode.PairCodeScreen
+import com.rakizz.student.presentation.profile.ProfileScreen
+import com.rakizz.student.presentation.progress.StudentProgressScreen
 import com.rakizz.student.presentation.quizzes.detail.QuizDetailScreen
 import com.rakizz.student.presentation.quizzes.list.QuizzesScreen
+import com.rakizz.student.presentation.quizzes.setup.QuizSetupScreen
 
 @Composable
 fun RakizzNavHost() {
@@ -35,6 +33,48 @@ fun RakizzNavHost() {
                 onLoginSuccess = {
                     navController.navigate(NavRoutes.Home.route) {
                         popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onCreateAccountClick = {
+                    navController.navigate(NavRoutes.ChooseRole.route) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.ChooseRole.route) {
+            ChooseRoleScreen(
+                onContinueAsStudent = {
+                    navController.navigate(NavRoutes.StudentSignUp.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onContinueAsParent = {
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(NavRoutes.ChooseRole.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.StudentSignUp.route) {
+            StudentSignUpScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onCreateAccountClick = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onAlreadyHaveAccountClick = {
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(NavRoutes.Auth.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -42,24 +82,96 @@ fun RakizzNavHost() {
 
         composable(NavRoutes.Home.route) {
             HomeScreen(
-                onOpenMaterials = { navController.navigate(NavRoutes.MaterialsList.route) },
-                onOpenAssignments = { navController.navigate(NavRoutes.AssignmentsList.route) },
-                onOpenQuizzes = { navController.navigate(NavRoutes.QuizzesList.route) }
+                onOpenMaterials = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenAssignments = {
+                    navController.navigate(NavRoutes.AssignmentsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenQuizzes = {
+                    navController.navigate(NavRoutes.QuizzesList.route) {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
         composable(NavRoutes.MaterialsList.route) {
-            SimpleSectionScreen(
-                title = "Materials Screen",
-                onBack = { navController.navigateUp() }
+            MaterialsScreen(
+                onNavigateToDetail = { materialId ->
+                    navController.navigate(NavRoutes.MaterialDetail.createRoute(materialId))
+                },
+                onOpenHome = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        popUpTo(NavRoutes.Home.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onOpenFocus = {
+                    navController.navigate(NavRoutes.Focus.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenProfile = {
+                    navController.navigate(NavRoutes.Profile.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onAddMaterial = {
+                    // TODO: wire upload flow later
+                },
+                onTakePhoto = {
+                    // TODO: wire take photo flow later
+                },
+                onWriteTextNotes = {
+                    // TODO: wire text notes flow later
+                },
+                onAddLink = {
+                    // TODO: wire add link flow later
+                }
+            )
+        }
+
+        composable(NavRoutes.MaterialDetail.route) { backStackEntry ->
+            val materialId = backStackEntry.arguments?.getString("id").orEmpty()
+
+            MaterialDetailScreen(
+                materialId = materialId,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onGenerateQuizClick = { selectedMaterialId ->
+                    navController.navigate(
+                        NavRoutes.QuizSetup.createRoute(selectedMaterialId)
+                    )
+                }
+            )
+        }
+
+        composable(NavRoutes.QuizSetup.route) { backStackEntry ->
+            val materialId = backStackEntry.arguments?.getString("materialId").orEmpty()
+
+            QuizSetupScreen(
+                materialId = materialId,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onQuizGenerated = { quizId ->
+                    navController.navigate(NavRoutes.QuizDetail.createRoute(quizId))
+                }
             )
         }
 
         composable(NavRoutes.AssignmentsList.route) {
-            SimpleSectionScreen(
-                title = "Assignments Screen",
-                onBack = { navController.navigateUp() }
-            )
+            AssignmentsScreen(navController = navController)
+        }
+
+        composable(NavRoutes.AddAssignment.route) {
+            AddAssignmentScreen(navController = navController)
         }
 
         composable(NavRoutes.QuizzesList.route) {
@@ -72,35 +184,104 @@ fun RakizzNavHost() {
 
         composable(NavRoutes.QuizDetail.route) { backStackEntry ->
             val quizId = backStackEntry.arguments?.getString("id").orEmpty()
-            QuizDetailScreen(quizId = quizId)
+
+            QuizDetailScreen(
+                quizId = quizId,
+                onStartQuiz = {
+                    navController.popBackStack()
+                },
+                onGoHome = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        popUpTo(NavRoutes.Home.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onTryAnotherQuiz = {
+                    navController.popBackStack()
+                },
+                onBackToMaterials = {
+                    navController.popBackStack(NavRoutes.MaterialsList.route, false)
+                }
+            )
         }
-    }
-}
 
-@Composable
-private fun SimpleSectionScreen(
-    title: String,
-    onBack: () -> Unit
-) {
-    Scaffold { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = title)
+        composable(NavRoutes.Profile.route) {
+            ProfileScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onSettingsClick = {
+                    // TODO: wire settings later
+                },
+                onGeneratePairCodeClick = {
+                    navController.navigate(NavRoutes.PairCode.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onNotificationsClick = {
+                    // TODO: wire notifications later
+                },
+                onPrivacyClick = {
+                    // TODO: wire privacy later
+                },
+                onLogoutClick = {
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        composable(NavRoutes.Focus.route) {
+            FocusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onTakeUnlockQuizClick = {
+                    navController.navigate(NavRoutes.QuizzesList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onViewProgressClick = {
+                    navController.navigate(NavRoutes.Progress.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onGoToMaterialsClick = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
-            Button(
-                onClick = onBack,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Back")
-            }
+        composable(NavRoutes.Progress.route) {
+            StudentProgressScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onDownloadClick = {
+                    // TODO: wire export later
+                }
+            )
+        }
+
+        composable(NavRoutes.PairCode.route) {
+            PairCodeScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onCopyClick = {
+                    // TODO: wire copy later
+                },
+                onShareClick = {
+                    // TODO: wire share later
+                },
+                onRegenerateClick = {
+                    // TODO: wire regenerate later
+                }
+            )
         }
     }
 }

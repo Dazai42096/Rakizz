@@ -6,4 +6,8 @@ interface QuizRepository {
     suspend fun getQuizzes(): Result<List<Quiz>>
     suspend fun getQuiz(id: String): Result<Quiz>
     suspend fun generateQuiz(materialId: String): Result<Quiz>
+    suspend fun submitQuizAttempt(
+        quizId: String,
+        answers: Map<String, String>
+    ): Result<Quiz>
 }

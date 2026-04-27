@@ -4,35 +4,56 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rakizz.student.domain.model.Assignment
 import com.rakizz.student.domain.repository.AssignmentRepository
-import com.rakizz.student.presentation.common.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+
+data class AssignmentsUiState(
+    val isLoading: Boolean = false,
+    val assignments: List<Assignment> = emptyList(),
+    val errorMessage: String? = null
+)
 
 @HiltViewModel
 class AssignmentsViewModel @Inject constructor(
-    private val assignmentRepository: AssignmentRepository
+    private val repository: AssignmentRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow<UiState<List<Assignment>>>(UiState.Loading)
-    val uiState: StateFlow<UiState<List<Assignment>>> = _uiState.asStateFlow()
+
+    private val _uiState = MutableStateFlow(AssignmentsUiState(isLoading = true))
+    val uiState: StateFlow<AssignmentsUiState> = _uiState.asStateFlow()
 
     init {
         loadAssignments()
     }
 
-    private fun loadAssignments() {
+    fun loadAssignments(showBlockingLoader: Boolean = true) {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
-            val result = assignmentRepository.getAssignments()
-            result.onSuccess {
-                if (it.isEmpty()) _uiState.value = UiState.Empty
-                else _uiState.value = UiState.Success(it)
-            }.onFailure {
-                _uiState.value = UiState.Error(it.message ?: "Failed to load assignments")
+            _uiState.value = _uiState.value.copy(
+                isLoading = showBlockingLoader,
+                errorMessage = null
+            )
+
+            try {
+                val assignments = repository.getAssignments()
+                _uiState.value = AssignmentsUiState(
+                    isLoading = false,
+                    assignments = assignments,
+                    errorMessage = null
+                )
+            } catch (t: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = t.userMessage("Failed to load assignments.")
+                )
             }
         }
     }
+}
+
+private fun Throwable.userMessage(defaultMessage: String): String {
+    val message = this.message?.trim().orEmpty()
+    return if (message.isBlank()) defaultMessage else message
 }

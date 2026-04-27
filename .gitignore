@@ -1,10 +1,44 @@
-.env
-.idea/
-.vscode/
-node_modules/
+# Python
+.venv/
+venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Android / Gradle
 .gradle/
 build/
+*/build/
+local.properties
+*.apk
+*.aab
 
-services/api/.venv/
+# IDE
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Uploaded runtime files
+services/api/uploads/
+uploads/
