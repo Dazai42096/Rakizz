@@ -49,7 +49,6 @@ private val CardBg = Color(0xFF121317)
 private val CardBorder = Color(0xFF242832)
 private val WarningSurface = Color(0xFF13213E)
 private val WarningBorder = Color(0xFF264A8A)
-private val DarkSurface = Color(0xFF0E1016)
 
 @Composable
 fun HomeScreen(
@@ -67,6 +66,8 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
+
+        // main home page scroll
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -92,6 +93,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // opens the real materials screen
             FeatureCard(
                 title = "Study Materials",
                 description = "Open your library, preview stored files, download them again, and generate quizzes from selected materials.",
@@ -102,6 +104,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // opens assignments screen
             FeatureCard(
                 title = "Assignments",
                 description = "View stored assignments and add real deadlines that stay available later in the app.",
@@ -112,6 +115,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // opens quizzes screen
             FeatureCard(
                 title = "Quizzes",
                 description = "Review the stored quizzes already generated from your materials and reopen them later.",
@@ -237,7 +241,7 @@ private fun HomeSummaryCard() {
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "This home screen now acts as an honest portal to the student features that are already implemented in the current build.",
+                text = "This home screen is the main place for the student features that are working in the current build.",
                 color = SecondaryText,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -281,9 +285,9 @@ private fun FeatureCard(
                     .clip(RoundedCornerShape(14.dp))
                     .background(accentColor.copy(alpha = 0.18f))
                     .border(
-                        1.dp,
-                        accentColor.copy(alpha = 0.28f),
-                        RoundedCornerShape(14.dp)
+                        width = 1.dp,
+                        color = accentColor.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(14.dp)
                     )
             )
 
@@ -350,7 +354,7 @@ private fun FocusModuleStatusCard() {
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Focus mode is not live yet",
+                text = "Focus mode foundation is connected",
                 color = WhiteText,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -358,8 +362,11 @@ private fun FocusModuleStatusCard() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // this is honest for the checkpoint
+            // focus rules and usage reports work now
+            // full blocking will be the next part
             Text(
-                text = "The current build does not have real blocking schedules, usage-limit APIs, or unlock-by-quiz enforcement connected yet. Until that backend slice exists, this dashboard will not claim Focus is active.",
+                text = "The app now reads parent focus rules from the backend and sends usage records for reports. Full app blocking will be added in the next step.",
                 color = Color(0xFFD3DDF6),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium

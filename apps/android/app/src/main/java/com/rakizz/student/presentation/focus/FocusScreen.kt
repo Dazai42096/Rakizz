@@ -1,5 +1,7 @@
 package com.rakizz.student.presentation.focus
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,25 +28,39 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LockClock
 import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ShowChart
+import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.rakizz.student.domain.model.FocusPolicy
+import com.rakizz.student.domain.model.UsagePackageSummary
 
 private val ScreenTop = Color(0xFF03112A)
 private val ScreenBottom = Color(0xFF000000)
@@ -53,16 +70,26 @@ private val PrimaryBlue = Color(0xFF2457D6)
 private val CardSurface = Color(0xFF171717)
 private val CardBorder = Color(0xFF2A2F3A)
 private val WarningSurface = Color(0xFF13213E)
-private val WarningBorder = Color(0xFF264A8A)
 private val GreenAccent = Color(0xFF30D158)
+private val OrangeAccent = Color(0xFFFF9F0A)
 
 @Composable
 fun FocusScreen(
     onBackClick: () -> Unit,
     onTakeUnlockQuizClick: () -> Unit = {},
     onViewProgressClick: () -> Unit = {},
-    onGoToMaterialsClick: () -> Unit = {}
+    onGoToMaterialsClick: () -> Unit = {},
+    viewModel: FocusViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.refreshPermissionState()
+        }
+    }
+
     Scaffold(
         containerColor = Color.Black
     ) { innerPadding ->
@@ -70,7 +97,7 @@ fun FocusScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.verticalGradient(
+                    Brush.verticalGradient(
                         colors = listOf(ScreenTop, ScreenBottom)
                     )
                 )
@@ -87,60 +114,154 @@ fun FocusScreen(
         ) {
             item {
                 FocusTopBar(
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    onRefreshClick = {
+                        viewModel.loadFocusData()
+                    }
                 )
             }
 
             item {
-                FocusStatusCard()
+                FocusStatusCard(uiState = uiState)
             }
 
             item {
-                InfoBannerCard()
+                PermissionCard(
+                    usageAccessGranted = uiState.usageAccessGranted,
+                    onOpenSettingsClick = {
+                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                    },
+                    onRefreshClick = {
+                        viewModel.refreshPermissionState()
+                    }
+                )
+            }
+
+            uiState.actionMessage?.let { message ->
+                item {
+                    MessageCard(
+                        icon = Icons.Rounded.Info,
+                        iconTint = GreenAccent,
+                        title = "Done",
+                        message = message,
+                        onClick = { viewModel.clearMessage() }
+                    )
+                }
+            }
+
+            uiState.errorMessage?.let { message ->
+                item {
+                    MessageCard(
+                        icon = Icons.Rounded.Warning,
+                        iconTint = OrangeAccent,
+                        title = "Something went wrong",
+                        message = message,
+                        onClick = { viewModel.clearMessage() }
+                    )
+                }
             }
 
             item {
-                SectionLabel("PLANNED FOCUS FEATURES")
+                SectionLabel("PARENT FOCUS RULES")
+            }
+
+            if (uiState.policies.isEmpty()) {
+                item {
+                    EmptyCard(
+                        title = "No rules yet",
+                        message = "When a parent creates a focus rule, it will appear here."
+                    )
+                }
+            } else {
+                items(uiState.policies) { policy ->
+                    PolicyCard(policy = policy)
+                }
             }
 
             item {
-                PlannedFeaturesCard()
+                SectionLabel("USAGE SUMMARY")
             }
 
             item {
-                SectionLabel("AVAILABLE NOW")
+                UsageTotalCard(uiState = uiState)
+            }
+
+            val packages = uiState.usageSummary?.packages.orEmpty()
+            if (packages.isEmpty()) {
+                item {
+                    EmptyCard(
+                        title = "No usage data yet",
+                        message = "Press sync test usage to send sample usage data to the backend."
+                    )
+                }
+            } else {
+                items(packages) { packageSummary ->
+                    UsagePackageCard(packageSummary = packageSummary)
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.syncDemoUsage() },
+                        enabled = !uiState.isLoading,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(58.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryBlue,
+                            contentColor = WhiteText
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Upload,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "Sync Test Usage",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onTakeUnlockQuizClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(58.dp),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Quiz,
+                            contentDescription = null,
+                            tint = WhiteText,
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "Open Quizzes",
+                            color = WhiteText,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            item {
+                SectionLabel("AVAILABLE STUDY TOOLS")
             }
 
             item {
                 AvailableNowCard()
-            }
-
-            item {
-                Button(
-                    onClick = onTakeUnlockQuizClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(68.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WhiteText
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Quiz,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = "Open Quizzes",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
             }
 
             item {
@@ -155,7 +276,8 @@ fun FocusScreen(
 
 @Composable
 private fun FocusTopBar(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onRefreshClick: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxWidth()
@@ -179,11 +301,25 @@ private fun FocusTopBar(
             fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.align(Alignment.Center)
         )
+
+        IconButton(
+            onClick = onRefreshClick,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = "Refresh",
+                tint = WhiteText,
+                modifier = Modifier.size(25.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun FocusStatusCard() {
+private fun FocusStatusCard(
+    uiState: FocusUiState
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -196,12 +332,12 @@ private fun FocusStatusCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                modifier = Modifier.size(120.dp),
+                modifier = Modifier.size(116.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(116.dp)
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
@@ -215,36 +351,44 @@ private fun FocusStatusCard() {
 
                 Box(
                     modifier = Modifier
-                        .size(84.dp)
+                        .size(82.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF161616))
                         .border(1.dp, CardBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.LockClock,
-                        contentDescription = null,
-                        tint = PrimaryBlue,
-                        modifier = Modifier.size(34.dp)
-                    )
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = PrimaryBlue,
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.LockClock,
+                            contentDescription = null,
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Focus controls are not live yet",
+                text = "Focus backend is connected",
                 color = WhiteText,
-                fontSize = 26.sp,
+                fontSize = 25.sp,
                 fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "This screen is reserved for the real blocking and usage-limit module. The current build does not have live focus policy data yet.",
+                text = "This screen now reads parent rules and usage reports from the backend.",
                 color = SecondaryText,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -252,29 +396,203 @@ private fun FocusStatusCard() {
 }
 
 @Composable
-private fun InfoBannerCard() {
+private fun PermissionCard(
+    usageAccessGranted: Boolean,
+    onOpenSettingsClick: () -> Unit,
+    onRefreshClick: () -> Unit
+) {
+    val title = if (usageAccessGranted) {
+        "Usage access is enabled"
+    } else {
+        "Usage access is not enabled"
+    }
+
+    val message = if (usageAccessGranted) {
+        "Rakizz can check app usage on this device."
+    } else {
+        "Enable usage access so Rakizz can read app usage later."
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = WarningSurface
     ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (usageAccessGranted) Icons.Rounded.Info else Icons.Rounded.Settings,
+                        contentDescription = null,
+                        tint = if (usageAccessGranted) GreenAccent else OrangeAccent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = title,
+                        color = WhiteText,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = message,
+                        color = Color(0xFFD3DDF6),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onOpenSettingsClick,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        contentColor = WhiteText
+                    )
+                ) {
+                    Text("Open Settings")
+                }
+
+                OutlinedButton(
+                    onClick = onRefreshClick,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = "Refresh",
+                        color = WhiteText
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PolicyCard(
+    policy: FocusPolicy
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = CardSurface
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            FeatureHeader(
+                icon = Icons.Rounded.Schedule,
+                iconTint = PrimaryBlue,
+                title = policy.title,
+                subtitle = policy.packageName
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Limit: ${policy.limitText}",
+                color = WhiteText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            policy.note?.takeIf { it.isNotBlank() }?.let { note ->
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = note,
+                    color = SecondaryText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsageTotalCard(
+    uiState: FocusUiState
+) {
+    val summary = uiState.usageSummary
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = CardSurface
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            FeatureHeader(
+                icon = Icons.Rounded.ShowChart,
+                iconTint = GreenAccent,
+                title = "Last ${summary?.days ?: 7} days",
+                subtitle = "Total tracked app usage"
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = summary?.totalText ?: "0s",
+                color = WhiteText,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun UsagePackageCard(
+    packageSummary: UsagePackageSummary
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFF202020)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.Top
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f)),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF132C63)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Info,
+                    imageVector = Icons.Rounded.LockClock,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = PrimaryBlue,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -285,17 +603,17 @@ private fun InfoBannerCard() {
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "Current build status",
+                    text = packageSummary.packageName,
                     color = WhiteText,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Materials, quizzes, and assignments are real. Blocking schedules, usage limits, and unlock-by-quiz enforcement still need backend and device-policy implementation.",
-                    color = Color(0xFFD3DDF6),
+                    text = "Used for ${packageSummary.durationText}",
+                    color = SecondaryText,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -305,43 +623,47 @@ private fun InfoBannerCard() {
 }
 
 @Composable
-private fun PlannedFeaturesCard() {
+private fun MessageCard(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    message: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF202020)
+    ) {
+        FeatureHeader(
+            modifier = Modifier.padding(16.dp),
+            icon = icon,
+            iconTint = iconTint,
+            title = title,
+            subtitle = message
+        )
+    }
+}
+
+@Composable
+private fun EmptyCard(
+    title: String,
+    message: String
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFF202020)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            FeatureRow(
-                icon = Icons.Rounded.Schedule,
-                iconTint = PrimaryBlue,
-                title = "Blocking schedules",
-                subtitle = "Automatic restriction during study periods and class hours."
-            )
-
-            DividerLine()
-
-            FeatureRow(
-                icon = Icons.Rounded.LockClock,
-                iconTint = PrimaryBlue,
-                title = "Daily usage limits",
-                subtitle = "Track remaining allowed time and apply restrictions when limits are exceeded."
-            )
-
-            DividerLine()
-
-            FeatureRow(
-                icon = Icons.Rounded.Quiz,
-                iconTint = PrimaryBlue,
-                title = "Unlock by quiz",
-                subtitle = "Show a short quiz when a restriction is active, then unlock only after a successful result."
-            )
-        }
+        FeatureHeader(
+            modifier = Modifier.padding(16.dp),
+            icon = Icons.Rounded.Info,
+            iconTint = SecondaryText,
+            title = title,
+            subtitle = message
+        )
     }
 }
 
@@ -353,9 +675,7 @@ private fun AvailableNowCard() {
         color = CardSurface
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
+            modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             LiveFeatureRow(
@@ -369,7 +689,7 @@ private fun AvailableNowCard() {
             LiveFeatureRow(
                 icon = Icons.Rounded.Quiz,
                 title = "AI quizzes",
-                subtitle = "Generate and reopen stored quizzes from selected materials."
+                subtitle = "Generate quizzes from selected materials."
             )
 
             DividerLine()
@@ -377,7 +697,7 @@ private fun AvailableNowCard() {
             LiveFeatureRow(
                 icon = Icons.Rounded.ShowChart,
                 title = "Assignments",
-                subtitle = "Store assignments and view reminder warnings returned by the backend."
+                subtitle = "Create assignments and schedule local reminders."
             )
         }
     }
@@ -385,11 +705,11 @@ private fun AvailableNowCard() {
 
 @Composable
 private fun LiveFeatureRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String
 ) {
-    FeatureRow(
+    FeatureHeader(
         icon = icon,
         iconTint = GreenAccent,
         title = title,
@@ -398,19 +718,15 @@ private fun LiveFeatureRow(
 }
 
 @Composable
-private fun FeatureRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun FeatureHeader(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
     iconTint: Color,
     title: String,
     subtitle: String
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF202020))
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -418,7 +734,7 @@ private fun FeatureRow(
                 .size(50.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF132C63))
-                .border(1.dp, iconTint.copy(alpha = 0.18f), RoundedCornerShape(16.dp)),
+                .border(1.dp, iconTint.copy(alpha = 0.20f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -437,7 +753,7 @@ private fun FeatureRow(
             Text(
                 text = title,
                 color = WhiteText,
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
 

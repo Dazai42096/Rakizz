@@ -7,10 +7,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.rakizz.student.data.local.TokenManager
 import com.rakizz.student.data.repository.AssignmentRepositoryImpl
 import com.rakizz.student.data.repository.AuthRepositoryImpl
+import com.rakizz.student.data.repository.FocusRepositoryImpl
 import com.rakizz.student.data.repository.MaterialRepositoryImpl
 import com.rakizz.student.data.repository.QuizRepositoryImpl
 import com.rakizz.student.domain.repository.AssignmentRepository
 import com.rakizz.student.domain.repository.AuthRepository
+import com.rakizz.student.domain.repository.FocusRepository
 import com.rakizz.student.domain.repository.MaterialRepository
 import com.rakizz.student.domain.repository.QuizRepository
 import dagger.Binds
@@ -67,4 +69,10 @@ abstract class RepositoryModule {
     abstract fun bindQuizRepository(
         quizRepositoryImpl: QuizRepositoryImpl
     ): QuizRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFocusRepository(
+        focusRepositoryImpl: FocusRepositoryImpl
+    ): FocusRepository
 }

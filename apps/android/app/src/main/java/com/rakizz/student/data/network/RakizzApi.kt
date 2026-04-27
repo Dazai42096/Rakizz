@@ -4,11 +4,15 @@ import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
 import com.rakizz.student.data.remote.dto.AuthResponseDto
 import com.rakizz.student.data.remote.dto.MaterialDto
+import com.rakizz.student.data.remote.dto.PolicyDto
 import com.rakizz.student.data.remote.dto.QuizAttemptRequestDto
 import com.rakizz.student.data.remote.dto.QuizAttemptResultDto
 import com.rakizz.student.data.remote.dto.QuizDto
 import com.rakizz.student.data.remote.dto.QuizGenerateRequestDto
 import com.rakizz.student.data.remote.dto.RegisterRequestDto
+import com.rakizz.student.data.remote.dto.UsageSummaryDto
+import com.rakizz.student.data.remote.dto.UsageSyncRequestDto
+import com.rakizz.student.data.remote.dto.UsageSyncResponseDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -21,6 +25,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 interface RakizzApi {
@@ -91,4 +96,17 @@ interface RakizzApi {
         @Path("id") id: String,
         @Body request: QuizAttemptRequestDto
     ): QuizAttemptResultDto
+
+    @GET("api/v1/policies/")
+    suspend fun getPolicies(): List<PolicyDto>
+
+    @POST("api/v1/usage/sync")
+    suspend fun syncUsage(
+        @Body request: UsageSyncRequestDto
+    ): UsageSyncResponseDto
+
+    @GET("api/v1/usage/summary")
+    suspend fun getUsageSummary(
+        @Query("days") days: Int = 7
+    ): UsageSummaryDto
 }
