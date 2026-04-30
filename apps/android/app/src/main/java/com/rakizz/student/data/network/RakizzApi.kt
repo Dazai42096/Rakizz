@@ -3,14 +3,19 @@ package com.rakizz.student.data.network
 import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
 import com.rakizz.student.data.remote.dto.AuthResponseDto
+import com.rakizz.student.data.remote.dto.CurrentUserDto
+import com.rakizz.student.data.remote.dto.InstalledAppsSyncRequestDto
+import com.rakizz.student.data.remote.dto.InstalledAppsSyncResponseDto
 import com.rakizz.student.data.remote.dto.MaterialDto
 import com.rakizz.student.data.remote.dto.PolicyCreateRequestDto
 import com.rakizz.student.data.remote.dto.PolicyDto
+import com.rakizz.student.data.remote.dto.ProfileUpdateRequestDto
 import com.rakizz.student.data.remote.dto.QuizAttemptRequestDto
 import com.rakizz.student.data.remote.dto.QuizAttemptResultDto
 import com.rakizz.student.data.remote.dto.QuizDto
 import com.rakizz.student.data.remote.dto.QuizGenerateRequestDto
 import com.rakizz.student.data.remote.dto.RegisterRequestDto
+import com.rakizz.student.data.remote.dto.StudentAppCatalogResponseDto
 import com.rakizz.student.data.remote.dto.UsageSummaryDto
 import com.rakizz.student.data.remote.dto.UsageSyncRequestDto
 import com.rakizz.student.data.remote.dto.UsageSyncResponseDto
@@ -24,6 +29,7 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -42,6 +48,14 @@ interface RakizzApi {
     suspend fun register(
         @Body request: RegisterRequestDto
     ): AuthResponseDto
+
+    @GET("api/v1/users/me")
+    suspend fun getMe(): CurrentUserDto
+
+    @PUT("api/v1/users/me")
+    suspend fun updateMe(
+        @Body request: ProfileUpdateRequestDto
+    ): CurrentUserDto
 
     @GET("api/v1/materials")
     suspend fun getMaterials(): List<MaterialDto>
@@ -115,4 +129,14 @@ interface RakizzApi {
     suspend fun getUsageSummary(
         @Query("days") days: Int = 7
     ): UsageSummaryDto
+
+    @POST("api/v1/app-catalog/sync")
+    suspend fun syncInstalledApps(
+        @Body request: InstalledAppsSyncRequestDto
+    ): InstalledAppsSyncResponseDto
+
+    @GET("api/v1/app-catalog/student/{studentId}")
+    suspend fun getStudentInstalledApps(
+        @Path("studentId") studentId: String
+    ): StudentAppCatalogResponseDto
 }

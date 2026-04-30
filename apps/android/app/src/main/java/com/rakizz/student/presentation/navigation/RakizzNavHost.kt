@@ -56,7 +56,6 @@ fun RakizzNavHost() {
                     }
                 },
                 onContinueAsParent = {
-                    // parent should open parent signup page
                     navController.navigate(NavRoutes.ParentSignUp.route) {
                         launchSingleTop = true
                     }
@@ -94,7 +93,6 @@ fun RakizzNavHost() {
                     navController.popBackStack()
                 },
                 onCreateAccountDone = {
-                    // after parent signup go to home
                     navController.navigate(NavRoutes.Home.route) {
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
@@ -130,9 +128,26 @@ fun RakizzNavHost() {
                         launchSingleTop = true
                     }
                 },
+                onOpenFocus = {
+                    navController.navigate(NavRoutes.Focus.route) {
+                        launchSingleTop = true
+                    }
+                },
                 onOpenParentFocus = {
-                    // this opens the parent rules screen
                     navController.navigate(NavRoutes.ParentFocus.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenProfile = {
+                    navController.navigate(NavRoutes.Profile.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onLogout = {
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(0) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 }
@@ -252,6 +267,22 @@ fun RakizzNavHost() {
             )
         }
 
+        composable(NavRoutes.Focus.route) {
+            FocusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(NavRoutes.ParentFocus.route) {
+            ParentFocusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable(NavRoutes.Profile.route) {
             ProfileScreen(
                 onBackClick = {
@@ -278,37 +309,6 @@ fun RakizzNavHost() {
                         }
                         launchSingleTop = true
                     }
-                }
-            )
-        }
-
-        composable(NavRoutes.Focus.route) {
-            FocusScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onTakeUnlockQuizClick = {
-                    navController.navigate(NavRoutes.QuizzesList.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onViewProgressClick = {
-                    navController.navigate(NavRoutes.Progress.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onGoToMaterialsClick = {
-                    navController.navigate(NavRoutes.MaterialsList.route) {
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-
-        composable(NavRoutes.ParentFocus.route) {
-            ParentFocusScreen(
-                onBackClick = {
-                    navController.popBackStack()
                 }
             )
         }

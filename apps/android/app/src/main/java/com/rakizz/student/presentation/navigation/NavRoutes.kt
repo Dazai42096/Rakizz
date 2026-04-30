@@ -24,9 +24,9 @@ sealed class NavRoutes(val route: String) {
         fun createRoute(id: String) = "quiz_detail/$id"
     }
 
-    data object Profile : NavRoutes("profile")
     data object Focus : NavRoutes("focus")
     data object ParentFocus : NavRoutes("parent_focus")
+    data object Profile : NavRoutes("profile")
     data object Progress : NavRoutes("progress")
     data object PairCode : NavRoutes("pair_code")
 }

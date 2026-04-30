@@ -19,14 +19,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,36 +41,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 private val ScreenTop = Color(0xFF020B1F)
 private val ScreenBottom = Color(0xFF000000)
 private val PrimaryBlue = Color(0xFF1F5BDE)
+private val ParentGreen = Color(0xFF10B981)
 private val WhiteText = Color(0xFFF5F7FB)
 private val SecondaryText = Color(0xFF8A92A3)
 private val CardBg = Color(0xFF121317)
 private val CardBorder = Color(0xFF242832)
-private val WarningSurface = Color(0xFF13213E)
-private val WarningBorder = Color(0xFF264A8A)
 
 @Composable
 fun HomeScreen(
     onOpenMaterials: () -> Unit,
     onOpenAssignments: () -> Unit,
     onOpenQuizzes: () -> Unit,
-    onOpenParentFocus: () -> Unit
+    onOpenFocus: () -> Unit,
+    onOpenParentFocus: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onLogout: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            HomeBottomBar(
-                onOpenMaterials = onOpenMaterials,
-                onOpenAssignments = onOpenAssignments,
-                onOpenQuizzes = onOpenQuizzes
-            )
+            if (uiState.role == "student") {
+                HomeBottomBar(
+                    onOpenMaterials = onOpenMaterials,
+                    onOpenAssignments = onOpenAssignments,
+                    onOpenQuizzes = onOpenQuizzes
+                )
+            }
         }
     ) { paddingValues ->
-
-        // main scroll for home page
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,63 +90,42 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            HomeTopBar()
+            HomeTopBar(
+                email = uiState.email,
+                onLogout = onLogout
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            HomeSummaryCard()
+            when {
+                uiState.isLoading -> {
+                    LoadingCard()
+                }
 
-            Spacer(modifier = Modifier.height(28.dp))
+                uiState.error != null -> {
+                    ErrorCard(
+                        message = uiState.error ?: "Something went wrong",
+                        onRetry = viewModel::loadAccount
+                    )
+                }
 
-            SectionHeader(title = "Student Portal")
+                uiState.role == "parent" -> {
+                    ParentHomeContent(
+                        onOpenParentFocus = onOpenParentFocus,
+                        onOpenProfile = onOpenProfile
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            FeatureCard(
-                title = "Study Materials",
-                description = "Open your library, preview stored files, download them again, and generate quizzes from selected materials.",
-                buttonText = "Open Materials",
-                accentColor = PrimaryBlue,
-                onClick = onOpenMaterials
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            FeatureCard(
-                title = "Assignments",
-                description = "View stored assignments and add real deadlines that stay available later in the app.",
-                buttonText = "Open Assignments",
-                accentColor = Color(0xFF3B82F6),
-                onClick = onOpenAssignments
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            FeatureCard(
-                title = "Quizzes",
-                description = "Review the stored quizzes already generated from your materials and reopen them later.",
-                buttonText = "Open Quizzes",
-                accentColor = Color(0xFF8B5CF6),
-                onClick = onOpenQuizzes
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            SectionHeader(title = "Module Status")
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            FocusModuleStatusCard()
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            FeatureCard(
-                title = "Parent Focus Tools",
-                description = "Create a daily app limit rule for a linked student. This shows that the parent controls blocking rules.",
-                buttonText = "Open Parent Tools",
-                accentColor = Color(0xFF10B981),
-                onClick = onOpenParentFocus
-            )
+                else -> {
+                    StudentHomeContent(
+                        onOpenMaterials = onOpenMaterials,
+                        onOpenAssignments = onOpenAssignments,
+                        onOpenQuizzes = onOpenQuizzes,
+                        onOpenFocus = onOpenFocus,
+                        onOpenProfile = onOpenProfile
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -146,7 +133,113 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeTopBar() {
+private fun StudentHomeContent(
+    onOpenMaterials: () -> Unit,
+    onOpenAssignments: () -> Unit,
+    onOpenQuizzes: () -> Unit,
+    onOpenFocus: () -> Unit,
+    onOpenProfile: () -> Unit
+) {
+    HomeSummaryCard(
+        title = "Student Dashboard",
+        text = "Use your materials, quizzes, assignments, focus rules, and account page from one place."
+    )
+
+    Spacer(modifier = Modifier.height(28.dp))
+
+    SectionHeader(title = "Checkpoint Features")
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    FeatureCard(
+        title = "Study Materials",
+        description = "View and manage saved study materials.",
+        buttonText = "Open Materials",
+        accentColor = PrimaryBlue,
+        onClick = onOpenMaterials
+    )
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    FeatureCard(
+        title = "AI Quizzes",
+        description = "Generate and solve quizzes from uploaded materials.",
+        buttonText = "Open Quizzes",
+        accentColor = Color(0xFF8B5CF6),
+        onClick = onOpenQuizzes
+    )
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    FeatureCard(
+        title = "Assignments",
+        description = "Track assignments and reminders.",
+        buttonText = "Open Assignments",
+        accentColor = Color(0xFF3B82F6),
+        onClick = onOpenAssignments
+    )
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    FeatureCard(
+        title = "Focus Mode",
+        description = "Sync phone apps and view focus rules created by the parent.",
+        buttonText = "Open Focus",
+        accentColor = Color(0xFFF59E0B),
+        onClick = onOpenFocus
+    )
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    FeatureCard(
+        title = "Profile",
+        description = "Open the account page for profile and account options.",
+        buttonText = "Open Profile",
+        accentColor = Color(0xFF64748B),
+        onClick = onOpenProfile
+    )
+}
+
+@Composable
+private fun ParentHomeContent(
+    onOpenParentFocus: () -> Unit,
+    onOpenProfile: () -> Unit
+) {
+    HomeSummaryCard(
+        title = "Parent Dashboard",
+        text = "Create focus-time rules and manage the parent account from one place."
+    )
+
+    Spacer(modifier = Modifier.height(28.dp))
+
+    SectionHeader(title = "Parent Tools")
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    FeatureCard(
+        title = "Focus Rules",
+        description = "Load the student's installed apps, choose apps to block, and set focus time.",
+        buttonText = "Open Focus Rules",
+        accentColor = ParentGreen,
+        onClick = onOpenParentFocus
+    )
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    FeatureCard(
+        title = "Profile",
+        description = "Open the account page for profile and account options.",
+        buttonText = "Open Profile",
+        accentColor = Color(0xFF64748B),
+        onClick = onOpenProfile
+    )
+}
+
+@Composable
+private fun HomeTopBar(
+    email: String,
+    onLogout: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -155,7 +248,28 @@ private fun HomeTopBar() {
 
         Spacer(modifier = Modifier.weight(1f))
 
-        ProfileAvatar()
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            if (email.isNotBlank()) {
+                Text(
+                    text = email,
+                    color = SecondaryText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Text(
+                text = "Sign out",
+                color = PrimaryBlue,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable {
+                    onLogout()
+                }
+            )
+        }
     }
 }
 
@@ -191,39 +305,10 @@ private fun RakizzBrand() {
 }
 
 @Composable
-private fun ProfileAvatar() {
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFB77850)),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier.size(18.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF0D3BF))
-                    .align(Alignment.TopCenter)
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(14.dp)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                    .background(Color(0xFFF0D3BF))
-                    .align(Alignment.BottomCenter)
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeSummaryCard() {
+private fun HomeSummaryCard(
+    title: String,
+    text: String
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -242,7 +327,7 @@ private fun HomeSummaryCard() {
     ) {
         Column {
             Text(
-                text = "Student dashboard",
+                text = title,
                 color = WhiteText,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -251,7 +336,7 @@ private fun HomeSummaryCard() {
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "Home screen: main place for the student features.",
+                text = text,
                 color = SecondaryText,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -341,45 +426,50 @@ private fun FeatureCard(
 }
 
 @Composable
-private fun FocusModuleStatusCard() {
-    Row(
+private fun LoadingCard() {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(WarningSurface)
-            .border(1.dp, WarningBorder, RoundedCornerShape(22.dp))
-            .padding(18.dp),
-        verticalAlignment = Alignment.Top
+            .background(CardBg)
+            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+            .padding(22.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
+        CircularProgressIndicator(color = PrimaryBlue)
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(CardBg)
+            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+            .padding(18.dp)
+    ) {
+        Text(
+            text = message,
+            color = Color(0xFFFF9F0A),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Column(
-            modifier = Modifier.weight(1f)
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PrimaryBlue,
+                contentColor = WhiteText
+            )
         ) {
-            Text(
-                text = "Focus mode active",
-                color = WhiteText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // focus rules and usage reports are connected now
-            // full blocking will be added after this
-            Text(
-                text = "Reading parent focus rules.",
-                color = Color(0xFFD3DDF6),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Retry")
         }
     }
 }

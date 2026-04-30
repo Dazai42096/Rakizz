@@ -8,16 +8,15 @@ from ..enums import PolicyRuleType
 
 
 class PolicyBase(BaseModel):
-    # type of rule, like daily limit or time window
+    # type of rule like daily_limit or time_window
     rule_type: PolicyRuleType
 
     # rule details are saved as json
-    # example: {"package_name": "com.instagram.android", "daily_limit_minutes": 30}
     config_json: dict[str, Any]
 
 
 class PolicyCreate(PolicyBase):
-    # the parent creates the rule for this student
+    # parent creates the rule for this student
     student_id: UUID
 
 
@@ -30,13 +29,12 @@ class PolicyResponse(PolicyBase):
 
 
 class UsageEventCreate(BaseModel):
-    # app package name from android
+    # android package name
     package_name: str = Field(..., min_length=1)
 
     # usage time in seconds
     duration_sec: int = Field(..., ge=0)
 
-    # time of the usage record
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -51,7 +49,7 @@ class UsageEventResponse(BaseModel):
 
 
 class UsageSyncRequest(BaseModel):
-    # android sends a list of usage records
+    # android sends more than one usage item
     events: list[UsageEventCreate] = Field(..., min_length=1, max_length=200)
 
 
@@ -69,3 +67,38 @@ class UsageSummaryResponse(BaseModel):
     days: int
     total_duration_sec: int
     packages: list[UsagePackageSummary]
+
+
+class InstalledAppCreate(BaseModel):
+    # app package from student phone
+    package_name: str = Field(..., min_length=1)
+
+    # readable app name
+    app_name: str = Field(..., min_length=1)
+
+    category: str | None = None
+
+
+class InstalledAppsSyncRequest(BaseModel):
+    # student phone sends all installed apps here
+    apps: list[InstalledAppCreate] = Field(..., min_length=1, max_length=500)
+
+
+class InstalledAppResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    student_id: UUID
+    package_name: str
+    app_name: str
+    category: str | None = None
+    updated_at: datetime
+
+
+class InstalledAppsSyncResponse(BaseModel):
+    saved_count: int
+
+
+class StudentAppCatalogResponse(BaseModel):
+    student_id: UUID
+    apps: list[InstalledAppResponse]

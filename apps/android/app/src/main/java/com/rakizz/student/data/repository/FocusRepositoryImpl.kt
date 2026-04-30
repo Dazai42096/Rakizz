@@ -1,26 +1,27 @@
 package com.rakizz.student.data.repository
 
 import com.rakizz.student.data.network.RakizzApi
+import com.rakizz.student.data.remote.dto.InstalledAppDto
+import com.rakizz.student.data.remote.dto.InstalledAppsSyncRequestDto
 import com.rakizz.student.data.remote.dto.PolicyDto
-import com.rakizz.student.data.remote.dto.UsageEventDto
-import com.rakizz.student.data.remote.dto.UsagePackageSummaryDto
-import com.rakizz.student.data.remote.dto.UsageSummaryDto
-import com.rakizz.student.data.remote.dto.UsageSyncRequestDto
 import com.rakizz.student.domain.model.FocusPolicy
-import com.rakizz.student.domain.model.UsagePackageSummary
-import com.rakizz.student.domain.model.UsageSummary
 import com.rakizz.student.domain.repository.FocusRepository
+import com.rakizz.student.usage.InstalledAppsReader
 import javax.inject.Inject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class FocusRepositoryImpl @Inject constructor(
-    private val api: RakizzApi
+    private val api: RakizzApi,
+    private val installedAppsReader: InstalledAppsReader
 ) : FocusRepository {
 
     override suspend fun getPolicies(): Result<List<FocusPolicy>> {
         return try {
+            // get rules that parent made for this student
             val policies = api.getPolicies().map { it.toDomain() }
             Result.success(policies)
         } catch (e: Exception) {
@@ -28,32 +29,22 @@ class FocusRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getUsageSummary(days: Int): Result<UsageSummary> {
+    override suspend fun syncInstalledApps(): Result<Int> {
         return try {
-            val summary = api.getUsageSummary(days = days)
-            Result.success(summary.toDomain())
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+            // student phone sends its apps to backend
+            val phoneApps = installedAppsReader.readInstalledApps()
 
-    override suspend fun syncDemoUsage(): Result<Int> {
-        return try {
-            // simple test data for the checkpoint demo
-            val response = api.syncUsage(
-                UsageSyncRequestDto(
-                    events = listOf(
-                        UsageEventDto(
-                            packageName = "com.instagram.android",
-                            durationSec = 600
-                        ),
-                        UsageEventDto(
-                            packageName = "com.youtube.android",
-                            durationSec = 420
-                        )
+            val request = InstalledAppsSyncRequestDto(
+                apps = phoneApps.map { app ->
+                    InstalledAppDto(
+                        packageName = app.packageName,
+                        appName = app.appName,
+                        category = null
                     )
-                )
+                }
             )
+
+            val response = api.syncInstalledApps(request)
 
             Result.success(response.savedCount)
         } catch (e: Exception) {
@@ -62,30 +53,30 @@ class FocusRepositoryImpl @Inject constructor(
     }
 
     private fun PolicyDto.toDomain(): FocusPolicy {
+        val blockedApps = configJson["blocked_apps"]?.jsonArray?.mapNotNull { item ->
+            try {
+                val obj = item.jsonObject
+
+                obj["app_name"]?.jsonPrimitive?.contentOrNull
+                    ?: obj["package_name"]?.jsonPrimitive?.contentOrNull
+            } catch (_: Exception) {
+                null
+            }
+        }.orEmpty()
+
         return FocusPolicy(
             id = id,
             parentId = parentId,
             studentId = studentId,
             ruleType = ruleType,
-            packageName = configJson.stringValue("package_name") ?: "unknown.app",
+            packageName = configJson.stringValue("package_name")
+                ?: blockedApps.firstOrNull()
+                ?: "focus rule",
             dailyLimitMinutes = configJson.intValue("daily_limit_minutes"),
-            note = configJson.stringValue("note")
-        )
-    }
-
-    private fun UsageSummaryDto.toDomain(): UsageSummary {
-        return UsageSummary(
-            studentId = studentId,
-            days = days,
-            totalDurationSec = totalDurationSec,
-            packages = packages.map { it.toDomain() }
-        )
-    }
-
-    private fun UsagePackageSummaryDto.toDomain(): UsagePackageSummary {
-        return UsagePackageSummary(
-            packageName = packageName,
-            durationSec = durationSec
+            note = configJson.stringValue("note"),
+            startTime = configJson.stringValue("start_time"),
+            endTime = configJson.stringValue("end_time"),
+            blockedApps = blockedApps
         )
     }
 
