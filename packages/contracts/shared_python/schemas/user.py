@@ -19,6 +19,8 @@ class UserResponse(UserBase):
     id: UUID
     created_at: datetime
 
+    pair_code: Optional[str] = None
+
     full_name: Optional[str] = None
     school: Optional[str] = None
     grade_level: Optional[str] = None
@@ -30,12 +32,25 @@ class UserResponse(UserBase):
 
 
 class UserProfileUpdate(BaseModel):
-    # user can edit these from profile page
+    # user can edit these fields
     full_name: Optional[str] = None
     school: Optional[str] = None
     grade_level: Optional[str] = None
     phone_number: Optional[str] = None
     profile_image_url: Optional[str] = None
+
+
+class PairCodeResponse(BaseModel):
+    pair_code: str
+
+
+class PairCodeLinkRequest(BaseModel):
+    pair_code: str
+
+
+class PairCodeLinkResponse(BaseModel):
+    status: str
+    student: UserResponse
 
 
 class ParentStudentLinkBase(BaseModel):

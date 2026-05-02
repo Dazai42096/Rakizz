@@ -42,3 +42,5 @@ Thumbs.db
 # Uploaded runtime files
 services/api/uploads/
 uploads/
+
+.agent/

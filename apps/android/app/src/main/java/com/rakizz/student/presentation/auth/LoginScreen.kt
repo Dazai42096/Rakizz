@@ -9,13 +9,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +30,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,33 +44,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rakizz.student.presentation.common.UiState
-
-private val ScreenTopColor = Color(0xFF020B1F)
-private val ScreenBottomColor = Color(0xFF000000)
-private val PrimaryBlue = Color(0xFF1F5BDE)
-private val WhiteText = Color(0xFFF5F7FB)
-private val SecondaryText = Color(0xFF8C93A3)
-private val FieldContainer = Color(0xFF171717)
-private val FieldBorder = Color(0xFF2B2E35)
-private val ErrorText = Color(0xFFFF6B6B)
+import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun LoginScreen(
@@ -74,8 +67,13 @@ fun LoginScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var password by rememberSaveable {
+        mutableStateOf("")
+    }
 
     val isLoading = state is UiState.Loading
     val errorMessage = (state as? UiState.Error)?.message
@@ -100,6 +98,7 @@ fun LoginScreen(
             viewModel.clearError()
         },
         onLoginClick = {
+            // backend login uses email as username
             viewModel.login(
                 email = email.trim(),
                 pass = password
@@ -124,297 +123,329 @@ private fun LoginScreenContent(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val scrollState = rememberScrollState()
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(ScreenTopColor, ScreenBottomColor)
+                Brush.verticalGradient(
+                    listOf(
+                        RakizzColors.Background,
+                        RakizzColors.BackgroundSoft
+                    )
                 )
             )
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .imePadding()
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        BrandHeader()
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        WelcomeCard()
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            color = RakizzColors.Card,
+            shadowElevation = 3.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
         ) {
-            Spacer(modifier = Modifier.height(46.dp))
-
-            RakizzHeader()
-
-            Spacer(modifier = Modifier.height(188.dp))
-
-            Text(
-                text = "Welcome back",
-                color = WhiteText,
-                fontSize = 40.sp,
-                lineHeight = 46.sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = "Sign in to continue your focus journey.",
-                color = SecondaryText,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(56.dp))
-
-            RakizzAuthTextField(
-                value = email,
-                placeholder = "Email",
-                onValueChange = onEmailChange,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Sign in",
+                    color = RakizzColors.TextMain,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold
                 )
-            )
 
-            Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = "Use your saved Rakizz account.",
+                    color = RakizzColors.TextSecond,
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-            RakizzAuthTextField(
-                value = password,
-                placeholder = "Password",
-                onValueChange = onPasswordChange,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
+                AuthTextField(
+                    value = email,
+                    label = "Email",
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
+                    onValueChange = onEmailChange,
+                    onNext = {
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }
+                )
+
+                AuthTextField(
+                    value = password,
+                    label = "Password",
                     keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
+                    imeAction = ImeAction.Done,
+                    isPassword = true,
+                    onValueChange = onPasswordChange,
                     onDone = {
                         keyboardController?.hide()
                         focusManager.clearFocus()
                         onLoginClick()
                     }
                 )
-            )
 
-            Spacer(modifier = Modifier.height(28.dp))
-
-            SignInButton(
-                isLoading = isLoading,
-                onClick = {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                    onLoginClick()
+                if (!errorMessage.isNullOrBlank()) {
+                    MessageText(
+                        text = errorMessage,
+                        color = RakizzColors.Error
+                    )
                 }
-            )
 
-            if (!errorMessage.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        onLoginClick()
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RakizzColors.Primary,
+                        contentColor = RakizzColors.White,
+                        disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
+                        disabledContentColor = RakizzColors.White
+                    ),
+                    contentPadding = PaddingValues(horizontal = 18.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = RakizzColors.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(22.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+
+                    Text(
+                        text = if (isLoading) "Signing in..." else "Sign In",
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
                 Text(
-                    text = errorMessage,
-                    color = ErrorText,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    text = "Forgot password?",
+                    color = RakizzColors.TextMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .clickable {
+                            onForgotPasswordClick()
+                        }
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.height(54.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-            Text(
-                text = "Forgot password?",
-                color = SecondaryText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onForgotPasswordClick() }
-            )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = RakizzColors.PrimarySoft,
+            shadowElevation = 1.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "New to Rakizz?",
+                        color = RakizzColors.PrimaryDark,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold
+                    )
 
-            Spacer(modifier = Modifier.height(34.dp))
+                    Text(
+                        text = "Create student or parent account.",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
 
-            Text(
-                text = "or",
-                color = SecondaryText.copy(alpha = 0.75f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(38.dp))
-
-            Text(
-                text = "Create account",
-                color = WhiteText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onCreateAccountClick() }
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    text = "Create",
+                    color = RakizzColors.Primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.clickable {
+                        onCreateAccountClick()
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun RakizzHeader() {
-    Column(
+private fun BrandHeader() {
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Surface(
+            modifier = Modifier.size(46.dp),
+            shape = CircleShape,
+            color = RakizzColors.Primary
+        ) {
             Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                PrimaryBlue.copy(alpha = 0.32f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .rotate(45f)
-                        .background(
-                            color = PrimaryBlue,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                )
-
-                Spacer(modifier = Modifier.size(12.dp))
-
                 Text(
-                    text = buildAnnotatedString {
-                        append("Rakizz")
-                        pushStyle(SpanStyle(color = PrimaryBlue))
-                        append("!!")
-                        pop()
-                    },
-                    color = WhiteText,
-                    fontSize = 24.sp,
+                    text = "R",
+                    color = RakizzColors.White,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
         }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column {
+            Text(
+                text = "Rakizz",
+                color = RakizzColors.PrimaryDark,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Learning-first focus control",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
 @Composable
-private fun RakizzAuthTextField(
+private fun WelcomeCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        color = RakizzColors.Primary,
+        shadowElevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            RakizzColors.Primary,
+                            RakizzColors.PrimaryDark
+                        )
+                    )
+                )
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Welcome back",
+                color = RakizzColors.White,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Continue studying, managing materials, and staying focused with Rakizz.",
+                color = RakizzColors.White.copy(alpha = 0.86f),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthTextField(
     value: String,
-    placeholder: String,
+    label: String,
+    keyboardType: KeyboardType,
+    imeAction: ImeAction,
+    isPassword: Boolean = false,
     onValueChange: (String) -> Unit,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions,
-    keyboardActions: KeyboardActions
+    onNext: () -> Unit = {},
+    onDone: () -> Unit = {}
 ) {
-    TextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        singleLine = true,
-        visualTransformation = visualTransformation,
-        keyboardOptions = keyboardOptions,
-        keyboardActions = keyboardActions,
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = SecondaryText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium
-            )
+        label = {
+            Text(label)
         },
-        shape = RoundedCornerShape(20.dp),
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = WhiteText,
-            unfocusedTextColor = WhiteText,
-            disabledTextColor = WhiteText.copy(alpha = 0.6f),
-            focusedContainerColor = FieldContainer,
-            unfocusedContainerColor = FieldContainer,
-            disabledContainerColor = FieldContainer,
-            focusedPlaceholderColor = SecondaryText,
-            unfocusedPlaceholderColor = SecondaryText,
-            cursorColor = WhiteText,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = RoundedCornerShape(18.dp),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = imeAction
         ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(74.dp)
-            .border(
-                width = 1.dp,
-                color = FieldBorder,
-                shape = RoundedCornerShape(20.dp)
-            )
+        keyboardActions = KeyboardActions(
+            onNext = {
+                onNext()
+            },
+            onDone = {
+                onDone()
+            }
+        ),
+        visualTransformation = if (isPassword) {
+            PasswordVisualTransformation()
+        } else {
+            androidx.compose.ui.text.input.VisualTransformation.None
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = RakizzColors.TextMain,
+            unfocusedTextColor = RakizzColors.TextMain,
+            focusedContainerColor = RakizzColors.Card,
+            unfocusedContainerColor = RakizzColors.Card,
+            focusedLabelColor = RakizzColors.Primary,
+            unfocusedLabelColor = RakizzColors.TextSecond,
+            focusedBorderColor = RakizzColors.Primary,
+            unfocusedBorderColor = RakizzColors.CardBorder,
+            cursorColor = RakizzColors.Primary
+        )
     )
 }
 
 @Composable
-private fun SignInButton(
-    isLoading: Boolean,
-    onClick: () -> Unit
+private fun MessageText(
+    text: String,
+    color: androidx.compose.ui.graphics.Color
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(76.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(76.dp)
-                .padding(horizontal = 6.dp, vertical = 6.dp)
-                .offset(y = 2.dp)
-                .background(
-                    color = PrimaryBlue.copy(alpha = 0.22f),
-                    shape = RoundedCornerShape(22.dp)
-                )
-        )
-
-        Button(
-            onClick = onClick,
-            enabled = !isLoading,
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PrimaryBlue,
-                disabledContainerColor = PrimaryBlue.copy(alpha = 0.65f)
-            ),
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(74.dp)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = WhiteText,
-                    strokeWidth = 2.5.dp,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(
-                    text = "Sign in",
-                    color = WhiteText,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
+    Text(
+        text = text,
+        color = color,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.fillMaxWidth()
+    )
 }

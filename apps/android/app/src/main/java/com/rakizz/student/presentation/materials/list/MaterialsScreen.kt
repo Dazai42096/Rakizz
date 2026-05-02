@@ -8,42 +8,48 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +65,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,21 +73,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rakizz.student.domain.model.Material
 import com.rakizz.student.presentation.common.UiState
+import com.rakizz.student.presentation.theme.RakizzColors
 import kotlinx.coroutines.delay
-
-private val ScreenTop = Color(0xFF020B1F)
-private val ScreenBottom = Color(0xFF000000)
-private val WhiteText = Color(0xFFF5F7FB)
-private val SecondaryText = Color(0xFF8A92A3)
-private val PrimaryBlue = Color(0xFF1F5BDE)
-private val CardBorder = Color(0xFF2A2F3A)
-private val SurfaceDark = Color(0xFF171717)
-private val SurfaceDark2 = Color(0xFF101319)
-private val SheetSurface = Color(0xFF141414)
-private val SheetItemSurface = Color(0xFF202020)
-private val SheetHandle = Color(0xFF4A4D55)
-private val SuccessBg = Color(0xFF14261A)
-private val SuccessBorder = Color(0xFF245B35)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,14 +90,14 @@ fun MaterialsScreen(
     viewModel: MaterialsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+
     val state by viewModel.uiState.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedSubject by rememberSaveable { mutableStateOf("All") }
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
-
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+
     var linkTitle by rememberSaveable { mutableStateOf("") }
     var linkUrl by rememberSaveable { mutableStateOf("") }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -113,13 +105,20 @@ fun MaterialsScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null) {
+            return@rememberLauncherForActivityResult
+        }
 
-        val pickedFile = readPickedMaterialFile(context, uri)
+        val pickedFile = readPickedMaterialFile(
+            context = context,
+            uri = uri
+        )
+
         if (pickedFile == null) {
             return@rememberLauncherForActivityResult
         }
 
+        // send selected file to backend
         viewModel.uploadMaterialFile(
             title = pickedFile.derivedTitle,
             fileName = pickedFile.fileName,
@@ -140,24 +139,34 @@ fun MaterialsScreen(
         else -> emptyList()
     }
 
-    val subjectFilters = buildSubjectFilters(allMaterials)
     val filteredMaterials = allMaterials.filter { material ->
-        val titleMatches = material.title.contains(searchQuery, ignoreCase = true)
-        val subjectMatches = selectedSubject == "All" || inferSubject(material) == selectedSubject
-        titleMatches && subjectMatches
+        material.title.contains(
+            other = searchQuery,
+            ignoreCase = true
+        )
     }
 
-    val recentMaterials = filteredMaterials.take(8)
-    val subjectCards = buildSubjectCards(allMaterials)
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
 
     Scaffold(
-        containerColor = Color.Black,
+        containerColor = RakizzColors.Background,
         floatingActionButton = {
-            AddMaterialButton(
-                onClick = { showAddSheet = true }
-            )
+            FloatingActionButton(
+                onClick = {
+                    showAddSheet = true
+                },
+                containerColor = RakizzColors.Primary,
+                contentColor = RakizzColors.White,
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = "+",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         bottomBar = {
             LibraryBottomBar(
@@ -171,152 +180,106 @@ fun MaterialsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                    Brush.verticalGradient(
+                        listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
                 .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 18.dp,
-                    bottom = 120.dp
+                    top = 14.dp,
+                    bottom = 110.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    LibraryTopBar()
-                }
-
-                item {
-                    LibrarySearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it }
+                    LibraryHeader(
+                        onAddClick = {
+                            showAddSheet = true
+                        }
                     )
                 }
 
                 item {
-                    SubjectChipsRow(
-                        filters = subjectFilters,
-                        selected = selectedSubject,
-                        onSelect = { selectedSubject = it }
+                    SearchBox(
+                        query = searchQuery,
+                        onQueryChange = {
+                            searchQuery = it
+                        }
                     )
                 }
 
                 if (!actionMessage.isNullOrBlank()) {
                     item {
-                        InlineMessageCard(
+                        MessageCard(
+                            title = "Saved",
                             message = actionMessage.orEmpty(),
-                            bg = SuccessBg,
-                            border = SuccessBorder
+                            color = RakizzColors.Success
                         )
                     }
                 }
 
                 if (state is UiState.Error) {
                     item {
-                        InlineMessageCard(
+                        MessageCard(
+                            title = "Error",
                             message = (state as UiState.Error).message,
-                            bg = Color(0xFF351515),
-                            border = Color(0xFF6B2222)
+                            color = RakizzColors.Error
                         )
                     }
                 }
 
                 item {
-                    SectionHeader(title = "Stored Materials")
+                    LibraryInfoCard()
                 }
 
                 item {
-                    if (filteredMaterials.isEmpty()) {
-                        EmptySectionCard(message = "No materials found")
-                    } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                            items(filteredMaterials.take(6)) { material ->
-                                LargeMaterialCard(
-                                    material = material,
-                                    onClick = { onNavigateToDetail(material.id) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                item {
-                    SectionHeader(title = "Recently Added")
-                }
-
-                item {
-                    if (recentMaterials.isEmpty()) {
-                        EmptySectionCard(message = "No recent materials available")
-                    } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(recentMaterials) { material ->
-                                RecentMaterialCard(
-                                    material = material,
-                                    onClick = { onNavigateToDetail(material.id) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                item {
-                    SectionHeader(title = "By Subject")
-                }
-
-                item {
-                    if (subjectCards.isEmpty()) {
-                        EmptySectionCard(message = "No subject summaries available")
-                    } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(subjectCards) { subject ->
-                                SubjectSummaryCard(subject = subject)
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (state is UiState.Loading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.28f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = PrimaryBlue,
-                        strokeWidth = 3.dp
+                    SectionTitle(
+                        title = "Study materials",
+                        subtitle = "${filteredMaterials.size} item(s) in your library"
                     )
                 }
-            }
 
-            if (state is UiState.Empty && allMaterials.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    InlineMessageCard(
-                        message = "Your library is empty",
-                        bg = SurfaceDark,
-                        border = CardBorder
-                    )
+                when {
+                    state is UiState.Loading -> {
+                        items(4) {
+                            LoadingMaterialCard()
+                        }
+                    }
+
+                    filteredMaterials.isEmpty() -> {
+                        item {
+                            EmptyLibraryCard(
+                                onAddClick = {
+                                    showAddSheet = true
+                                }
+                            )
+                        }
+                    }
+
+                    else -> {
+                        items(
+                            items = filteredMaterials,
+                            key = { material -> material.id }
+                        ) { material ->
+                            MaterialCard(
+                                material = material,
+                                onClick = {
+                                    onNavigateToDetail(material.id)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -324,28 +287,35 @@ fun MaterialsScreen(
 
     if (showAddSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showAddSheet = false },
+            onDismissRequest = {
+                showAddSheet = false
+            },
             sheetState = sheetState,
-            containerColor = SheetSurface,
-            scrimColor = Color.Black.copy(alpha = 0.72f),
+            containerColor = RakizzColors.Card,
+            scrimColor = Color.Black.copy(alpha = 0.45f),
+            shape = RoundedCornerShape(
+                topStart = 30.dp,
+                topEnd = 30.dp
+            ),
             dragHandle = {
                 Box(
                     modifier = Modifier
-                        .padding(top = 10.dp, bottom = 4.dp)
-                        .width(76.dp)
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .width(70.dp)
                         .height(6.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(SheetHandle)
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(RakizzColors.CardBorder)
                 )
-            },
-            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-            tonalElevation = 0.dp
+            }
         ) {
-            AddMaterialBottomSheetContent(
-                onClose = { showAddSheet = false },
+            AddMaterialSheet(
+                onClose = {
+                    showAddSheet = false
+                },
                 onUploadFile = {
                     showAddSheet = false
                     onAddMaterial()
+
                     filePickerLauncher.launch(
                         arrayOf(
                             "application/pdf",
@@ -370,159 +340,52 @@ fun MaterialsScreen(
     }
 
     if (showLinkDialog) {
-        AlertDialog(
-            onDismissRequest = {
+        AddLinkDialog(
+            title = linkTitle,
+            url = linkUrl,
+            error = linkError,
+            onTitleChange = {
+                linkTitle = it
+                linkError = null
+            },
+            onUrlChange = {
+                linkUrl = it
+                linkError = null
+            },
+            onDismiss = {
                 showLinkDialog = false
                 linkError = null
             },
-            containerColor = SheetSurface,
-            title = {
-                Text(
-                    text = "Add material link",
-                    color = WhiteText,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextField(
-                        value = linkTitle,
-                        onValueChange = {
-                            linkTitle = it
-                            linkError = null
-                        },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = WhiteText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        placeholder = {
-                            Text(
-                                text = "Material title",
-                                color = SecondaryText
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedTextColor = WhiteText,
-                            unfocusedTextColor = WhiteText,
-                            focusedContainerColor = SurfaceDark,
-                            unfocusedContainerColor = SurfaceDark,
-                            focusedPlaceholderColor = SecondaryText,
-                            unfocusedPlaceholderColor = SecondaryText,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = WhiteText
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    )
+            onSave = {
+                val cleanTitle = linkTitle.trim()
+                val cleanUrl = linkUrl.trim()
 
-                    TextField(
-                        value = linkUrl,
-                        onValueChange = {
-                            linkUrl = it
-                            linkError = null
-                        },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = WhiteText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        placeholder = {
-                            Text(
-                                text = "https://example.com/file.pdf",
-                                color = SecondaryText
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Uri
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedTextColor = WhiteText,
-                            unfocusedTextColor = WhiteText,
-                            focusedContainerColor = SurfaceDark,
-                            unfocusedContainerColor = SurfaceDark,
-                            focusedPlaceholderColor = SecondaryText,
-                            unfocusedPlaceholderColor = SecondaryText,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = WhiteText
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    )
-
-                    if (!linkError.isNullOrBlank()) {
-                        Text(
-                            text = linkError.orEmpty(),
-                            color = Color(0xFFFF8A8A),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                when {
+                    cleanTitle.isBlank() -> {
+                        linkError = "Title is required"
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val cleanTitle = linkTitle.trim()
-                        val cleanUrl = linkUrl.trim()
 
-                        when {
-                            cleanTitle.isBlank() -> {
-                                linkError = "Title is required"
-                            }
-
-                            cleanUrl.isBlank() -> {
-                                linkError = "Link is required"
-                            }
-
-                            !cleanUrl.startsWith("http://", ignoreCase = true) &&
-                                !cleanUrl.startsWith("https://", ignoreCase = true) -> {
-                                linkError = "Link must start with http:// or https://"
-                            }
-
-                            else -> {
-                                showLinkDialog = false
-                                linkError = null
-                                viewModel.addLinkMaterial(
-                                    title = cleanTitle,
-                                    sourceUrl = cleanUrl
-                                )
-                                linkTitle = ""
-                                linkUrl = ""
-                            }
-                        }
+                    cleanUrl.isBlank() -> {
+                        linkError = "Link is required"
                     }
-                ) {
-                    Text(
-                        text = "Save",
-                        color = PrimaryBlue,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
+
+                    !cleanUrl.startsWith("http://", ignoreCase = true) &&
+                        !cleanUrl.startsWith("https://", ignoreCase = true) -> {
+                        linkError = "Link must start with http:// or https://"
+                    }
+
+                    else -> {
                         showLinkDialog = false
                         linkError = null
+
+                        viewModel.addLinkMaterial(
+                            title = cleanTitle,
+                            sourceUrl = cleanUrl
+                        )
+
+                        linkTitle = ""
+                        linkUrl = ""
                     }
-                ) {
-                    Text(
-                        text = "Cancel",
-                        color = SecondaryText,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         )
@@ -530,300 +393,378 @@ fun MaterialsScreen(
 }
 
 @Composable
-private fun LibraryTopBar() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Library",
-            color = WhiteText,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+private fun LibraryHeader(
+    onAddClick: () -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Study Library",
+                    color = RakizzColors.TextMain,
+                    fontSize = 29.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
 
-        Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(4.dp))
 
-        ProfileAvatar()
+                Text(
+                    text = "Keep your study files in one calm place.",
+                    color = RakizzColors.TextSecond,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable {
+                        onAddClick()
+                    },
+                color = RakizzColors.Primary,
+                shape = RoundedCornerShape(18.dp),
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = "Add Material",
+                    color = RakizzColors.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 11.dp
+                    )
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun LibrarySearchBar(
+private fun SearchBox(
     query: String,
     onQueryChange: (String) -> Unit
 ) {
-    TextField(
+    OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        singleLine = true,
-        textStyle = TextStyle(
-            color = WhiteText,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium
-        ),
-        leadingIcon = {
-            SearchGlyph(color = SecondaryText)
-        },
         placeholder = {
             Text(
-                text = "Search title or subject...",
-                color = SecondaryText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
+                text = "Search materials...",
+                color = RakizzColors.TextMuted
             )
         },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Text
-        ),
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = WhiteText,
-            unfocusedTextColor = WhiteText,
-            focusedContainerColor = SurfaceDark,
-            unfocusedContainerColor = SurfaceDark,
-            focusedPlaceholderColor = SecondaryText,
-            unfocusedPlaceholderColor = SecondaryText,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            cursorColor = WhiteText
+        singleLine = true,
+        shape = RoundedCornerShape(20.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = RakizzColors.TextMain,
+            unfocusedTextColor = RakizzColors.TextMain,
+            focusedContainerColor = RakizzColors.Card,
+            unfocusedContainerColor = RakizzColors.Card,
+            focusedBorderColor = RakizzColors.Primary,
+            unfocusedBorderColor = RakizzColors.CardBorder,
+            cursorColor = RakizzColors.Primary
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp)
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+            .height(62.dp)
     )
 }
 
 @Composable
-private fun SubjectChipsRow(
-    filters: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+private fun LibraryInfoCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.PrimarySoft,
+        shadowElevation = 1.dp
     ) {
-        filters.forEach { item ->
-            val isSelected = item == selected
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(if (isSelected) Color.White else SurfaceDark)
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) Color.White else CardBorder,
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    .clickable { onSelect(item) }
-                    .padding(horizontal = 18.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = item,
-                    color = if (isSelected) Color.Black else WhiteText,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    title: String
-) {
-    Text(
-        text = title,
-        color = WhiteText,
-        fontSize = 22.sp,
-        fontWeight = FontWeight.ExtraBold
-    )
-}
-
-@Composable
-private fun LargeMaterialCard(
-    material: Material,
-    onClick: () -> Unit
-) {
-    val subject = inferSubject(material)
-    val typeLabel = inferTypeLabel(material)
-    val colors = subjectGradient(subject)
-    val accent = subjectColor(subject)
-
-    Column(
-        modifier = Modifier
-            .width(178.dp)
-            .clickable { onClick() }
-    ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(266.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(
-                    brush = Brush.linearGradient(colors)
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
                 )
-                .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                .padding(14.dp)
+                .padding(18.dp)
         ) {
             Text(
-                text = subjectGlyph(subject),
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center)
+                text = "How Rakizz uses materials",
+                color = RakizzColors.PrimaryDark,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.ExtraBold
             )
 
-            Text(
-                text = subject.uppercase(),
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.2.sp,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = material.title,
-            color = WhiteText,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(accent.copy(alpha = 0.12f))
-                    .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = subject.uppercase(),
-                    color = accent,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = typeLabel,
-                color = SecondaryText,
+                text = "Upload a file, open it, then generate a mixed AI quiz from the content. The same materials are also used in quiz-to-unlock mode.",
+                color = RakizzColors.TextSecond,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                lineHeight = 21.sp
             )
         }
     }
 }
 
 @Composable
-private fun RecentMaterialCard(
-    material: Material,
-    onClick: () -> Unit
+private fun SectionTitle(
+    title: String,
+    subtitle: String
 ) {
-    val subject = inferSubject(material)
-    val colors = recentCardGradient(subject)
-    val accent = subjectColor(subject)
-
-    Column(
-        modifier = Modifier
-            .width(152.dp)
-            .clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(210.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    brush = Brush.linearGradient(colors)
-                )
-                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-        ) {
-            Text(
-                text = recentGlyph(subject),
-                color = Color.White.copy(alpha = 0.68f),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center)
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, bottom = 10.dp)
-                    .width(100.dp)
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(accent)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
+    Column {
         Text(
-            text = material.title,
-            color = WhiteText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 19.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            text = title,
+            color = RakizzColors.TextMain,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.ExtraBold
         )
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = subject.uppercase(),
-            color = accent,
-            fontSize = 13.sp,
+            text = subtitle,
+            color = RakizzColors.TextSecond,
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun MaterialCard(
+    material: Material,
+    onClick: () -> Unit
+) {
+    val typeLabel = inferTypeLabel(material)
+    val typeColor = typeColor(typeLabel)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onClick()
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(typeColor.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = typeLabel.take(3).uppercase(),
+                    color = typeColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = material.title,
+                    color = RakizzColors.TextMain,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = "Open material and generate quiz",
+                    color = RakizzColors.TextSecond,
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.height(9.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SmallPill(
+                        text = typeLabel,
+                        color = typeColor
+                    )
+
+                    SmallPill(
+                        text = "AI Ready",
+                        color = RakizzColors.Primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "Open",
+                color = RakizzColors.Primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmallPill(
+    text: String,
+    color: Color
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 9.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold
         )
     }
 }
 
 @Composable
-private fun SubjectSummaryCard(
-    subject: SubjectCardUi
+private fun EmptyLibraryCard(
+    onAddClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .width(172.dp)
-            .height(112.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                brush = Brush.linearGradient(subject.colors)
-            )
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-            .padding(16.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
     ) {
-        Text(
-            text = subject.icon,
-            color = subject.accent,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.TopStart)
-        )
-
         Column(
-            modifier = Modifier.align(Alignment.BottomStart)
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(26.dp)
+                )
+                .padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = subject.title,
-                color = WhiteText,
+                text = "No materials yet",
+                color = RakizzColors.TextMain,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Add your first study material so Rakizz can generate AI quizzes from it.",
+                color = RakizzColors.TextSecond,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onAddClick,
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
+                )
+            ) {
+                Text(
+                    text = "Add Material",
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadingMaterialCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                color = RakizzColors.Primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(30.dp)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Text(
+                text = "Loading materials...",
+                color = RakizzColors.TextSecond,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageCard(
+    title: String,
+    message: String,
+    color: Color
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = color.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                color = color,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -831,223 +772,16 @@ private fun SubjectSummaryCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${subject.count} Items",
-                color = SecondaryText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                text = message,
+                color = RakizzColors.TextSecond,
+                fontSize = 14.sp
             )
         }
     }
 }
 
 @Composable
-private fun AddMaterialButton(
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(26.dp))
-            .background(PrimaryBlue)
-            .border(1.dp, PrimaryBlue.copy(alpha = 0.9f), RoundedCornerShape(26.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 26.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "+",
-            color = WhiteText,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = "Add material",
-            color = WhiteText,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-private fun LibraryBottomBar(
-    onOpenHome: () -> Unit,
-    onOpenFocus: () -> Unit,
-    onOpenProfile: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black)
-            .border(1.dp, Color.White.copy(alpha = 0.06f))
-            .navigationBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BottomNavItem(
-            label = "Home",
-            selected = false,
-            icon = "⌂",
-            onClick = onOpenHome
-        )
-        BottomNavItem(
-            label = "Library",
-            selected = true,
-            icon = "▤",
-            onClick = {}
-        )
-        BottomNavItem(
-            label = "Focus",
-            selected = false,
-            icon = "◔",
-            onClick = onOpenFocus
-        )
-        BottomNavItem(
-            label = "Profile",
-            selected = false,
-            icon = "●",
-            onClick = onOpenProfile
-        )
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    label: String,
-    selected: Boolean,
-    icon: String,
-    onClick: () -> Unit
-) {
-    val color = if (selected) PrimaryBlue else SecondaryText
-
-    Column(
-        modifier = Modifier
-            .width(72.dp)
-            .clickable { onClick() }
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = icon,
-            color = color,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = label,
-            color = color,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun ProfileAvatar() {
-    Box(
-        modifier = Modifier
-            .size(42.dp)
-            .clip(CircleShape)
-            .background(Color(0xFF1C1F26))
-            .border(1.dp, CardBorder, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier.size(18.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFBFC3CC))
-                    .align(Alignment.TopCenter)
-            )
-            Box(
-                modifier = Modifier
-                    .width(14.dp)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                    .background(Color(0xFFBFC3CC))
-                    .align(Alignment.BottomCenter)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchGlyph(color: Color) {
-    Box(
-        modifier = Modifier.size(18.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(11.dp)
-                .border(2.dp, color, CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .padding(start = 10.dp, top = 10.dp)
-                .width(7.dp)
-                .height(2.dp)
-                .background(color, RoundedCornerShape(2.dp))
-        )
-    }
-}
-
-@Composable
-private fun InlineMessageCard(
-    message: String,
-    bg: Color,
-    border: Color
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(16.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp)
-    ) {
-        Text(
-            text = message,
-            color = WhiteText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun EmptySectionCard(
-    message: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceDark2)
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-            .padding(vertical = 24.dp, horizontal = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            color = SecondaryText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun AddMaterialBottomSheetContent(
+private fun AddMaterialSheet(
     onClose: () -> Unit,
     onUploadFile: () -> Unit,
     onAddLink: () -> Unit
@@ -1055,153 +789,338 @@ private fun AddMaterialBottomSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SheetSurface)
-            .padding(horizontal = 28.dp)
-            .padding(top = 6.dp, bottom = 24.dp)
+            .background(RakizzColors.Card)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 26.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Add New Material",
-                color = WhiteText,
-                fontSize = 20.sp,
+                text = "Add Material",
+                color = RakizzColors.TextMain,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.weight(1f)
             )
 
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
-                    .clickable { onClose() },
+                    .background(RakizzColors.BackgroundSoft)
+                    .clickable {
+                        onClose()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = "Close",
-                    tint = Color(0xFF8A92A3),
-                    modifier = Modifier.size(22.dp)
+                    tint = RakizzColors.TextSecond,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        AddMaterialSheetItem(
+        Text(
+            text = "Choose how you want to add study content.",
+            color = RakizzColors.TextSecond,
+            fontSize = 14.sp
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        AddSheetItem(
             icon = Icons.Rounded.InsertDriveFile,
-            iconBackground = Color(0xFF182B52),
-            iconTint = Color(0xFF6EA7FF),
             title = "Upload file",
-            subtitle = "PDF, Image, Doc, Slides, Text",
+            subtitle = "PDF, DOC, slides, text, or image",
+            color = RakizzColors.Primary,
             onClick = onUploadFile
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        AddMaterialSheetItem(
+        AddSheetItem(
             icon = Icons.Rounded.Link,
-            iconBackground = Color(0xFF4C2D12),
-            iconTint = Color(0xFFFFA54A),
             title = "Add link",
-            subtitle = "Website or file URL",
+            subtitle = "Save a study URL as a material",
+            color = RakizzColors.Warning,
             onClick = onAddLink
         )
 
-        Spacer(modifier = Modifier.height(26.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
-            text = "SUPPORTED FORMATS: JPG, PNG, PDF, DOC, DOCX, PPT, PPTX, TXT",
-            color = Color(0xFF6F7B93),
+            text = "Supported: PDF, DOC, DOCX, PPT, PPTX, TXT, JPG, PNG",
+            color = RakizzColors.TextMuted,
             fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.8.sp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
+            fontWeight = FontWeight.Bold,
             lineHeight = 18.sp
         )
     }
 }
 
 @Composable
-private fun AddMaterialSheetItem(
+private fun AddSheetItem(
     icon: ImageVector,
-    iconBackground: Color,
-    iconTint: Color,
     title: String,
     subtitle: String,
+    color: Color,
     onClick: () -> Unit
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(SheetItemSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable {
+                onClick()
+            },
+        shape = RoundedCornerShape(22.dp),
+        color = RakizzColors.CardSoft,
+        shadowElevation = 1.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(54.dp)
-                .clip(CircleShape)
-                .background(iconBackground)
                 .border(
                     width = 1.dp,
-                    color = iconTint.copy(alpha = 0.28f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(24.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(25.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    color = RakizzColors.TextMain,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = subtitle,
+                    color = RakizzColors.TextSecond,
+                    fontSize = 13.sp
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                color = WhiteText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = subtitle,
-                color = SecondaryText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Rounded.ArrowForwardIos,
-            contentDescription = null,
-            tint = SecondaryText,
-            modifier = Modifier.size(16.dp)
-        )
     }
 }
 
-private data class SubjectCardUi(
-    val title: String,
-    val count: Int,
-    val icon: String,
-    val accent: Color,
-    val colors: List<Color>
+@Composable
+private fun AddLinkDialog(
+    title: String,
+    url: String,
+    error: String?,
+    onTitleChange: (String) -> Unit,
+    onUrlChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = RakizzColors.Card,
+        title = {
+            Text(
+                text = "Add material link",
+                color = RakizzColors.TextMain,
+                fontWeight = FontWeight.ExtraBold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    label = {
+                        Text("Material title")
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = dialogTextFieldColors(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = onUrlChange,
+                    label = {
+                        Text("Link")
+                    },
+                    placeholder = {
+                        Text("https://example.com/file.pdf")
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = dialogTextFieldColors(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (!error.isNullOrBlank()) {
+                    Text(
+                        text = error,
+                        color = RakizzColors.Error,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSave
+            ) {
+                Text(
+                    text = "Save",
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    text = "Cancel",
+                    color = RakizzColors.TextSecond,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun dialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = RakizzColors.TextMain,
+    unfocusedTextColor = RakizzColors.TextMain,
+    focusedBorderColor = RakizzColors.Primary,
+    unfocusedBorderColor = RakizzColors.CardBorder,
+    focusedLabelColor = RakizzColors.Primary,
+    unfocusedLabelColor = RakizzColors.TextSecond,
+    cursorColor = RakizzColors.Primary
 )
+
+@Composable
+private fun LibraryBottomBar(
+    onOpenHome: () -> Unit,
+    onOpenFocus: () -> Unit,
+    onOpenProfile: () -> Unit
+) {
+    Surface(
+        color = RakizzColors.Card,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .border(1.dp, RakizzColors.CardBorder)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(
+                label = "Home",
+                selected = false,
+                onClick = onOpenHome
+            )
+
+            BottomNavItem(
+                label = "Library",
+                selected = true,
+                onClick = {}
+            )
+
+            BottomNavItem(
+                label = "Focus",
+                selected = false,
+                onClick = onOpenFocus
+            )
+
+            BottomNavItem(
+                label = "Profile",
+                selected = false,
+                onClick = onOpenProfile
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val textColor = if (selected) {
+        RakizzColors.Primary
+    } else {
+        RakizzColors.TextMuted
+    }
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable {
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (selected) 8.dp else 6.dp)
+                .clip(CircleShape)
+                .background(textColor)
+        )
+
+        Spacer(modifier = Modifier.height(5.dp))
+
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 11.sp,
+            fontWeight = if (selected) {
+                FontWeight.ExtraBold
+            } else {
+                FontWeight.Bold
+            }
+        )
+    }
+}
 
 private data class PickedMaterialFile(
     val fileName: String,
@@ -1215,7 +1134,10 @@ private fun readPickedMaterialFile(
     uri: Uri
 ): PickedMaterialFile? {
     val fileName = queryDisplayName(context, uri) ?: "material"
-    val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+
+    val mimeType = context.contentResolver.getType(uri)
+        ?: "application/octet-stream"
+
     val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
         input.readBytes()
     } ?: return null
@@ -1225,7 +1147,9 @@ private fun readPickedMaterialFile(
         .replace("_", " ")
         .replace("-", " ")
         .trim()
-        .ifBlank { "Material" }
+        .ifBlank {
+            "Material"
+        }
 
     return PickedMaterialFile(
         fileName = fileName,
@@ -1240,138 +1164,50 @@ private fun queryDisplayName(
     uri: Uri
 ): String? {
     val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+
+    context.contentResolver.query(
+        uri,
+        projection,
+        null,
+        null,
+        null
+    )?.use { cursor ->
         val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+
         if (index >= 0 && cursor.moveToFirst()) {
             return cursor.getString(index)
         }
     }
+
     return null
 }
 
-private fun buildSubjectFilters(materials: List<Material>): List<String> {
-    val subjects = materials
-        .map { inferSubject(it) }
-        .distinct()
-
-    return listOf("All") + subjects
-}
-
-private fun buildSubjectCards(materials: List<Material>): List<SubjectCardUi> {
-    return materials
-        .groupBy { inferSubject(it) }
-        .map { (subject, items) ->
-            SubjectCardUi(
-                title = subjectDisplayName(subject),
-                count = items.size,
-                icon = subjectSummaryGlyph(subject),
-                accent = subjectColor(subject),
-                colors = subjectSummaryGradient(subject)
-            )
-        }
-}
-
-private fun inferSubject(material: Material): String {
-    val title = material.title.lowercase()
+private fun inferTypeLabel(
+    material: Material
+): String {
+    val value = "${material.url} ${material.title}".lowercase()
 
     return when {
-        title.contains("math") || title.contains("calc") || title.contains("algebra") || title.contains("derivative") || title.contains("equation") -> "Math"
-        title.contains("physics") || title.contains("mechanic") || title.contains("motion") || title.contains("force") -> "Physics"
-        title.contains("chem") || title.contains("organic") || title.contains("atom") || title.contains("molecule") -> "Chemistry"
-        title.contains("history") || title.contains("essay") || title.contains("wwii") || title.contains("draft") -> "History"
-        else -> "General"
-    }
-}
-
-private fun inferTypeLabel(material: Material): String {
-    val value = material.url.lowercase()
-    val title = material.title.lowercase()
-
-    return when {
-        value.endsWith(".pdf") || title.contains("pdf") -> "PDF"
-        value.endsWith(".ppt") || value.endsWith(".pptx") -> "Slides"
-        value.endsWith(".doc") || value.endsWith(".docx") -> "Doc"
-        value.endsWith(".txt") -> "Text"
-        value.endsWith(".jpg") || value.endsWith(".jpeg") || value.endsWith(".png") -> "Image"
-        title.contains("note") || title.contains("notes") -> "Notes"
-        title.contains("draft") -> "Draft"
+        value.contains(".pdf") || value.contains("pdf") -> "PDF"
+        value.contains(".pptx") || value.contains(".ppt") -> "Slides"
+        value.contains(".docx") || value.contains(".doc") -> "Doc"
+        value.contains(".txt") -> "Text"
+        value.contains(".jpg") || value.contains(".jpeg") || value.contains(".png") -> "Image"
+        value.contains("note") -> "Notes"
         else -> "File"
     }
 }
 
-private fun subjectDisplayName(subject: String): String {
-    return when (subject) {
-        "Math" -> "Mathematics"
-        else -> subject
-    }
-}
-
-private fun subjectGlyph(subject: String): String {
-    return when (subject) {
-        "Math" -> "Σ"
-        "Physics" -> "⚗"
-        "Chemistry" -> "⚗"
-        "History" -> "⌲"
-        else -> "▣"
-    }
-}
-
-private fun recentGlyph(subject: String): String {
-    return when (subject) {
-        "Math" -> "✚"
-        "Physics" -> "⚗"
-        "Chemistry" -> "⚗"
-        "History" -> "⌲"
-        else -> "📄"
-    }
-}
-
-private fun subjectSummaryGlyph(subject: String): String {
-    return when (subject) {
-        "Math" -> "✚"
-        "Physics" -> "🚀"
-        "Chemistry" -> "⚗"
-        "History" -> "⌲"
-        else -> "📄"
-    }
-}
-
-private fun subjectColor(subject: String): Color {
-    return when (subject) {
-        "Math" -> Color(0xFF2F7BFF)
-        "Physics" -> Color(0xFF00C2FF)
-        "Chemistry" -> Color(0xFF2DD4BF)
-        "History" -> Color(0xFF4ADE80)
-        else -> Color(0xFF94A3B8)
-    }
-}
-
-private fun subjectGradient(subject: String): List<Color> {
-    return when (subject) {
-        "Math" -> listOf(Color(0xFF4C35A0), Color(0xFF5A2092), Color(0xFF12061D))
-        "Physics" -> listOf(Color(0xFF21489D), Color(0xFF0C4767), Color(0xFF02131A))
-        "Chemistry" -> listOf(Color(0xFF0B6A4F), Color(0xFF0F4B37), Color(0xFF041812))
-        "History" -> listOf(Color(0xFF6B3D15), Color(0xFF4A2511), Color(0xFF180A06))
-        else -> listOf(Color(0xFF243149), Color(0xFF172131), Color(0xFF0C1018))
-    }
-}
-
-private fun recentCardGradient(subject: String): List<Color> {
-    return when (subject) {
-        "Chemistry" -> listOf(Color(0xFF91270F), Color(0xFF7A220F), Color(0xFF1A0B09))
-        "History" -> listOf(Color(0xFF0A7B49), Color(0xFF0C5E39), Color(0xFF07160F))
-        "Math" -> listOf(Color(0xFF1A325E), Color(0xFF162847), Color(0xFF0A0F18))
-        "Physics" -> listOf(Color(0xFF1A305C), Color(0xFF0F3652), Color(0xFF08121A))
-        else -> listOf(Color(0xFF1B2A45), Color(0xFF162235), Color(0xFF0A0F18))
-    }
-}
-
-private fun subjectSummaryGradient(subject: String): List<Color> {
-    return when (subject) {
-        "Math" -> listOf(Color(0xFF1A2238), Color(0xFF1B243A))
-        "Physics" -> listOf(Color(0xFF2B1D38), Color(0xFF33223E))
-        "Chemistry" -> listOf(Color(0xFF193323), Color(0xFF173525))
-        "History" -> listOf(Color(0xFF2D2E18), Color(0xFF31311C))
-        else -> listOf(Color(0xFF1C2330), Color(0xFF202632))
+private fun typeColor(
+    type: String
+): Color {
+    return when (type.lowercase()) {
+        "pdf" -> RakizzColors.Error
+        "slides" -> RakizzColors.Warning
+        "doc" -> RakizzColors.Primary
+        "text" -> RakizzColors.Success
+        "image" -> RakizzColors.Accent
+        "notes" -> RakizzColors.PrimaryDark
+        else -> RakizzColors.TextSecond
     }
 }

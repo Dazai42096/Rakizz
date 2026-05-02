@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,24 +16,43 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -50,28 +70,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-
-private val ScreenTop = Color(0xFF03112A)
-private val ScreenBottom = Color(0xFF000000)
-private val WhiteText = Color(0xFFF7F8FA)
-private val SecondaryText = Color(0xFF9EA6B8)
-private val PrimaryBlue = Color(0xFF2457D6)
-private val CardSurface = Color(0xFF171717)
-private val CardBorder = Color(0xFF2A2F3A)
-private val ErrorOrange = Color(0xFFFF9F0A)
-private val GreenAccent = Color(0xFF30D158)
+import com.rakizz.student.presentation.theme.RakizzColors
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun ProfileScreen(
@@ -86,28 +98,32 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = Color.Black
-    ) { innerPadding ->
+        containerColor = RakizzColors.Background
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                        listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
-                .padding(innerPadding)
+                .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             ProfileTopBar(
                 onBackClick = onBackClick
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             when {
                 uiState.isLoading -> {
@@ -118,7 +134,7 @@ fun ProfileScreen(
                     MessageCard(
                         title = "Error",
                         message = uiState.error ?: "Could not load profile",
-                        color = ErrorOrange,
+                        color = RakizzColors.Error,
                         onClick = viewModel::clearMessage
                     )
                 }
@@ -149,28 +165,39 @@ fun ProfileScreen(
 private fun ProfileTopBar(
     onBackClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Back",
-            color = SecondaryText,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .clickable {
-                    onBackClick()
-                }
-        )
+        FilledIconButton(
+            onClick = onBackClick,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = RakizzColors.Card,
+                contentColor = RakizzColors.Primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back"
+            )
+        }
 
-        Text(
-            text = "Profile",
-            color = WhiteText,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.align(Alignment.Center)
-        )
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column {
+            Text(
+                text = "Profile",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Account information and pairing.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }
 
@@ -199,13 +226,13 @@ private fun ProfileContent(
     ) { uri ->
         if (uri != null) {
             try {
-                // keep permission so image can open again later
+                // keep image permission so it still opens later
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: Exception) {
-                // emulator may ignore this sometimes
+                // some emulators ignore this
             }
 
             onImageChange(uri.toString())
@@ -217,56 +244,38 @@ private fun ProfileContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ProfileImage(
-            role = uiState.role,
-            name = uiState.fullName,
-            imageUri = uiState.profileImageUrl,
-            onClick = {
+        ProfileHeroCard(
+            uiState = uiState,
+            onImageClick = {
                 showImageMenu = true
             }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = uiState.fullName.ifBlank { roleTitle(uiState.role) },
-            color = WhiteText,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = uiState.email,
-            color = SecondaryText,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        uiState.message?.let {
+        uiState.message?.let { message ->
             MessageCard(
                 title = "Done",
-                message = it,
-                color = GreenAccent,
+                message = message,
+                color = RakizzColors.Success,
                 onClick = {}
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
         }
 
-        PairCodeCard(
-            userId = uiState.userId,
-            showPairCode = uiState.showPairCode,
-            onShowClick = onShowPairCodeClick,
-            onCopyClick = {
-                clipboard.setText(AnnotatedString(uiState.userId))
-            }
-        )
+        if (uiState.role.lowercase() == "student") {
+            PairCodeCard(
+                userId = uiState.userId,
+                showPairCode = uiState.showPairCode,
+                onShowClick = onShowPairCodeClick,
+                onCopyClick = {
+                    clipboard.setText(AnnotatedString(uiState.userId))
+                }
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         if (uiState.isEditing) {
             EditProfileCard(
@@ -274,8 +283,7 @@ private fun ProfileContent(
                 onFullNameChange = onFullNameChange,
                 onSchoolChange = onSchoolChange,
                 onGradeChange = onGradeChange,
-                onPhoneChange = onPhoneChange,
-                onImageChange = onImageChange
+                onPhoneChange = onPhoneChange
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -285,26 +293,30 @@ private fun ProfileContent(
                 enabled = !uiState.isSaving,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(18.dp),
+                    .height(60.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue,
-                    contentColor = WhiteText
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White,
+                    disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
+                    disabledContentColor = RakizzColors.White
                 ),
                 contentPadding = PaddingValues(horizontal = 18.dp)
             ) {
                 if (uiState.isSaving) {
                     CircularProgressIndicator(
-                        color = WhiteText,
-                        strokeWidth = 2.dp
+                        color = RakizzColors.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp)
                     )
-                } else {
-                    Text(
-                        text = "Save Profile",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
                 }
+
+                Text(
+                    text = if (uiState.isSaving) "Saving..." else "Save Profile",
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -313,55 +325,54 @@ private fun ProfileContent(
                 onClick = onCancelClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(18.dp)
+                    .height(56.dp),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, RakizzColors.Primary)
             ) {
                 Text(
                     text = "Cancel",
-                    color = WhiteText,
-                    fontWeight = FontWeight.Bold
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
         } else {
+            ReadProfileCard(
+                uiState = uiState
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             Button(
                 onClick = onEditClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(18.dp),
+                    .height(60.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue,
-                    contentColor = WhiteText
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
                 )
             ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
                 Text(
                     text = "Edit Profile",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ReadProfileCard(uiState = uiState)
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        OutlinedButton(
-            onClick = onLogoutClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Text(
-                text = "Sign Out",
-                color = WhiteText,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        LogoutCard(
+            onLogoutClick = onLogoutClick
+        )
     }
 
     if (showImageMenu) {
@@ -392,6 +403,67 @@ private fun ProfileContent(
 }
 
 @Composable
+private fun ProfileHeroCard(
+    uiState: ProfileUiState,
+    onImageClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        color = RakizzColors.Primary,
+        shadowElevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            RakizzColors.Primary,
+                            RakizzColors.PrimaryDark
+                        )
+                    )
+                )
+                .padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ProfileImage(
+                role = uiState.role,
+                name = uiState.fullName,
+                imageUri = uiState.profileImageUrl,
+                onClick = onImageClick
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = uiState.fullName.ifBlank {
+                    roleTitle(uiState.role)
+                },
+                color = RakizzColors.White,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = uiState.email,
+                color = RakizzColors.White.copy(alpha = 0.82f),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            WhitePill(
+                text = uiState.role.uppercase().ifBlank { "ACCOUNT" }
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProfileImage(
     role: String,
     name: String,
@@ -399,6 +471,7 @@ private fun ProfileImage(
     onClick: () -> Unit
 ) {
     val imageBitmap = rememberImageBitmap(imageUri)
+
     val letter = when {
         name.isNotBlank() -> name.first().uppercase()
         role.lowercase() == "parent" -> "P"
@@ -407,10 +480,10 @@ private fun ProfileImage(
 
     Box(
         modifier = Modifier
-            .size(112.dp)
+            .size(116.dp)
             .clip(CircleShape)
-            .background(Color(0xFFE9E1D2))
-            .border(2.dp, PrimaryBlue.copy(alpha = 0.45f), CircleShape)
+            .background(RakizzColors.Card)
+            .border(3.dp, RakizzColors.White.copy(alpha = 0.55f), CircleShape)
             .clickable {
                 onClick()
             },
@@ -428,125 +501,12 @@ private fun ProfileImage(
         } else {
             Text(
                 text = letter,
-                color = Color(0xFF333333),
-                fontSize = 38.sp,
+                color = RakizzColors.Primary,
+                style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.ExtraBold
             )
         }
     }
-}
-
-@Composable
-private fun ImageMenuDialog(
-    hasImage: Boolean,
-    onDismiss: () -> Unit,
-    onViewImage: () -> Unit,
-    onChangeImage: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Profile Picture",
-                color = WhiteText
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "Choose what you want to do.",
-                    color = SecondaryText
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (hasImage) {
-                    Button(
-                        onClick = onViewImage,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryBlue,
-                            contentColor = WhiteText
-                        )
-                    ) {
-                        Text("View Image")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                Button(
-                    onClick = onChangeImage,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WhiteText
-                    )
-                ) {
-                    Text("Change Image")
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Close",
-                    color = PrimaryBlue
-                )
-            }
-        },
-        containerColor = CardSurface
-    )
-}
-
-@Composable
-private fun ImagePreviewDialog(
-    imageUri: String,
-    onDismiss: () -> Unit
-) {
-    val imageBitmap = rememberImageBitmap(imageUri)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Profile Image",
-                color = WhiteText
-            )
-        },
-        text = {
-            if (imageBitmap != null) {
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = "Profile image preview",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp)
-                        .clip(RoundedCornerShape(18.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Text(
-                    text = "No image selected yet.",
-                    color = SecondaryText
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text(
-                    text = "Close",
-                    color = PrimaryBlue
-                )
-            }
-        },
-        containerColor = CardSurface
-    )
 }
 
 @Composable
@@ -558,63 +518,102 @@ private fun PairCodeCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
-            modifier = Modifier
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                .padding(18.dp)
+            modifier = Modifier.padding(18.dp)
         ) {
-            Text(
-                text = "Pair Code",
-                color = WhiteText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.Badge,
+                    color = RakizzColors.Primary
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = "Use this ID to link the student account with the parent account.",
-                color = SecondaryText,
-                fontSize = 14.sp
-            )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Student pair code",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Parent uses this to link with the student.",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (showPairCode) {
-                Text(
-                    text = userId,
-                    color = PrimaryBlue,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = RakizzColors.PrimarySoft,
+                    border = BorderStroke(1.dp, RakizzColors.CardBorder)
+                ) {
+                    Text(
+                        text = userId,
+                        color = RakizzColors.PrimaryDark,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
                     onClick = onCopyClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WhiteText
+                        containerColor = RakizzColors.Primary,
+                        contentColor = RakizzColors.White
                     )
                 ) {
-                    Text("Copy Pair Code")
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(9.dp))
+
+                    Text(
+                        text = "Copy Code",
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
             } else {
                 Button(
                     onClick = onShowClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WhiteText
+                        containerColor = RakizzColors.Primary,
+                        contentColor = RakizzColors.White
                     )
                 ) {
-                    Text("Generate Pair Code")
+                    Text(
+                        text = "Show Pair Code",
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
             }
         }
@@ -627,21 +626,55 @@ private fun ReadProfileCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
-            modifier = Modifier
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            InfoLine("Role", uiState.role.uppercase())
-            InfoLine("Name", uiState.fullName.ifBlank { "Not added yet" })
-            InfoLine("School", uiState.school.ifBlank { "Not added yet" })
-            InfoLine("Grade", uiState.gradeLevel.ifBlank { "Not added yet" })
-            InfoLine("Phone", uiState.phoneNumber.ifBlank { "Not added yet" })
-            InfoLine("Picture", if (uiState.profileImageUrl.isBlank()) "Not added yet" else "Image selected")
+            Text(
+                text = "Account details",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            InfoLine(
+                icon = Icons.Filled.Person,
+                label = "Name",
+                value = uiState.fullName.ifBlank { "Not added yet" }
+            )
+
+            InfoLine(
+                icon = Icons.Filled.School,
+                label = "School",
+                value = uiState.school.ifBlank { "Not added yet" }
+            )
+
+            InfoLine(
+                icon = Icons.Filled.Badge,
+                label = "Grade",
+                value = uiState.gradeLevel.ifBlank { "Not added yet" }
+            )
+
+            InfoLine(
+                icon = Icons.Filled.Person,
+                label = "Phone",
+                value = uiState.phoneNumber.ifBlank { "Not added yet" }
+            )
+
+            InfoLine(
+                icon = Icons.Filled.Image,
+                label = "Picture",
+                value = if (uiState.profileImageUrl.isBlank()) {
+                    "Not added yet"
+                } else {
+                    "Image selected"
+                }
+            )
         }
     }
 }
@@ -652,20 +685,26 @@ private fun EditProfileCard(
     onFullNameChange: (String) -> Unit,
     onSchoolChange: (String) -> Unit,
     onGradeChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onImageChange: (String) -> Unit
+    onPhoneChange: (String) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
-            modifier = Modifier
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                .padding(18.dp),
+            modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text(
+                text = "Edit information",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
             ProfileTextField(
                 value = uiState.fullName,
                 label = "Name",
@@ -686,15 +725,16 @@ private fun EditProfileCard(
 
             ProfileTextField(
                 value = uiState.phoneNumber,
-                label = "Phone Number",
+                label = "Phone number",
                 keyboardType = KeyboardType.Phone,
                 onValueChange = onPhoneChange
             )
 
-            ProfileTextField(
-                value = uiState.profileImageUrl,
-                label = "Picture URL / path",
-                onValueChange = onImageChange
+            Text(
+                text = "To change the profile picture, press the image at the top.",
+                color = RakizzColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
             )
         }
     }
@@ -715,45 +755,247 @@ private fun ProfileTextField(
         },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType
         ),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = WhiteText,
-            unfocusedTextColor = WhiteText,
-            focusedLabelColor = PrimaryBlue,
-            unfocusedLabelColor = SecondaryText,
-            focusedBorderColor = PrimaryBlue,
-            unfocusedBorderColor = Color(0xFF343A46),
-            cursorColor = PrimaryBlue
+            focusedTextColor = RakizzColors.TextMain,
+            unfocusedTextColor = RakizzColors.TextMain,
+            focusedContainerColor = RakizzColors.Card,
+            unfocusedContainerColor = RakizzColors.Card,
+            focusedLabelColor = RakizzColors.Primary,
+            unfocusedLabelColor = RakizzColors.TextSecond,
+            focusedBorderColor = RakizzColors.Primary,
+            unfocusedBorderColor = RakizzColors.CardBorder,
+            cursorColor = RakizzColors.Primary
         )
     )
 }
 
 @Composable
 private fun InfoLine(
+    icon: ImageVector,
     label: String,
     value: String
 ) {
-    Column {
-        Text(
-            text = label,
-            color = SecondaryText,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 1.sp
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        IconBubble(
+            icon = icon,
+            color = RakizzColors.Primary
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-        Text(
-            text = value,
-            color = WhiteText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = label.uppercase(),
+                color = RakizzColors.TextMuted,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = value,
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
+}
+
+@Composable
+private fun LogoutCard(
+    onLogoutClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Text(
+                text = "Account",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onLogoutClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, RakizzColors.Error),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = RakizzColors.Error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp)
+                )
+
+                Spacer(modifier = Modifier.width(9.dp))
+
+                Text(
+                    text = "Sign Out",
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageMenuDialog(
+    hasImage: Boolean,
+    onDismiss: () -> Unit,
+    onViewImage: () -> Unit,
+    onChangeImage: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = RakizzColors.Card,
+        title = {
+            Text(
+                text = "Profile picture",
+                color = RakizzColors.TextMain,
+                fontWeight = FontWeight.ExtraBold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Choose what you want to do.",
+                    color = RakizzColors.TextSecond
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (hasImage) {
+                    Button(
+                        onClick = onViewImage,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = RakizzColors.Primary,
+                            contentColor = RakizzColors.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Visibility,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text("View Image")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Button(
+                    onClick = onChangeImage,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RakizzColors.Primary,
+                        contentColor = RakizzColors.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Image,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text("Change Image")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    text = "Close",
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun ImagePreviewDialog(
+    imageUri: String,
+    onDismiss: () -> Unit
+) {
+    val imageBitmap = rememberImageBitmap(imageUri)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = RakizzColors.Card,
+        title = {
+            Text(
+                text = "Profile image",
+                color = RakizzColors.TextMain,
+                fontWeight = FontWeight.ExtraBold
+            )
+        },
+        text = {
+            if (imageBitmap != null) {
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = "Profile image preview",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(270.dp)
+                        .clip(RoundedCornerShape(20.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = "No image selected yet.",
+                    color = RakizzColors.TextSecond
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    text = "Close",
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    )
 }
 
 @Composable
@@ -769,27 +1011,27 @@ private fun MessageCard(
             .clickable {
                 onClick()
             },
-        shape = RoundedCornerShape(20.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(22.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
     ) {
         Column(
-            modifier = Modifier
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                .padding(16.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Text(
                 text = title,
                 color = color,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = message,
-                color = SecondaryText,
-                fontSize = 14.sp
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
@@ -797,16 +1039,65 @@ private fun MessageCard(
 
 @Composable
 private fun LoadingCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Box(
+            modifier = Modifier.padding(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = RakizzColors.Primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconBubble(
+    icon: ImageVector,
+    color: Color
+) {
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = color.copy(alpha = 0.13f)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun WhitePill(
+    text: String
+) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(CardSurface)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(22.dp),
-        contentAlignment = Alignment.Center
+            .background(
+                color = RakizzColors.White.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(11.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        CircularProgressIndicator(color = PrimaryBlue)
+        Text(
+            text = text,
+            color = RakizzColors.White,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }
 
@@ -824,10 +1115,16 @@ private fun rememberImageBitmap(
                 val uri = Uri.parse(uriString)
 
                 val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val source = ImageDecoder.createSource(context.contentResolver, uri)
+                    val source = ImageDecoder.createSource(
+                        context.contentResolver,
+                        uri
+                    )
                     ImageDecoder.decodeBitmap(source)
                 } else {
-                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                    MediaStore.Images.Media.getBitmap(
+                        context.contentResolver,
+                        uri
+                    )
                 }
 
                 bitmap.asImageBitmap()

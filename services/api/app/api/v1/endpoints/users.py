@@ -1,11 +1,13 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.crud.crud_user import make_unique_pair_code
 from app.models.user import User
-from shared_python.schemas.user import UserProfileUpdate, UserResponse
+from shared_python.enums import Role
+from shared_python.schemas.user import PairCodeResponse, UserProfileUpdate, UserResponse
 
 router = APIRouter()
 
@@ -23,7 +25,7 @@ def update_user_me(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
-    # simple profile edit for checkpoint
+    # simple profile save
     if profile_in.full_name is not None:
         current_user.full_name = profile_in.full_name.strip()
 
@@ -44,3 +46,24 @@ def update_user_me(
     db.refresh(current_user)
 
     return current_user
+
+
+@router.post("/me/pair-code", response_model=PairCodeResponse)
+def generate_my_pair_code(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    if current_user.role != Role.STUDENT.value:
+        raise HTTPException(
+            status_code=403,
+            detail="Only student accounts can generate pair code",
+        )
+
+    # keep same code if it already exists
+    if not current_user.pair_code:
+        current_user.pair_code = make_unique_pair_code(db)
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+
+    return PairCodeResponse(pair_code=current_user.pair_code)

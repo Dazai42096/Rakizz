@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Rakizz Student</string>
+    <string name="app_name">Rakizz</string>
+    <string name="rakizz_blocker_accessibility_description">
+        Rakizz uses this service to detect blocked apps during focus time and open the quiz unlock screen.
+    </string>
 </resources>

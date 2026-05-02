@@ -1,5 +1,7 @@
 package com.rakizz.student.presentation.navigation
 
+import android.net.Uri
+
 sealed class NavRoutes(val route: String) {
     data object Auth : NavRoutes("auth_route")
     data object ChooseRole : NavRoutes("choose_role")
@@ -22,6 +24,15 @@ sealed class NavRoutes(val route: String) {
 
     data object QuizDetail : NavRoutes("quiz_detail/{id}") {
         fun createRoute(id: String) = "quiz_detail/$id"
+    }
+
+    data object UnlockQuiz : NavRoutes("unlock_quiz/{packageName}/{forceUnlock}") {
+        fun createRoute(
+            packageName: String,
+            forceUnlock: Boolean = false
+        ): String {
+            return "unlock_quiz/${Uri.encode(packageName)}/$forceUnlock"
+        }
     }
 
     data object Focus : NavRoutes("focus")

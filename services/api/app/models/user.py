@@ -33,11 +33,14 @@ class User(Base):
     role = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    # profile info
+    # each student gets a code like RKZ-123456
+    pair_code = Column(String, unique=True, index=True, nullable=True)
+
+    # profile info saved in database
     full_name = Column(String, nullable=True)
     school = Column(String, nullable=True)
     grade_level = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
 
-    # for now we save image url/path as text
+    # for checkpoint we save image uri/path as text
     profile_image_url = Column(String, nullable=True)

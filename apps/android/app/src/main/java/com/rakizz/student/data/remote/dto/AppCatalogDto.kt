@@ -8,6 +8,8 @@ data class CurrentUserDto(
     val id: String,
     val email: String,
     val role: String,
+    @SerialName("pair_code")
+    val pairCode: String? = null,
     @SerialName("full_name")
     val fullName: String? = null,
     val school: String? = null,

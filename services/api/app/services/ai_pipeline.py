@@ -1,4 +1,5 @@
 from pathlib import Path
+import random
 import re
 from typing import Any
 
@@ -13,8 +14,10 @@ class AIPipelineService:
         self,
         material_url: str,
         difficulty: DifficultyLevel,
+        old_question_texts: list[str] | None = None,
+        old_source_snippets: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        # read the uploaded material first
+        # first thing: read the material
         text = self._read_material_text(material_url)
 
         if not text.strip():
@@ -23,10 +26,15 @@ class AIPipelineService:
                 detail="Could not read text from this material",
             )
 
-        # make real questions from the material text
+        old_question_texts = old_question_texts or []
+        old_source_snippets = old_source_snippets or []
+
+        # generate questions from the material chunks
         questions = self._build_questions_from_text(
             text=text,
             difficulty=difficulty,
+            old_question_texts=old_question_texts,
+            old_source_snippets=old_source_snippets,
         )
 
         if not questions:
@@ -44,7 +52,7 @@ class AIPipelineService:
         path = Path(material_url)
 
         if not path.exists():
-            # if it is not a local file, use the url text as fallback
+            # fallback, just in case the material is saved as text/url
             return material_url
 
         suffix = path.suffix.lower()
@@ -58,7 +66,7 @@ class AIPipelineService:
                 errors="ignore",
             )
 
-        # simple fallback for other files
+        # basic fallback for checkpoint
         return path.name.replace("_", " ").replace("-", " ")
 
     def _read_pdf(
@@ -70,6 +78,7 @@ class AIPipelineService:
             pages_text = []
 
             for page in reader.pages:
+                # take text from each page
                 page_text = page.extract_text() or ""
                 pages_text.append(page_text)
 
@@ -84,250 +93,118 @@ class AIPipelineService:
         self,
         text: str,
         difficulty: DifficultyLevel,
+        old_question_texts: list[str],
+        old_source_snippets: list[str],
     ) -> list[dict[str, Any]]:
         clean_text = self._clean_text(text)
-        lower_text = clean_text.lower()
 
-        questions: list[dict[str, Any]] = []
+        # split the material so questions come from different places
+        chunks = self._make_chunks(clean_text)
 
-        # these are simple content based questions for the checkpoint
-        if "lan" in lower_text and "wan" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="What is the main difference between a LAN and a WAN?",
-                    options=[
-                        "A LAN covers a small local area, while a WAN covers a larger geographic area.",
-                        "A LAN is always wireless, while a WAN is always wired.",
-                        "A LAN only works without internet, while a WAN only works with Bluetooth.",
-                        "A LAN is used only for phones, while a WAN is used only for printers.",
-                    ],
-                    correct="A LAN covers a small local area, while a WAN covers a larger geographic area.",
-                    explanation="A LAN is used in a limited place like a home or school, while a WAN connects larger areas.",
-                    snippet=self._find_snippet(clean_text, "LAN"),
-                )
-            )
+        if not chunks:
+            chunks = [clean_text]
 
-        if "client" in lower_text and "server" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="In a client-server network, what does the client usually do?",
-                    options=[
-                        "It requests services or data from a server.",
-                        "It replaces the router inside the network.",
-                        "It stores the MAC address of every device only.",
-                        "It blocks all traffic from the internet.",
-                    ],
-                    correct="It requests services or data from a server.",
-                    explanation="The client sends requests, and the server responds with data or services.",
-                    snippet=self._find_snippet(clean_text, "client"),
-                )
-            )
+        # try to skip chunks already used in old quizzes
+        fresh_chunks = self._remove_used_chunks(
+            chunks=chunks,
+            old_source_snippets=old_source_snippets,
+        )
 
-        if "router" in lower_text and "switch" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="What is the main job of a router?",
-                    options=[
-                        "To connect different networks and forward traffic between them.",
-                        "To connect only devices inside the same local network.",
-                        "To convert HTTP websites into HTTPS websites.",
-                        "To store quiz answers for students.",
-                    ],
-                    correct="To connect different networks and forward traffic between them.",
-                    explanation="A router connects networks, while a switch mainly connects devices in one local network.",
-                    snippet=self._find_snippet(clean_text, "router"),
-                )
-            )
+        if len(fresh_chunks) < 3:
+            # if most chunks were used before, reuse but shuffle
+            fresh_chunks = chunks
 
-        if "ip address" in lower_text and "mac address" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="Which statement correctly describes an IP address and a MAC address?",
-                    options=[
-                        "An IP address is used for network location, while a MAC address identifies a network device.",
-                        "An IP address is permanent hardware, while a MAC address changes every second.",
-                        "An IP address is used only by printers, while a MAC address is used only by websites.",
-                        "Both IP and MAC addresses are the same thing.",
-                    ],
-                    correct="An IP address is used for network location, while a MAC address identifies a network device.",
-                    explanation="The IP address helps route data, while the MAC address identifies the device hardware on a network.",
-                    snippet=self._find_snippet(clean_text, "IP address"),
-                )
-            )
-
-        if "osi" in lower_text or "application layer" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="Which OSI layer is closest to the user and supports services like web browsing?",
-                    options=[
-                        "Application layer",
-                        "Physical layer",
-                        "Data link layer",
-                        "Transport layer",
-                    ],
-                    correct="Application layer",
-                    explanation="The application layer is closest to the user and supports apps like web browsers and email.",
-                    snippet=self._find_snippet(clean_text, "Application"),
-                )
-            )
-
-        if "tcp" in lower_text and "udp" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="Why is TCP usually used when reliability is important?",
-                    options=[
-                        "Because it checks delivery and can resend lost data.",
-                        "Because it never creates a connection.",
-                        "Because it is only used for DNS.",
-                        "Because it blocks all packets before sending them.",
-                    ],
-                    correct="Because it checks delivery and can resend lost data.",
-                    explanation="TCP is reliable because it confirms delivery and can retransmit missing data.",
-                    snippet=self._find_snippet(clean_text, "TCP"),
-                )
-            )
-
-        if "dns" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="What does DNS do?",
-                    options=[
-                        "It translates domain names into IP addresses.",
-                        "It encrypts every file on the computer.",
-                        "It controls the brightness of the screen.",
-                        "It removes all traffic from the router.",
-                    ],
-                    correct="It translates domain names into IP addresses.",
-                    explanation="DNS helps users access websites by converting names like example.com into IP addresses.",
-                    snippet=self._find_snippet(clean_text, "DNS"),
-                )
-            )
-
-        if "https" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="Why is HTTPS more secure than HTTP?",
-                    options=[
-                        "HTTPS encrypts data between the browser and the website.",
-                        "HTTPS removes the need for an IP address.",
-                        "HTTPS is only used for local networks.",
-                        "HTTPS makes a computer faster by increasing RAM.",
-                    ],
-                    correct="HTTPS encrypts data between the browser and the website.",
-                    explanation="HTTPS protects data using encryption, which makes communication safer than plain HTTP.",
-                    snippet=self._find_snippet(clean_text, "HTTPS"),
-                )
-            )
-
-        if "bandwidth" in lower_text and "latency" in lower_text:
-            questions.append(
-                self._question(
-                    difficulty=difficulty,
-                    question="What does latency measure in a network?",
-                    options=[
-                        "The delay before data starts arriving.",
-                        "The total number of saved files.",
-                        "The size of a monitor screen.",
-                        "The number of installed apps.",
-                    ],
-                    correct="The delay before data starts arriving.",
-                    explanation="Latency is delay. Lower latency usually means a faster response.",
-                    snippet=self._find_snippet(clean_text, "latency"),
-                )
-            )
-
-        # if the material is different, still make questions from its sentences
-        if len(questions) < 5:
-            questions.extend(
-                self._fallback_questions(
-                    text=clean_text,
-                    difficulty=difficulty,
-                    already_count=len(questions),
-                )
-            )
+        random.shuffle(fresh_chunks)
 
         question_count = self._question_count(difficulty)
 
-        return questions[:question_count]
+        # MIXED means easy + medium + hard in one quiz
+        levels = self._difficulty_plan(
+            difficulty=difficulty,
+            count=question_count,
+        )
 
-    def _fallback_questions(
-        self,
-        text: str,
-        difficulty: DifficultyLevel,
-        already_count: int,
-    ) -> list[dict[str, Any]]:
-        sentences = self._split_sentences(text)
-        results = []
+        questions: list[dict[str, Any]] = []
 
-        for sentence in sentences:
-            if len(results) + already_count >= 5:
+        # first pass, take one question from different chunks
+        for i in range(question_count):
+            if not fresh_chunks:
                 break
 
-            important_word = self._pick_keyword(sentence)
+            chunk = fresh_chunks[i % len(fresh_chunks)]
+            level = levels[i % len(levels)]
 
-            if not important_word:
-                continue
-
-            results.append(
-                self._question(
-                    difficulty=difficulty,
-                    question=f"According to the material, which idea is connected to {important_word}?",
-                    options=[
-                        sentence[:120],
-                        "It is not mentioned in the uploaded material.",
-                        "It is only related to entertainment apps.",
-                        "It means the same thing as a password reset.",
-                    ],
-                    correct=sentence[:120],
-                    explanation="The correct answer is taken from the uploaded material.",
-                    snippet=sentence[:180],
-                )
+            q = self._make_question_from_chunk(
+                chunk=chunk,
+                level=level,
+                question_number=i + 1,
             )
 
-        return results
+            if q is None:
+                continue
 
-    def _question(
-        self,
-        difficulty: DifficultyLevel,
-        question: str,
-        options: list[str],
-        correct: str,
-        explanation: str,
-        snippet: str,
-    ) -> dict[str, Any]:
-        return {
-            "question_text": f"{question} ({difficulty.value})",
-            "options": options,
-            "correct_answer": correct,
-            "explanation": explanation,
-            "source_chunk_snippet": snippet,
-        }
+            if self._was_used_before(q["question_text"], old_question_texts):
+                continue
 
-    def _question_count(
-        self,
-        difficulty: DifficultyLevel,
-    ) -> int:
-        if difficulty == DifficultyLevel.EASY:
-            return 5
+            if self._is_repeated_in_same_quiz(q, questions):
+                continue
 
-        if difficulty == DifficultyLevel.MEDIUM:
-            return 6
+            questions.append(q)
 
-        return 7
+        # second pass, fill missing questions if some chunks failed
+        tries = 0
 
-    def _clean_text(
+        while len(questions) < question_count and tries < 100:
+            tries += 1
+
+            chunk = random.choice(chunks)
+            level = random.choice(levels)
+
+            q = self._make_question_from_chunk(
+                chunk=chunk,
+                level=level,
+                question_number=len(questions) + 1,
+            )
+
+            if q is None:
+                continue
+
+            if self._is_repeated_in_same_quiz(q, questions):
+                continue
+
+            questions.append(q)
+
+        return questions[:question_count]
+
+    def _make_chunks(
         self,
         text: str,
-    ) -> str:
-        return re.sub(r"\s+", " ", text).strip()
+    ) -> list[str]:
+        sentences = self._split_sentences(text)
+
+        chunks = []
+        current = []
+
+        for sentence in sentences:
+            current.append(sentence)
+
+            joined = " ".join(current)
+
+            # smaller chunks help cover more parts of the material
+            if len(joined) >= 330:
+                chunks.append(joined.strip())
+                current = []
+
+        if current:
+            chunks.append(" ".join(current).strip())
+
+        final_chunks = []
+
+        for chunk in chunks:
+            if len(chunk) >= 90:
+                final_chunks.append(chunk)
+
+        return final_chunks
 
     def _split_sentences(
         self,
@@ -335,17 +212,151 @@ class AIPipelineService:
     ) -> list[str]:
         parts = re.split(r"(?<=[.!?])\s+", text)
 
-        return [
-            part.strip()
-            for part in parts
-            if len(part.strip()) >= 40
+        good = []
+
+        for part in parts:
+            part = self._clean_text(part)
+
+            if len(part) >= 30:
+                good.append(part)
+
+        return good
+
+    def _make_question_from_chunk(
+        self,
+        chunk: str,
+        level: DifficultyLevel,
+        question_number: int,
+    ) -> dict[str, Any] | None:
+        sentences = self._split_sentences(chunk)
+
+        if not sentences:
+            return None
+
+        main_sentence = self._pick_good_sentence(sentences)
+
+        if not main_sentence:
+            return None
+
+        keyword = self._pick_keyword(main_sentence)
+
+        if not keyword:
+            return None
+
+        correct_answer = self._short_answer(main_sentence)
+
+        wrong_answers = self._make_wrong_answers(
+            keyword=keyword,
+            correct_answer=correct_answer,
+        )
+
+        if len(wrong_answers) < 3:
+            return None
+
+        options = [
+            correct_answer,
+            wrong_answers[0],
+            wrong_answers[1],
+            wrong_answers[2],
         ]
+
+        random.shuffle(options)
+
+        question_text, explanation = self._question_text_for_level(
+            keyword=keyword,
+            level=level,
+            question_number=question_number,
+        )
+
+        return {
+            "question_text": question_text,
+            "options": options,
+            "correct_answer": correct_answer,
+            "explanation": explanation,
+            "source_chunk_snippet": self._short_snippet(chunk),
+        }
+
+    def _question_text_for_level(
+        self,
+        keyword: str,
+        level: DifficultyLevel,
+        question_number: int,
+    ) -> tuple[str, str]:
+        # the level is shown inside the question so the committee sees the mix
+
+        if level == DifficultyLevel.EASY:
+            return (
+                f"[EASY Q{question_number}] According to the material, what is the correct idea about {keyword}?",
+                "This is a direct question from the uploaded material.",
+            )
+
+        if level == DifficultyLevel.MEDIUM:
+            return (
+                f"[MEDIUM Q{question_number}] Which statement best explains {keyword} from the material?",
+                "This question needs understanding the idea from the material.",
+            )
+
+        return (
+            f"[HARD Q{question_number}] Which answer best applies the idea of {keyword}?",
+            "This is harder because it asks the student to apply the idea, not only memorize it.",
+        )
+
+    def _pick_good_sentence(
+        self,
+        sentences: list[str],
+    ) -> str | None:
+        scored = []
+
+        for sentence in sentences:
+            score = 0
+            lower = sentence.lower()
+
+            good_words = [
+                "is",
+                "are",
+                "means",
+                "used",
+                "helps",
+                "allows",
+                "because",
+                "important",
+                "refers",
+                "includes",
+                "provides",
+                "difference",
+                "example",
+                "main",
+                "called",
+                "known",
+            ]
+
+            for word in good_words:
+                if word in lower:
+                    score += 1
+
+            if 50 <= len(sentence) <= 190:
+                score += 2
+
+            if len(sentence) > 240:
+                score -= 2
+
+            scored.append((score, sentence))
+
+        scored.sort(key=lambda item: item[0], reverse=True)
+
+        if not scored:
+            return None
+
+        # choose one from the best few so it is not always the same
+        best_few = scored[: min(5, len(scored))]
+
+        return random.choice(best_few)[1]
 
     def _pick_keyword(
         self,
         sentence: str,
     ) -> str | None:
-        words = re.findall(r"[A-Za-z][A-Za-z\-]{3,}", sentence)
+        words = re.findall(r"[A-Za-z][A-Za-z0-9\-]{3,}", sentence)
 
         bad_words = {
             "this",
@@ -363,28 +374,261 @@ class AIPipelineService:
             "used",
             "uses",
             "using",
+            "because",
+            "there",
+            "these",
+            "those",
+            "each",
+            "every",
+            "into",
+            "only",
+            "also",
+            "more",
+            "most",
+            "some",
+            "same",
+            "such",
+            "between",
+            "student",
+            "material",
+            "question",
+            "answer",
+            "correct",
+            "uploaded",
+            "lesson",
+            "study",
         }
+
+        candidates = []
 
         for word in words:
             if word.lower() not in bad_words:
-                return word
+                candidates.append(word)
 
-        return None
+        if not candidates:
+            return None
 
-    def _find_snippet(
+        candidates.sort(key=len, reverse=True)
+
+        return candidates[0]
+
+    def _make_wrong_answers(
+        self,
+        keyword: str,
+        correct_answer: str,
+    ) -> list[str]:
+        # simple wrong options, enough for checkpoint demo
+        wrongs = [
+            f"{keyword} is not mentioned in the uploaded material.",
+            f"{keyword} means the same thing as the student's password.",
+            f"{keyword} is only used to change the profile picture.",
+            f"{keyword} is a random app setting and not part of the lesson.",
+            f"{keyword} means the student has already passed the quiz.",
+            f"{keyword} is only related to phone notifications.",
+            f"{keyword} is used only for signing out of Rakizz.",
+            f"{keyword} is only a visual theme setting inside the app.",
+            f"{keyword} is not connected to the topic explained in the file.",
+            f"{keyword} is mainly used for deleting uploaded material.",
+        ]
+
+        final_wrong = []
+
+        for item in wrongs:
+            item = self._clean_text(item)
+
+            if item != correct_answer and item not in final_wrong:
+                final_wrong.append(item)
+
+        random.shuffle(final_wrong)
+
+        return final_wrong[:3]
+
+    def _remove_used_chunks(
+        self,
+        chunks: list[str],
+        old_source_snippets: list[str],
+    ) -> list[str]:
+        if not old_source_snippets:
+            return chunks
+
+        fresh = []
+
+        for chunk in chunks:
+            chunk_small = self._clean_text(chunk[:160]).lower()
+            used = False
+
+            for old in old_source_snippets:
+                old_small = self._clean_text((old or "")[:120]).lower()
+
+                if old_small and old_small in chunk_small:
+                    used = True
+                    break
+
+            if not used:
+                fresh.append(chunk)
+
+        return fresh
+
+    def _was_used_before(
+        self,
+        question_text: str,
+        old_question_texts: list[str],
+    ) -> bool:
+        new_q = self._clean_text(question_text).lower()
+
+        for old_q in old_question_texts:
+            if self._clean_text(old_q).lower() == new_q:
+                return True
+
+        return False
+
+    def _is_repeated_in_same_quiz(
+        self,
+        question: dict[str, Any],
+        questions: list[dict[str, Any]],
+    ) -> bool:
+        for old in questions:
+            if old["question_text"] == question["question_text"]:
+                return True
+
+            if old["source_chunk_snippet"] == question["source_chunk_snippet"]:
+                return True
+
+        return False
+
+    def _question_count(
+        self,
+        difficulty: DifficultyLevel,
+    ) -> int:
+        # from now on the app uses MIXED
+        # keeping the old ones in case old requests are sent from Swagger
+        if difficulty == DifficultyLevel.EASY:
+            return 10
+
+        if difficulty == DifficultyLevel.MEDIUM:
+            return 15
+
+        return 20
+
+    def _difficulty_plan(
+        self,
+        difficulty: DifficultyLevel,
+        count: int,
+    ) -> list[DifficultyLevel]:
+        # mixed is the real checkpoint flow now
+        if difficulty == DifficultyLevel.MIXED:
+            plan = [
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.EASY,
+                DifficultyLevel.HARD,
+            ]
+
+        elif difficulty == DifficultyLevel.EASY:
+            plan = [
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+            ]
+
+        elif difficulty == DifficultyLevel.MEDIUM:
+            plan = [
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.HARD,
+            ]
+
+        else:
+            plan = [
+                DifficultyLevel.EASY,
+                DifficultyLevel.EASY,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.MEDIUM,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+                DifficultyLevel.HARD,
+            ]
+
+        while len(plan) < count:
+            plan.append(DifficultyLevel.MIXED)
+
+        return plan[:count]
+
+    def _short_answer(
         self,
         text: str,
-        keyword: str,
     ) -> str:
-        index = text.lower().find(keyword.lower())
+        text = self._clean_text(text)
 
-        if index == -1:
-            return text[:180]
+        if len(text) <= 160:
+            return text
 
-        start = max(index - 80, 0)
-        end = min(index + 180, len(text))
+        return text[:157].rstrip() + "..."
 
-        return text[start:end].strip()
+    def _short_snippet(
+        self,
+        text: str,
+    ) -> str:
+        text = self._clean_text(text)
+
+        if len(text) <= 280:
+            return text
+
+        return text[:277].rstrip() + "..."
+
+    def _clean_text(
+        self,
+        text: str,
+    ) -> str:
+        return re.sub(r"\s+", " ", text).strip()
 
 
 ai_service = AIPipelineService()

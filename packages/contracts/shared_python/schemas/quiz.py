@@ -3,14 +3,21 @@ from typing import List, Dict, Optional
 from uuid import UUID
 from enum import Enum
 
+
 class DifficultyLevel(str, Enum):
     EASY = "EASY"
     MEDIUM = "MEDIUM"
     HARD = "HARD"
 
+    # this is what the app will use now
+    # student will not choose the level
+    MIXED = "MIXED"
+
+
 class QuizGenerateRequest(BaseModel):
     material_id: UUID
     difficulty: DifficultyLevel
+
 
 class QuizQuestionPublic(BaseModel):
     id: UUID
@@ -19,6 +26,7 @@ class QuizQuestionPublic(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class QuizQuestionReview(BaseModel):
     id: UUID
@@ -31,16 +39,19 @@ class QuizQuestionReview(BaseModel):
     class Config:
         from_attributes = True
 
+
 class QuizSetPublicResponse(BaseModel):
     id: UUID
     material_id: UUID
     questions: List[QuizQuestionPublic]
-    
+
     class Config:
         from_attributes = True
 
+
 class QuizAttemptCreate(BaseModel):
     answers: Dict[UUID, str]
+
 
 class QuizAttemptResultResponse(BaseModel):
     id: UUID
@@ -49,6 +60,6 @@ class QuizAttemptResultResponse(BaseModel):
     score: float
     passed: bool
     review_data: List[QuizQuestionReview]
-    
+
     class Config:
         from_attributes = True

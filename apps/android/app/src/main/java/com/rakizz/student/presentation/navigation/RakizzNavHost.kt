@@ -1,6 +1,8 @@
 package com.rakizz.student.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -21,10 +23,34 @@ import com.rakizz.student.presentation.progress.StudentProgressScreen
 import com.rakizz.student.presentation.quizzes.detail.QuizDetailScreen
 import com.rakizz.student.presentation.quizzes.list.QuizzesScreen
 import com.rakizz.student.presentation.quizzes.setup.QuizSetupScreen
+import com.rakizz.student.presentation.unlock.UnlockQuizScreen
 
 @Composable
-fun RakizzNavHost() {
+fun RakizzNavHost(
+    startUnlockPackage: String? = null,
+    forceUnlock: Boolean = false,
+    onUnlockPackageHandled: () -> Unit = {}
+) {
     val navController = rememberNavController()
+
+    // Accessibility service sends the blocked app package here.
+    // Then we open the unlock quiz screen automatically.
+    LaunchedEffect(startUnlockPackage, forceUnlock) {
+        val blockedPackage = startUnlockPackage
+
+        if (!blockedPackage.isNullOrBlank()) {
+            navController.navigate(
+                NavRoutes.UnlockQuiz.createRoute(
+                    packageName = blockedPackage,
+                    forceUnlock = forceUnlock
+                )
+            ) {
+                launchSingleTop = true
+            }
+
+            onUnlockPackageHandled()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -157,13 +183,14 @@ fun RakizzNavHost() {
         composable(NavRoutes.MaterialsList.route) {
             MaterialsScreen(
                 onNavigateToDetail = { materialId ->
-                    navController.navigate(NavRoutes.MaterialDetail.createRoute(materialId))
+                    navController.navigate(
+                        NavRoutes.MaterialDetail.createRoute(materialId)
+                    ) {
+                        launchSingleTop = true
+                    }
                 },
                 onOpenHome = {
                     navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Home.route) {
-                            inclusive = false
-                        }
                         launchSingleTop = true
                     }
                 },
@@ -177,23 +204,17 @@ fun RakizzNavHost() {
                         launchSingleTop = true
                     }
                 },
-                onAddMaterial = {
-                    // later
-                },
-                onTakePhoto = {
-                    // later
-                },
-                onWriteTextNotes = {
-                    // later
-                },
-                onAddLink = {
-                    // later
-                }
+                onAddMaterial = {},
+                onTakePhoto = {},
+                onWriteTextNotes = {},
+                onAddLink = {}
             )
         }
 
         composable(NavRoutes.MaterialDetail.route) { backStackEntry ->
-            val materialId = backStackEntry.arguments?.getString("id").orEmpty()
+            val materialId = backStackEntry.arguments
+                ?.getString("id")
+                .orEmpty()
 
             MaterialDetailScreen(
                 materialId = materialId,
@@ -203,13 +224,17 @@ fun RakizzNavHost() {
                 onGenerateQuizClick = { selectedMaterialId ->
                     navController.navigate(
                         NavRoutes.QuizSetup.createRoute(selectedMaterialId)
-                    )
+                    ) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
 
         composable(NavRoutes.QuizSetup.route) { backStackEntry ->
-            val materialId = backStackEntry.arguments?.getString("materialId").orEmpty()
+            val materialId = backStackEntry.arguments
+                ?.getString("materialId")
+                .orEmpty()
 
             QuizSetupScreen(
                 materialId = materialId,
@@ -217,7 +242,63 @@ fun RakizzNavHost() {
                     navController.popBackStack()
                 },
                 onQuizGenerated = { quizId ->
-                    navController.navigate(NavRoutes.QuizDetail.createRoute(quizId))
+                    navController.navigate(
+                        NavRoutes.QuizDetail.createRoute(quizId)
+                    ) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.QuizzesList.route) {
+            QuizzesScreen(
+                onNavigateToDetail = { quizId ->
+                    navController.navigate(
+                        NavRoutes.QuizDetail.createRoute(quizId)
+                    ) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenHome = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenLibrary = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenFocus = {
+                    navController.navigate(NavRoutes.Focus.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenProfile = {
+                    navController.navigate(NavRoutes.Profile.route) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.QuizDetail.route) { backStackEntry ->
+            val quizId = backStackEntry.arguments
+                ?.getString("id")
+                .orEmpty()
+
+            QuizDetailScreen(
+                quizId = quizId,
+                onGoHome = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onBackToMaterials = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -234,41 +315,41 @@ fun RakizzNavHost() {
             )
         }
 
-        composable(NavRoutes.QuizzesList.route) {
-            QuizzesScreen(
-                onNavigateToDetail = { quizId ->
-                    navController.navigate(NavRoutes.QuizDetail.createRoute(quizId))
-                }
-            )
-        }
-
-        composable(NavRoutes.QuizDetail.route) { backStackEntry ->
-            val quizId = backStackEntry.arguments?.getString("id").orEmpty()
-
-            QuizDetailScreen(
-                quizId = quizId,
-                onStartQuiz = {
-                    navController.popBackStack()
-                },
-                onGoHome = {
-                    navController.navigate(NavRoutes.Home.route) {
-                        popUpTo(NavRoutes.Home.route) {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
-                },
-                onTryAnotherQuiz = {
-                    navController.popBackStack()
-                },
-                onBackToMaterials = {
-                    navController.popBackStack(NavRoutes.MaterialsList.route, false)
-                }
-            )
-        }
-
         composable(NavRoutes.Focus.route) {
             FocusScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onTryBlockedAppClick = { packageName ->
+                    // backup demo button:
+                    // this opens the same unlock quiz screen manually
+                    navController.navigate(
+                        NavRoutes.UnlockQuiz.createRoute(
+                            packageName = packageName,
+                            forceUnlock = true
+                        )
+                    ) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(NavRoutes.UnlockQuiz.route) { backStackEntry ->
+            val packageName = Uri.decode(
+                backStackEntry.arguments
+                    ?.getString("packageName")
+                    .orEmpty()
+            )
+
+            val forceUnlock = backStackEntry.arguments
+                ?.getString("forceUnlock")
+                ?.toBooleanStrictOrNull()
+                ?: false
+
+            UnlockQuizScreen(
+                packageName = packageName,
+                forceUnlock = forceUnlock,
                 onBackClick = {
                     navController.popBackStack()
                 }
@@ -288,20 +369,6 @@ fun RakizzNavHost() {
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onSettingsClick = {
-                    // later
-                },
-                onGeneratePairCodeClick = {
-                    navController.navigate(NavRoutes.PairCode.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onNotificationsClick = {
-                    // later
-                },
-                onPrivacyClick = {
-                    // later
-                },
                 onLogoutClick = {
                     navController.navigate(NavRoutes.Auth.route) {
                         popUpTo(0) {
@@ -313,14 +380,14 @@ fun RakizzNavHost() {
             )
         }
 
+        // These routes still exist, for the next implementation phase
+        // not for the checkpoint 
         composable(NavRoutes.Progress.route) {
             StudentProgressScreen(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onDownloadClick = {
-                    // later
-                }
+                onDownloadClick = {}
             )
         }
 
@@ -329,15 +396,9 @@ fun RakizzNavHost() {
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onCopyClick = {
-                    // later
-                },
-                onShareClick = {
-                    // later
-                },
-                onRegenerateClick = {
-                    // later
-                }
+                onCopyClick = {},
+                onShareClick = {},
+                onRegenerateClick = {}
             )
         }
     }

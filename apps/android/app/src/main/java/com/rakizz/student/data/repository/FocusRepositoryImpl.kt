@@ -1,5 +1,7 @@
 package com.rakizz.student.data.repository
 
+import android.content.Context
+import com.rakizz.student.blocking.FocusRuleCache
 import com.rakizz.student.data.network.RakizzApi
 import com.rakizz.student.data.remote.dto.InstalledAppDto
 import com.rakizz.student.data.remote.dto.InstalledAppsSyncRequestDto
@@ -7,6 +9,7 @@ import com.rakizz.student.data.remote.dto.PolicyDto
 import com.rakizz.student.domain.model.FocusPolicy
 import com.rakizz.student.domain.repository.FocusRepository
 import com.rakizz.student.usage.InstalledAppsReader
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -16,14 +19,26 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class FocusRepositoryImpl @Inject constructor(
     private val api: RakizzApi,
-    private val installedAppsReader: InstalledAppsReader
+    private val installedAppsReader: InstalledAppsReader,
+    @ApplicationContext private val context: Context
 ) : FocusRepository {
 
     override suspend fun getPolicies(): Result<List<FocusPolicy>> {
         return try {
-            // get rules that parent made for this student
-            val policies = api.getPolicies().map { it.toDomain() }
-            Result.success(policies)
+            // get rules parent made for this student
+            val policies = api.getPolicies()
+
+            // save rules locally so accessibility service can block apps
+            FocusRuleCache.savePolicies(
+                context = context,
+                policies = policies
+            )
+
+            Result.success(
+                policies.map { policy ->
+                    policy.toDomain()
+                }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -53,30 +68,52 @@ class FocusRepositoryImpl @Inject constructor(
     }
 
     private fun PolicyDto.toDomain(): FocusPolicy {
-        val blockedApps = configJson["blocked_apps"]?.jsonArray?.mapNotNull { item ->
+        val blockedAppNames = mutableListOf<String>()
+        val blockedPackages = mutableListOf<String>()
+
+        val blockedAppsArray = configJson["blocked_apps"]?.jsonArray
+
+        blockedAppsArray?.forEach { item ->
             try {
                 val obj = item.jsonObject
 
-                obj["app_name"]?.jsonPrimitive?.contentOrNull
-                    ?: obj["package_name"]?.jsonPrimitive?.contentOrNull
+                val packageName = obj["package_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val appName = obj["app_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+                if (packageName.isNotBlank()) {
+                    blockedPackages.add(packageName)
+                }
+
+                if (appName.isNotBlank()) {
+                    blockedAppNames.add(appName)
+                }
             } catch (_: Exception) {
-                null
+                // skip bad app item
             }
-        }.orEmpty()
+        }
+
+        val firstPackage = configJson.stringValue("package_name")
+            ?: blockedPackages.firstOrNull()
+            ?: blockedAppNames.firstOrNull()
+            ?: "focus_rule"
+
+        val namesForUi = if (blockedAppNames.isNotEmpty()) {
+            blockedAppNames
+        } else {
+            blockedPackages
+        }
 
         return FocusPolicy(
             id = id,
             parentId = parentId,
             studentId = studentId,
             ruleType = ruleType,
-            packageName = configJson.stringValue("package_name")
-                ?: blockedApps.firstOrNull()
-                ?: "focus rule",
+            packageName = firstPackage,
             dailyLimitMinutes = configJson.intValue("daily_limit_minutes"),
             note = configJson.stringValue("note"),
             startTime = configJson.stringValue("start_time"),
             endTime = configJson.stringValue("end_time"),
-            blockedApps = blockedApps
+            blockedApps = namesForUi
         )
     }
 

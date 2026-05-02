@@ -7,6 +7,9 @@ import com.rakizz.student.data.remote.dto.CurrentUserDto
 import com.rakizz.student.data.remote.dto.InstalledAppsSyncRequestDto
 import com.rakizz.student.data.remote.dto.InstalledAppsSyncResponseDto
 import com.rakizz.student.data.remote.dto.MaterialDto
+import com.rakizz.student.data.remote.dto.PairCodeGenerateResponseDto
+import com.rakizz.student.data.remote.dto.PairCodeLinkRequestDto
+import com.rakizz.student.data.remote.dto.PairCodeLinkResponseDto
 import com.rakizz.student.data.remote.dto.PolicyCreateRequestDto
 import com.rakizz.student.data.remote.dto.PolicyDto
 import com.rakizz.student.data.remote.dto.ProfileUpdateRequestDto
@@ -16,6 +19,10 @@ import com.rakizz.student.data.remote.dto.QuizDto
 import com.rakizz.student.data.remote.dto.QuizGenerateRequestDto
 import com.rakizz.student.data.remote.dto.RegisterRequestDto
 import com.rakizz.student.data.remote.dto.StudentAppCatalogResponseDto
+import com.rakizz.student.data.remote.dto.UnlockCheckRequestDto
+import com.rakizz.student.data.remote.dto.UnlockCheckResponseDto
+import com.rakizz.student.data.remote.dto.UnlockGrantRequestDto
+import com.rakizz.student.data.remote.dto.UnlockGrantResponseDto
 import com.rakizz.student.data.remote.dto.UsageSummaryDto
 import com.rakizz.student.data.remote.dto.UsageSyncRequestDto
 import com.rakizz.student.data.remote.dto.UsageSyncResponseDto
@@ -37,6 +44,7 @@ import retrofit2.http.Streaming
 
 interface RakizzApi {
 
+    // login uses form data because FastAPI OAuth2 expects username/password fields
     @FormUrlEncoded
     @POST("api/v1/auth/login")
     suspend fun login(
@@ -56,6 +64,14 @@ interface RakizzApi {
     suspend fun updateMe(
         @Body request: ProfileUpdateRequestDto
     ): CurrentUserDto
+
+    @POST("api/v1/users/me/pair-code")
+    suspend fun generatePairCode(): PairCodeGenerateResponseDto
+
+    @POST("api/v1/links/pair-code")
+    suspend fun linkStudentByPairCode(
+        @Body request: PairCodeLinkRequestDto
+    ): PairCodeLinkResponseDto
 
     @GET("api/v1/materials")
     suspend fun getMaterials(): List<MaterialDto>
@@ -119,6 +135,20 @@ interface RakizzApi {
     suspend fun createPolicy(
         @Body request: PolicyCreateRequestDto
     ): PolicyDto
+
+    // checkpoint unlock flow:
+    // checks if the app is blocked now
+    @POST("api/v1/unlock/check")
+    suspend fun checkBlockedApp(
+        @Body request: UnlockCheckRequestDto
+    ): UnlockCheckResponseDto
+
+    // checkpoint unlock flow:
+    // unlocks app after passing quiz
+    @POST("api/v1/unlock/grant")
+    suspend fun grantUnlock(
+        @Body request: UnlockGrantRequestDto
+    ): UnlockGrantResponseDto
 
     @POST("api/v1/usage/sync")
     suspend fun syncUsage(

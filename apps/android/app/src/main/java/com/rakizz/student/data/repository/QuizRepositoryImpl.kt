@@ -11,8 +11,8 @@ import com.rakizz.student.domain.model.Quiz
 import com.rakizz.student.domain.model.QuizQuestion
 import com.rakizz.student.domain.model.QuizReviewItem
 import com.rakizz.student.domain.repository.QuizRepository
-import kotlin.math.roundToInt
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 class QuizRepositoryImpl @Inject constructor(
     private val api: RakizzApi
@@ -21,7 +21,12 @@ class QuizRepositoryImpl @Inject constructor(
     override suspend fun getQuizzes(): Result<List<Quiz>> {
         return try {
             val response = api.getQuizzes()
-            Result.success(response.map { it.toDomainSummary() })
+
+            Result.success(
+                response.map { dto ->
+                    dto.toDomainSummary()
+                }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -30,6 +35,7 @@ class QuizRepositoryImpl @Inject constructor(
     override suspend fun getQuiz(id: String): Result<Quiz> {
         return try {
             val dto = api.getQuiz(id)
+
             Result.success(dto.toDomainDetailed())
         } catch (e: Exception) {
             Result.failure(e)
@@ -38,12 +44,15 @@ class QuizRepositoryImpl @Inject constructor(
 
     override suspend fun generateQuiz(materialId: String): Result<Quiz> {
         return try {
+            // student does not choose the difficulty anymore
+            // we always ask backend for a mixed AI quiz
             val dto = api.generateQuiz(
                 QuizGenerateRequestDto(
                     materialId = materialId,
-                    difficulty = "EASY"
+                    difficulty = "MIXED"
                 )
             )
+
             Result.success(dto.toDomainDetailed())
         } catch (e: Exception) {
             Result.failure(e)
@@ -57,8 +66,11 @@ class QuizRepositoryImpl @Inject constructor(
         return try {
             val dto = api.submitQuizAttempt(
                 id = quizId,
-                request = QuizAttemptRequestDto(answers = answers)
+                request = QuizAttemptRequestDto(
+                    answers = answers
+                )
             )
+
             Result.success(dto.toResultQuiz())
         } catch (e: Exception) {
             Result.failure(e)
@@ -66,12 +78,14 @@ class QuizRepositoryImpl @Inject constructor(
     }
 
     private fun QuizDto.toDomainSummary(): Quiz {
+        val count = totalQuestions ?: questions.size
+
         return Quiz(
             id = id,
-            title = title ?: "Quiz",
-            description = "",
+            title = title ?: titleFromCount(count),
+            description = "Mixed AI quiz generated from uploaded material.",
             score = score,
-            totalQuestions = totalQuestions ?: questions.size,
+            totalQuestions = count,
             materialId = materialId ?: "",
             questions = emptyList(),
             passed = score?.let { it >= 70 },
@@ -80,14 +94,18 @@ class QuizRepositoryImpl @Inject constructor(
     }
 
     private fun QuizDto.toDomainDetailed(): Quiz {
+        val count = totalQuestions ?: questions.size
+
         return Quiz(
             id = id,
-            title = title ?: "Generated Quiz",
-            description = "Solve the questions below and submit to get your real score.",
+            title = title ?: titleFromCount(count),
+            description = "Answer the mixed AI questions and submit to get your score.",
             score = score,
-            totalQuestions = totalQuestions ?: questions.size,
+            totalQuestions = count,
             materialId = materialId ?: "",
-            questions = questions.map { it.toDomain() },
+            questions = questions.map { question ->
+                question.toDomain()
+            },
             passed = score?.let { it >= 70 },
             reviewData = emptyList()
         )
@@ -97,13 +115,15 @@ class QuizRepositoryImpl @Inject constructor(
         return Quiz(
             id = quizSetId,
             title = "Quiz Result",
-            description = "Your answers were submitted and graded successfully.",
+            description = "Your answers were graded by the backend.",
             score = (score * 100.0).roundToInt(),
             totalQuestions = reviewData.size,
             materialId = "",
             questions = emptyList(),
             passed = passed,
-            reviewData = reviewData.map { it.toDomain() }
+            reviewData = reviewData.map { item ->
+                item.toDomain()
+            }
         )
     }
 
@@ -124,5 +144,13 @@ class QuizRepositoryImpl @Inject constructor(
             explanation = explanation,
             sourceChunkSnippet = sourceChunkSnippet
         )
+    }
+
+    private fun titleFromCount(count: Int): String {
+        return if (count >= 20) {
+            "Mixed AI Quiz"
+        } else {
+            "AI Quiz"
+        }
     }
 }

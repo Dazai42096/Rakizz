@@ -13,44 +13,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-
-private val ScreenTop = Color(0xFF020B1F)
-private val ScreenBottom = Color(0xFF000000)
-private val PrimaryBlue = Color(0xFF1F5BDE)
-private val ParentGreen = Color(0xFF10B981)
-private val WhiteText = Color(0xFFF5F7FB)
-private val SecondaryText = Color(0xFF8A92A3)
-private val CardBg = Color(0xFF121317)
-private val CardBorder = Color(0xFF242832)
+import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun HomeScreen(
@@ -60,72 +48,74 @@ fun HomeScreen(
     onOpenFocus: () -> Unit,
     onOpenParentFocus: () -> Unit,
     onOpenProfile: () -> Unit,
-    onLogout: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
+    onLogout: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-
     Scaffold(
-        containerColor = Color.Black,
+        containerColor = RakizzColors.Background,
         bottomBar = {
-            if (uiState.role == "student") {
-                HomeBottomBar(
-                    onOpenMaterials = onOpenMaterials,
-                    onOpenAssignments = onOpenAssignments,
-                    onOpenQuizzes = onOpenQuizzes
-                )
-            }
+            StudentBottomBar(
+                onOpenHome = {},
+                onOpenLibrary = onOpenMaterials,
+                onOpenQuizzes = onOpenQuizzes,
+                onOpenFocus = onOpenFocus,
+                onOpenProfile = onOpenProfile
+            )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                    Brush.verticalGradient(
+                        listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
-                .padding(paddingValues)
-                .statusBarsPadding()
+                .padding(padding)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             HomeTopBar(
-                email = uiState.email,
+                onProfileClick = onOpenProfile,
                 onLogout = onLogout
             )
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            when {
-                uiState.isLoading -> {
-                    LoadingCard()
-                }
+            MainWelcomeCard(
+                onContinueStudying = onOpenMaterials
+            )
 
-                uiState.error != null -> {
-                    ErrorCard(
-                        message = uiState.error ?: "Something went wrong",
-                        onRetry = viewModel::loadAccount
-                    )
-                }
+            Spacer(modifier = Modifier.height(18.dp))
 
-                uiState.role == "parent" -> {
-                    ParentHomeContent(
-                        onOpenParentFocus = onOpenParentFocus,
-                        onOpenProfile = onOpenProfile
-                    )
-                }
+            FocusStatusCard(
+                onOpenFocus = onOpenFocus
+            )
 
-                else -> {
-                    StudentHomeContent(
-                        onOpenMaterials = onOpenMaterials,
-                        onOpenAssignments = onOpenAssignments,
-                        onOpenQuizzes = onOpenQuizzes,
-                        onOpenFocus = onOpenFocus,
-                        onOpenProfile = onOpenProfile
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(22.dp))
+
+            SectionTitle(
+                title = "Student tools",
+                subtitle = "Use these modules for the checkpoint demo."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            FeatureGrid(
+                onOpenMaterials = onOpenMaterials,
+                onOpenQuizzes = onOpenQuizzes,
+                onOpenAssignments = onOpenAssignments,
+                onOpenFocus = onOpenFocus
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            ParentPortalCard(
+                onOpenParentFocus = onOpenParentFocus
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -133,264 +123,345 @@ fun HomeScreen(
 }
 
 @Composable
-private fun StudentHomeContent(
-    onOpenMaterials: () -> Unit,
-    onOpenAssignments: () -> Unit,
-    onOpenQuizzes: () -> Unit,
-    onOpenFocus: () -> Unit,
-    onOpenProfile: () -> Unit
-) {
-    HomeSummaryCard(
-        title = "Student Dashboard",
-        text = "Use your materials, quizzes, assignments, focus rules, and account page from one place."
-    )
-
-    Spacer(modifier = Modifier.height(28.dp))
-
-    SectionHeader(title = "Checkpoint Features")
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    FeatureCard(
-        title = "Study Materials",
-        description = "View and manage saved study materials.",
-        buttonText = "Open Materials",
-        accentColor = PrimaryBlue,
-        onClick = onOpenMaterials
-    )
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    FeatureCard(
-        title = "AI Quizzes",
-        description = "Generate and solve quizzes from uploaded materials.",
-        buttonText = "Open Quizzes",
-        accentColor = Color(0xFF8B5CF6),
-        onClick = onOpenQuizzes
-    )
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    FeatureCard(
-        title = "Assignments",
-        description = "Track assignments and reminders.",
-        buttonText = "Open Assignments",
-        accentColor = Color(0xFF3B82F6),
-        onClick = onOpenAssignments
-    )
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    FeatureCard(
-        title = "Focus Mode",
-        description = "Sync phone apps and view focus rules created by the parent.",
-        buttonText = "Open Focus",
-        accentColor = Color(0xFFF59E0B),
-        onClick = onOpenFocus
-    )
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    FeatureCard(
-        title = "Profile",
-        description = "Open the account page for profile and account options.",
-        buttonText = "Open Profile",
-        accentColor = Color(0xFF64748B),
-        onClick = onOpenProfile
-    )
-}
-
-@Composable
-private fun ParentHomeContent(
-    onOpenParentFocus: () -> Unit,
-    onOpenProfile: () -> Unit
-) {
-    HomeSummaryCard(
-        title = "Parent Dashboard",
-        text = "Create focus-time rules and manage the parent account from one place."
-    )
-
-    Spacer(modifier = Modifier.height(28.dp))
-
-    SectionHeader(title = "Parent Tools")
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    FeatureCard(
-        title = "Focus Rules",
-        description = "Load the student's installed apps, choose apps to block, and set focus time.",
-        buttonText = "Open Focus Rules",
-        accentColor = ParentGreen,
-        onClick = onOpenParentFocus
-    )
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    FeatureCard(
-        title = "Profile",
-        description = "Open the account page for profile and account options.",
-        buttonText = "Open Profile",
-        accentColor = Color(0xFF64748B),
-        onClick = onOpenProfile
-    )
-}
-
-@Composable
 private fun HomeTopBar(
-    email: String,
+    onProfileClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RakizzBrand()
-
-        Spacer(modifier = Modifier.weight(1f))
-
         Column(
-            horizontalAlignment = Alignment.End
+            modifier = Modifier.weight(1f)
         ) {
-            if (email.isNotBlank()) {
-                Text(
-                    text = email,
-                    color = SecondaryText,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
             Text(
-                text = "Sign out",
-                color = PrimaryBlue,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable {
-                    onLogout()
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun RakizzBrand() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .rotate(45f)
-                .background(
-                    color = PrimaryBlue,
-                    shape = RoundedCornerShape(5.dp)
-                )
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = buildAnnotatedString {
-                append("Rakizz")
-                withStyle(SpanStyle(color = PrimaryBlue)) {
-                    append("!!")
-                }
-            },
-            color = WhiteText,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
-
-@Composable
-private fun HomeSummaryCard(
-    title: String,
-    text: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(26.dp))
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF2B3F6F),
-                        Color(0xFF1A2232),
-                        Color(0xFF10131A)
-                    )
-                )
-            )
-            .padding(22.dp)
-    ) {
-        Column {
-            Text(
-                text = title,
-                color = WhiteText,
-                fontSize = 30.sp,
+                text = "Rakizz",
+                color = RakizzColors.PrimaryDark,
+                fontSize = 27.sp,
                 fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             Text(
-                text = text,
-                color = SecondaryText,
-                fontSize = 16.sp,
+                text = "Study, focus, and unlock through learning.",
+                color = RakizzColors.TextSecond,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
         }
-    }
-}
 
-@Composable
-private fun SectionHeader(
-    title: String
-) {
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Surface(
+            modifier = Modifier
+                .size(42.dp)
+                .clickable {
+                    onProfileClick()
+                },
+            shape = CircleShape,
+            color = RakizzColors.Primary,
+            shadowElevation = 2.dp
+        ) {
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "S",
+                    color = RakizzColors.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(10.dp))
+
+    // small logout link, not a big scary button
     Text(
-        text = title,
-        color = WhiteText,
-        fontSize = 22.sp,
-        fontWeight = FontWeight.ExtraBold
+        text = "Sign out",
+        color = RakizzColors.TextMuted,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.clickable {
+            onLogout()
+        }
     )
 }
 
 @Composable
-private fun FeatureCard(
-    title: String,
-    description: String,
-    buttonText: String,
-    accentColor: Color,
-    onClick: () -> Unit
+private fun MainWelcomeCard(
+    onContinueStudying: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(CardBg)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(18.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = RakizzColors.Primary,
+        shadowElevation = 4.dp
     ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accentColor.copy(alpha = 0.18f))
-                    .border(
-                        width = 1.dp,
-                        color = accentColor.copy(alpha = 0.28f),
-                        shape = RoundedCornerShape(14.dp)
+        Column(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            RakizzColors.Primary,
+                            RakizzColors.PrimaryDark
+                        )
                     )
+                )
+                .padding(22.dp)
+        ) {
+            Text(
+                text = "Welcome back",
+                color = RakizzColors.White,
+                fontSize = 29.sp,
+                fontWeight = FontWeight.ExtraBold
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Your materials, AI quizzes, assignments, and focus rules are grouped here in one simple dashboard.",
+                color = Color.White.copy(alpha = 0.86f),
+                fontSize = 15.sp,
+                lineHeight = 21.sp
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Button(
+                onClick = onContinueStudying,
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RakizzColors.White,
+                    contentColor = RakizzColors.PrimaryDark
+                ),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 13.dp)
+            ) {
+                Text(
+                    text = "Continue studying",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusStatusCard(
+    onOpenFocus: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(RakizzColors.PrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "F",
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Focus mode",
+                    color = RakizzColors.TextMain,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "Parent rules and quiz unlock are managed here.",
+                    color = RakizzColors.TextSecond,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            Text(
+                text = "Open",
+                color = RakizzColors.Primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.clickable {
+                    onOpenFocus()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    subtitle: String
+) {
+    Column {
+        Text(
+            text = title,
+            color = RakizzColors.TextMain,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = subtitle,
+            color = RakizzColors.TextSecond,
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun FeatureGrid(
+    onOpenMaterials: () -> Unit,
+    onOpenQuizzes: () -> Unit,
+    onOpenAssignments: () -> Unit,
+    onOpenFocus: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "Library",
+                shortText = "Upload and view materials.",
+                badge = "PDF",
+                onClick = onOpenMaterials
+            )
+
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "AI Quizzes",
+                shortText = "Mixed quiz from material.",
+                badge = "AI",
+                onClick = onOpenQuizzes
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "Assignments",
+                shortText = "Tasks and reminders.",
+                badge = "Due",
+                onClick = onOpenAssignments
+            )
+
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "Focus",
+                shortText = "Blocked apps + unlock quiz.",
+                badge = "70%",
+                onClick = onOpenFocus
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmallFeatureCard(
+    modifier: Modifier,
+    title: String,
+    shortText: String,
+    badge: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .height(156.dp)
+            .clickable {
+                onClick()
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
+                .padding(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(RakizzColors.AccentSoft)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = badge,
+                    color = RakizzColors.PrimaryDark,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = title,
-                color = WhiteText,
+                color = RakizzColors.TextMain,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = shortText,
+                color = RakizzColors.TextSecond,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParentPortalCard(
+    onOpenParentFocus: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.CardSoft,
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
+                .padding(18.dp)
+        ) {
+            Text(
+                text = "Parent portal",
+                color = RakizzColors.PrimaryDark,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -398,27 +469,27 @@ private fun FeatureCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = description,
-                color = SecondaryText,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                text = "Use this only when demonstrating parent controls: link student, load apps, select blocked apps, and save focus time.",
+                color = RakizzColors.TextSecond,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = onClick,
+                onClick = onOpenParentFocus,
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = WhiteText
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
                 ),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
             ) {
                 Text(
-                    text = buttonText,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "Open parent controls",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp
                 )
             }
         }
@@ -426,105 +497,56 @@ private fun FeatureCard(
 }
 
 @Composable
-private fun LoadingCard() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(CardBg)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(22.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(color = PrimaryBlue)
-    }
-}
-
-@Composable
-private fun ErrorCard(
-    message: String,
-    onRetry: () -> Unit
+private fun StudentBottomBar(
+    onOpenHome: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenQuizzes: () -> Unit,
+    onOpenFocus: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(CardBg)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(18.dp)
+    Surface(
+        color = RakizzColors.Card,
+        shadowElevation = 8.dp
     ) {
-        Text(
-            text = message,
-            color = Color(0xFFFF9F0A),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PrimaryBlue,
-                contentColor = WhiteText
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .border(1.dp, RakizzColors.CardBorder)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Retry")
+            BottomItem(
+                label = "Home",
+                selected = true,
+                onClick = onOpenHome
+            )
+
+            BottomItem(
+                label = "Library",
+                selected = false,
+                onClick = onOpenLibrary
+            )
+
+            BottomItem(
+                label = "Quizzes",
+                selected = false,
+                onClick = onOpenQuizzes
+            )
+
+            BottomItem(
+                label = "Focus",
+                selected = false,
+                onClick = onOpenFocus
+            )
+
+            BottomItem(
+                label = "Profile",
+                selected = false,
+                onClick = onOpenProfile
+            )
         }
-    }
-}
-
-@Composable
-private fun HomeBottomBar(
-    onOpenMaterials: () -> Unit,
-    onOpenAssignments: () -> Unit,
-    onOpenQuizzes: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black)
-            .border(1.dp, Color.White.copy(alpha = 0.06f))
-            .navigationBarsPadding()
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BottomItem(
-            label = "Home",
-            selected = true,
-            icon = {
-                HomeGlyph(selected = true)
-            },
-            onClick = {}
-        )
-
-        BottomItem(
-            label = "Materials",
-            selected = false,
-            icon = {
-                BookGlyph(selected = false)
-            },
-            onClick = onOpenMaterials
-        )
-
-        BottomItem(
-            label = "Quiz",
-            selected = false,
-            icon = {
-                QuizGlyph(selected = false)
-            },
-            onClick = onOpenQuizzes
-        )
-
-        BottomItem(
-            label = "Tasks",
-            selected = false,
-            icon = {
-                ClipboardGlyph(selected = false)
-            },
-            onClick = onOpenAssignments
-        )
     }
 }
 
@@ -532,148 +554,37 @@ private fun HomeBottomBar(
 private fun BottomItem(
     label: String,
     selected: Boolean,
-    icon: @Composable () -> Unit,
     onClick: () -> Unit
 ) {
     val textColor = if (selected) {
-        PrimaryBlue
+        RakizzColors.Primary
     } else {
-        SecondaryText
+        RakizzColors.TextMuted
     }
 
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable {
                 onClick()
             }
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 9.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        icon()
+        Box(
+            modifier = Modifier
+                .size(if (selected) 8.dp else 6.dp)
+                .clip(CircleShape)
+                .background(textColor)
+        )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(5.dp))
 
         Text(
             text = label,
             color = textColor,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun HomeGlyph(
-    selected: Boolean
-) {
-    val color = if (selected) {
-        PrimaryBlue
-    } else {
-        SecondaryText
-    }
-
-    Box(
-        modifier = Modifier.size(18.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .width(15.dp)
-                .height(10.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(color)
-        )
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 2.dp)
-                .rotate(45f)
-                .size(10.dp)
-                .background(color)
-        )
-    }
-}
-
-@Composable
-private fun BookGlyph(
-    selected: Boolean
-) {
-    val color = if (selected) {
-        PrimaryBlue
-    } else {
-        SecondaryText
-    }
-
-    Box(
-        modifier = Modifier
-            .width(18.dp)
-            .height(16.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .border(2.dp, color, RoundedCornerShape(3.dp))
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .width(2.dp)
-                .height(12.dp)
-                .background(color)
-        )
-    }
-}
-
-@Composable
-private fun QuizGlyph(
-    selected: Boolean
-) {
-    val color = if (selected) {
-        PrimaryBlue
-    } else {
-        SecondaryText
-    }
-
-    Box(
-        modifier = Modifier
-            .size(18.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .border(2.dp, color, RoundedCornerShape(3.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "?",
-            color = color,
             fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
-
-@Composable
-private fun ClipboardGlyph(
-    selected: Boolean
-) {
-    val color = if (selected) {
-        PrimaryBlue
-    } else {
-        SecondaryText
-    }
-
-    Box(
-        modifier = Modifier
-            .width(17.dp)
-            .height(18.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .border(2.dp, color, RoundedCornerShape(3.dp))
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-2).dp)
-                .width(8.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(color)
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Bold
         )
     }
 }

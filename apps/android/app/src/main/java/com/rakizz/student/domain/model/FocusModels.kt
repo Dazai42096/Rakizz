@@ -26,7 +26,9 @@ data class FocusPolicy(
                 return "$startTime - $endTime"
             }
 
-            return dailyLimitMinutes?.let { "$it minutes/day" } ?: "No time set"
+            return dailyLimitMinutes?.let {
+                "$it minutes/day"
+            } ?: "No time set"
         }
 
     val appsText: String

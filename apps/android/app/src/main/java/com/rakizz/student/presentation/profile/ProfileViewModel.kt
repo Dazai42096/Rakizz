@@ -27,6 +27,7 @@ data class ProfileUiState(
     val profileImageUrl: String = "",
 
     val showPairCode: Boolean = false,
+
     val message: String? = null,
     val error: String? = null
 )
@@ -52,7 +53,7 @@ class ProfileViewModel @Inject constructor(
             )
 
             try {
-                // get real profile info from backend
+                // get the real logged-in user profile from backend
                 val me = api.getMe()
 
                 _uiState.value = ProfileUiState(
@@ -84,6 +85,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun cancelEditing() {
+        // simple way: cancel edit and reload the saved profile
         _uiState.value = _uiState.value.copy(
             isEditing = false,
             message = null,
@@ -94,6 +96,8 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun togglePairCode() {
+        // for now we show the stored student id as pair code
+        // backend pair-code endpoint can replace this later
         _uiState.value = _uiState.value.copy(
             showPairCode = !_uiState.value.showPairCode,
             message = null,
@@ -139,7 +143,7 @@ class ProfileViewModel @Inject constructor(
             )
 
             try {
-                // save profile fields into database
+                // save profile fields in database
                 val updated = api.updateMe(
                     ProfileUpdateRequestDto(
                         fullName = state.fullName.trim(),

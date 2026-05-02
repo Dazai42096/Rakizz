@@ -1,11 +1,5 @@
 package com.rakizz.student.presentation.quizzes.setup
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,15 +43,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rakizz.student.domain.model.Material
@@ -79,6 +68,7 @@ private val InfoBorder = Color(0xFF264A8A)
 private val ErrorSurface = Color(0xFF2B0E12)
 private val ErrorBorder = Color(0xFF5B222C)
 private val ErrorText = Color(0xFFFFB4C0)
+private val GreenText = Color(0xFF30D158)
 
 @Composable
 fun QuizSetupScreen(
@@ -98,6 +88,7 @@ fun QuizSetupScreen(
 
     LaunchedEffect(generatedQuizId) {
         val quizId = generatedQuizId
+
         if (!quizId.isNullOrBlank()) {
             onQuizGenerated(quizId)
             viewModel.clearGeneratedQuiz()
@@ -146,7 +137,7 @@ private fun QuizSetupContent(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
+                Brush.verticalGradient(
                     colors = listOf(ScreenTop, ScreenMid, ScreenBottom)
                 )
             )
@@ -169,17 +160,21 @@ private fun QuizSetupContent(
                 verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    TopBar(onBackClick = onBackClick)
+                    TopBar(
+                        onBackClick = onBackClick
+                    )
                 }
 
                 item {
-                    TargetMaterialCard(material = material)
+                    TargetMaterialCard(
+                        material = material
+                    )
                 }
 
                 item {
                     InfoCard(
-                        title = "How this works",
-                        body = "Rakizz will analyze only this selected study material and generate a stored practice quiz for you."
+                        title = "Mixed AI Quiz",
+                        body = "Rakizz will generate one mixed quiz from this material. The quiz includes easy, medium, and hard questions together."
                     )
                 }
 
@@ -191,7 +186,10 @@ private fun QuizSetupContent(
                     item {
                         MessageCard(
                             message = generateMessage,
-                            isError = !generateMessage.contains("successfully", ignoreCase = true)
+                            isError = !generateMessage.contains(
+                                "successfully",
+                                ignoreCase = true
+                            )
                         )
                     }
                 }
@@ -202,7 +200,7 @@ private fun QuizSetupContent(
                         enabled = !isGenerating,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(78.dp),
+                            .height(76.dp),
                         shape = RoundedCornerShape(26.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AccentBlue,
@@ -211,16 +209,30 @@ private fun QuizSetupContent(
                             disabledContentColor = Color.White.copy(alpha = 0.8f)
                         )
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        if (isGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
 
                         Text(
-                            text = if (isGenerating) "Generating..." else "Generate Quiz",
+                            text = if (isGenerating) {
+                                "Generating..."
+                            } else {
+                                "Generate Mixed AI Quiz"
+                            },
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -229,7 +241,7 @@ private fun QuizSetupContent(
 
                 item {
                     Text(
-                        text = "Rakizz will show the generated quiz immediately after creation.",
+                        text = "The student does not choose the level. Rakizz decides the mix automatically.",
                         modifier = Modifier.fillMaxWidth(),
                         color = Color(0xFF566074),
                         style = MaterialTheme.typography.bodyLarge,
@@ -240,7 +252,9 @@ private fun QuizSetupContent(
         }
 
         if (isGenerating) {
-            GeneratingOverlay(materialTitle = material.title)
+            GeneratingOverlay(
+                materialTitle = material.title
+            )
         }
     }
 }
@@ -281,7 +295,6 @@ private fun TopBar(
 private fun TargetMaterialCard(
     material: Material
 ) {
-    val typeLabel = inferTypeLabel(material)
     val descriptionText = material.description.ifBlank {
         "Stored study material selected from your library."
     }
@@ -305,7 +318,9 @@ private fun TargetMaterialCard(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFF103A9C)
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Description,
                         contentDescription = null,
@@ -342,7 +357,9 @@ private fun TargetMaterialCard(
                     maxLines = 3
                 )
 
-                MetaPill(text = typeLabel)
+                MetaPill(
+                    text = inferTypeLabel(material)
+                )
             }
         }
     }
@@ -398,7 +415,7 @@ private fun RequirementsCard() {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Before you generate",
+                text = "What Rakizz will do",
                 color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
@@ -406,17 +423,22 @@ private fun RequirementsCard() {
 
             RequirementRow(
                 icon = Icons.Filled.CheckCircle,
-                text = "Use a real study material from your library."
+                text = "Read the selected material."
             )
 
             RequirementRow(
                 icon = Icons.Filled.Description,
-                text = "Unreadable or unsupported material may fail during quiz generation."
+                text = "Split it into parts so questions cover more of the file."
+            )
+
+            RequirementRow(
+                icon = Icons.Filled.AutoAwesome,
+                text = "Generate around 20 mixed questions."
             )
 
             RequirementRow(
                 icon = Icons.Filled.Timer,
-                text = "Generation may take a short time depending on the file content."
+                text = "Try to make different questions each time."
             )
         }
     }
@@ -494,7 +516,10 @@ private fun MetaPill(
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(
+                horizontal = 12.dp,
+                vertical = 7.dp
+            ),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = Color.White
@@ -506,107 +531,47 @@ private fun MetaPill(
 private fun GeneratingOverlay(
     materialTitle: String
 ) {
-    val transition = rememberInfiniteTransition(label = "quiz_generating")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ring_rotation"
-    )
-    val pulseAlpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.96f))
+            .background(Color.Black.copy(alpha = 0.94f)),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+            modifier = Modifier.padding(horizontal = 26.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            CircularProgressIndicator(
+                color = AccentBlue,
+                strokeWidth = 5.dp,
+                modifier = Modifier.size(80.dp)
+            )
 
-            Box(
-                modifier = Modifier.size(126.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(126.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    AccentBlue.copy(alpha = 0.26f * pulseAlpha),
-                                    Color.Transparent
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                )
-
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(112.dp)
-                        .rotate(rotation),
-                    progress = { 0.74f },
-                    color = AccentBlue,
-                    trackColor = Color.White.copy(alpha = 0.10f),
-                    strokeWidth = 8.dp
-                )
-
-                Text(
-                    text = "✦",
-                    color = AccentBlue,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.alpha(pulseAlpha)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Generating your quiz...",
+                text = "Generating mixed AI quiz...",
                 color = Color.White,
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = buildAnnotatedString {
-                    append("Analyzing ")
-                    withStyle(SpanStyle(color = AccentBlueSoft, fontWeight = FontWeight.Bold)) {
-                        append(materialTitle.take(32))
-                    }
-                    append(" and creating a stored practice quiz.")
-                },
+                text = "Analyzing ${materialTitle.take(35)} and creating easy, medium, and hard questions.",
                 color = Color(0xFFB0B8C8),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
         }
     }
 }
 
-private fun inferTypeLabel(material: Material): String {
+private fun inferTypeLabel(
+    material: Material
+): String {
     val value = "${material.title} ${material.url}".lowercase()
 
     return when {

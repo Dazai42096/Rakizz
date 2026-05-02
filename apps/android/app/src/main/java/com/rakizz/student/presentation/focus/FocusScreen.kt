@@ -7,49 +7,61 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rakizz.student.domain.model.FocusPolicy
-
-private val ScreenTop = Color(0xFF03112A)
-private val ScreenBottom = Color(0xFF000000)
-private val WhiteText = Color(0xFFF7F8FA)
-private val SecondaryText = Color(0xFF8A92A3)
-private val PrimaryBlue = Color(0xFF2457D6)
-private val CardSurface = Color(0xFF171717)
-private val CardBorder = Color(0xFF2A2F3A)
-private val GreenAccent = Color(0xFF30D158)
-private val OrangeAccent = Color(0xFFFF9F0A)
+import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun FocusScreen(
     onBackClick: () -> Unit,
-    onTakeUnlockQuizClick: () -> Unit = {},
+    onTryBlockedAppClick: (String) -> Unit,
     onViewProgressClick: () -> Unit = {},
     onGoToMaterialsClick: () -> Unit = {},
     viewModel: FocusViewModel = hiltViewModel()
@@ -57,38 +69,40 @@ fun FocusScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = Color.Black
-    ) { innerPadding ->
+        containerColor = RakizzColors.Background
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                        listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
-                .padding(innerPadding)
+                .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .statusBarsPadding()
                 .navigationBarsPadding(),
             contentPadding = PaddingValues(
-                start = 24.dp,
-                end = 24.dp,
-                top = 18.dp,
-                bottom = 28.dp
+                start = 20.dp,
+                end = 20.dp,
+                top = 14.dp,
+                bottom = 30.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                FocusTopBar(
+                TopBar(
                     onBackClick = onBackClick,
                     onRefreshClick = viewModel::loadFocusData
                 )
             }
 
             item {
-                FocusHeaderCard(
-                    isLoading = uiState.isLoading
-                )
+                FocusMainCard()
             }
 
             uiState.actionMessage?.let { message ->
@@ -96,7 +110,7 @@ fun FocusScreen(
                     MessageCard(
                         title = "Done",
                         message = message,
-                        color = GreenAccent,
+                        color = RakizzColors.Success,
                         onClick = viewModel::clearMessage
                     )
                 }
@@ -107,7 +121,7 @@ fun FocusScreen(
                     MessageCard(
                         title = "Error",
                         message = message,
-                        color = OrangeAccent,
+                        color = RakizzColors.Error,
                         onClick = viewModel::clearMessage
                     )
                 }
@@ -121,7 +135,18 @@ fun FocusScreen(
             }
 
             item {
-                SectionLabel("PARENT FOCUS RULES")
+                QuizUnlockInfoCard()
+            }
+
+            item {
+                SectionTitle(
+                    title = "Parent focus rules",
+                    subtitle = if (uiState.policies.isEmpty()) {
+                        "No active rules loaded yet"
+                    } else {
+                        "${uiState.policies.size} rule(s) from parent account"
+                    }
+                )
             }
 
             if (uiState.isLoading) {
@@ -130,107 +155,128 @@ fun FocusScreen(
                 }
             } else if (uiState.policies.isEmpty()) {
                 item {
-                    EmptyCard()
+                    EmptyRulesCard()
                 }
             } else {
-                items(uiState.policies) { rule ->
-                    RuleCard(rule = rule)
+                items(
+                    items = uiState.policies,
+                    key = { rule -> rule.id }
+                ) { rule ->
+                    FocusRuleCard(
+                        rule = rule,
+                        onTryBlockedAppClick = onTryBlockedAppClick
+                    )
                 }
+            }
+
+            item {
+                CommitteeNoteCard()
             }
         }
     }
 }
 
 @Composable
-private fun FocusTopBar(
+private fun TopBar(
     onBackClick: () -> Unit,
     onRefreshClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Back",
-            color = SecondaryText,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .clickable {
-                    onBackClick()
-                }
-        )
+        FilledIconButton(
+            onClick = onBackClick,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = RakizzColors.Card,
+                contentColor = RakizzColors.Primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back"
+            )
+        }
 
-        Text(
-            text = "Focus Mode",
-            color = WhiteText,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.align(Alignment.Center)
-        )
+        Spacer(modifier = Modifier.width(14.dp))
 
-        Text(
-            text = "Refresh",
-            color = PrimaryBlue,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .clickable {
-                    onRefreshClick()
-                }
-        )
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "Focus Mode",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Blocked apps are unlocked through learning.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        FilledIconButton(
+            onClick = onRefreshClick,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = RakizzColors.PrimarySoft,
+                contentColor = RakizzColors.Primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = "Refresh"
+            )
+        }
     }
 }
 
 @Composable
-private fun FocusHeaderCard(
-    isLoading: Boolean
-) {
+private fun FocusMainCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        color = CardSurface
+        color = RakizzColors.Primary,
+        shadowElevation = 3.dp
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = PrimaryBlue
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .height(8.dp)
-                        .fillMaxWidth()
-                        .background(
-                            color = PrimaryBlue,
-                            shape = RoundedCornerShape(20.dp)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            RakizzColors.Primary,
+                            RakizzColors.PrimaryDark
                         )
+                    )
                 )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
+                .padding(22.dp)
+        ) {
             Text(
-                text = "Student focus rules",
-                color = WhiteText,
-                fontSize = 25.sp,
+                text = "Study first, unlock later",
+                color = RakizzColors.White,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "The student only syncs phone apps and views rules created by the parent.",
-                color = SecondaryText,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                text = "When a parent blocks an app during focus time, the student must pass a mixed AI quiz with at least 70% to unlock it.",
+                color = RakizzColors.White.copy(alpha = 0.88f),
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                WhitePill("Parent rule")
+                WhitePill("AI quiz")
+                WhitePill("70% pass")
+            }
         }
     }
 }
@@ -242,45 +288,72 @@ private fun SyncAppsCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
-            Text(
-                text = "Sync phone apps",
-                color = WhiteText,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.PhoneAndroid,
+                    color = RakizzColors.Primary
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = "This sends the phone app list to the backend so the parent can choose apps for focus time.",
-                color = SecondaryText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Sync phone apps",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Send this phone's installed apps to the backend so the parent can choose which apps to block.",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = onSyncAppsClick,
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(18.dp),
+                    .height(56.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue,
-                    contentColor = WhiteText
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White,
+                    disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
+                    disabledContentColor = RakizzColors.White
                 )
             ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = RakizzColors.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+
                 Text(
-                    text = if (isLoading) "Please wait..." else "Sync Phone Apps",
-                    fontWeight = FontWeight.Bold
+                    text = if (isLoading) "Syncing..." else "Sync Phone Apps",
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
         }
@@ -288,52 +361,240 @@ private fun SyncAppsCard(
 }
 
 @Composable
-private fun RuleCard(
-    rule: FocusPolicy
+private fun QuizUnlockInfoCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            Text(
+                text = "How unlocking works",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            StepRow(
+                icon = Icons.Filled.Block,
+                title = "Blocked app detected",
+                subtitle = "Rakizz detects the restricted app during focus time."
+            )
+
+            StepRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = "Mixed AI quiz appears",
+                subtitle = "The quiz is generated from the student's uploaded materials."
+            )
+
+            StepRow(
+                icon = Icons.Filled.CheckCircle,
+                title = "70% required",
+                subtitle = "If the student passes, the app is unlocked for a short time."
+            )
+
+            StepRow(
+                icon = Icons.Filled.LockOpen,
+                title = "Failed quiz keeps app blocked",
+                subtitle = "If the student does not pass, Rakizz asks for another quiz."
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusRuleCard(
+    rule: FocusPolicy,
+    onTryBlockedAppClick: (String) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
-            Text(
-                text = rule.title,
-                color = WhiteText,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.ExtraBold
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.Timer,
+                    color = RakizzColors.Warning
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = rule.title,
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = rule.timeText,
+                        color = RakizzColors.Primary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            InfoBox(
+                label = "Blocked apps",
+                value = rule.appsText
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            rule.note?.takeIf { it.isNotBlank() }?.let { note ->
+                Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = rule.timeText,
-                color = PrimaryBlue,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
+                InfoBox(
+                    label = "Note",
+                    value = note
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    // this is still useful as a safe test from inside the app
+                    onTryBlockedAppClick(rule.packageName)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
+                )
+            ) {
+                Text(
+                    text = "Open Unlock Quiz",
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "Apps: ${rule.appsText}",
-                color = WhiteText,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                text = "For the real demo, open the blocked app normally from the phone launcher. This button is a backup test.",
+                color = RakizzColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoBox(
+    label: String,
+    value: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = RakizzColors.CardSoft,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Text(
+                text = label.uppercase(),
+                color = RakizzColors.TextMuted,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.ExtraBold
             )
 
-            rule.note?.takeIf { it.isNotBlank() }?.let { note ->
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
-                Text(
-                    text = note,
-                    color = SecondaryText,
-                    fontSize = 14.sp
-                )
-            }
+            Text(
+                text = value,
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+            )
         }
+    }
+}
+
+@Composable
+private fun StepRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        IconBubble(
+            icon = icon,
+            color = RakizzColors.Primary
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = subtitle,
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    subtitle: String
+) {
+    Column {
+        Text(
+            text = title,
+            color = RakizzColors.TextMain,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = subtitle,
+            color = RakizzColors.TextSecond,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -341,7 +602,7 @@ private fun RuleCard(
 private fun MessageCard(
     title: String,
     message: String,
-    color: Color,
+    color: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
     Surface(
@@ -350,8 +611,10 @@ private fun MessageCard(
             .clickable {
                 onClick()
             },
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF202020)
+        shape = RoundedCornerShape(22.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -359,16 +622,16 @@ private fun MessageCard(
             Text(
                 text = title,
                 color = color,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = message,
-                color = SecondaryText,
-                fontSize = 14.sp
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
@@ -378,43 +641,143 @@ private fun MessageCard(
 private fun LoadingCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = CardSurface
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
-        Box(
+        Row(
             modifier = Modifier.padding(18.dp),
-            contentAlignment = Alignment.Center
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            CircularProgressIndicator(color = PrimaryBlue)
+            CircularProgressIndicator(
+                color = RakizzColors.Primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(30.dp)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Text(
+                text = "Loading focus rules...",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
 @Composable
-private fun EmptyCard() {
+private fun EmptyRulesCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = Color(0xFF202020)
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
-        Text(
-            text = "No parent rules yet.",
-            color = SecondaryText,
-            fontSize = 15.sp,
-            modifier = Modifier.padding(18.dp)
-        )
+        Column(
+            modifier = Modifier.padding(22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconBubble(
+                icon = Icons.Filled.Block,
+                color = RakizzColors.TextMuted
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "No parent rules yet",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Ask the parent account to link this student and create a focus rule.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
 @Composable
-private fun SectionLabel(
+private fun CommitteeNoteCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.AccentSoft,
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Checkpoint explanation",
+                color = RakizzColors.PrimaryDark,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Parent focus rules define blocked apps and focus time. During an active rule, opening a blocked app sends the student to an AI quiz unlock flow. Passing score is 70%.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconBubble(
+    icon: ImageVector,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = color.copy(alpha = 0.13f)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun WhitePill(
     text: String
 ) {
-    Text(
-        text = text,
-        color = SecondaryText,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 1.2.sp
-    )
+    Box(
+        modifier = Modifier
+            .background(
+                color = RakizzColors.White.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(11.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = text,
+            color = RakizzColors.White,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.ExtraBold
+        )
+    }
 }
