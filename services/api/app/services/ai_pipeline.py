@@ -282,7 +282,7 @@ class AIPipelineService:
         level: DifficultyLevel,
         question_number: int,
     ) -> tuple[str, str]:
-        # the level is shown inside the question so the committee sees the mix
+        # the level is shown inside the question so the review sees the mix
 
         if level == DifficultyLevel.EASY:
             return (
@@ -417,7 +417,7 @@ class AIPipelineService:
         keyword: str,
         correct_answer: str,
     ) -> list[str]:
-        # simple wrong options, enough for checkpoint demo
+        # simple wrong options, enough for checkpoint preview
         wrongs = [
             f"{keyword} is not mentioned in the uploaded material.",
             f"{keyword} means the same thing as the student's password.",

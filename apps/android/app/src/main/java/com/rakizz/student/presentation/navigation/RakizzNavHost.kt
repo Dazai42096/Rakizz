@@ -33,8 +33,7 @@ fun RakizzNavHost(
 ) {
     val navController = rememberNavController()
 
-    // Accessibility service sends the blocked app package here.
-    // Then we open the unlock quiz screen automatically.
+    // if the accessibility service opens Rakizz, go straight to unlock quiz
     LaunchedEffect(startUnlockPackage, forceUnlock) {
         val blockedPackage = startUnlockPackage
 
@@ -58,8 +57,15 @@ fun RakizzNavHost(
     ) {
         composable(NavRoutes.Auth.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(NavRoutes.Home.route) {
+                onLoginSuccess = { role ->
+                    // parent should not enter the student dashboard
+                    val targetRoute = if (role.equals("PARENT", ignoreCase = true)) {
+                        NavRoutes.ParentFocus.route
+                    } else {
+                        NavRoutes.Home.route
+                    }
+
+                    navController.navigate(targetRoute) {
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -119,7 +125,8 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onCreateAccountDone = {
-                    navController.navigate(NavRoutes.Home.route) {
+                    // parent signup goes directly to parent portal
+                    navController.navigate(NavRoutes.ParentFocus.route) {
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -321,8 +328,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onTryBlockedAppClick = { packageName ->
-                    // backup demo button:
-                    // this opens the same unlock quiz screen manually
+                    // backup manual way to open unlock quiz from inside Rakizz
                     navController.navigate(
                         NavRoutes.UnlockQuiz.createRoute(
                             packageName = packageName,
@@ -359,7 +365,12 @@ fun RakizzNavHost(
         composable(NavRoutes.ParentFocus.route) {
             ParentFocusScreen(
                 onBackClick = {
-                    navController.popBackStack()
+                    navController.navigate(NavRoutes.Auth.route) {
+                        popUpTo(0) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -380,8 +391,6 @@ fun RakizzNavHost(
             )
         }
 
-        // These routes still exist, for the next implementation phase
-        // not for the checkpoint 
         composable(NavRoutes.Progress.route) {
             StudentProgressScreen(
                 onBackClick = {

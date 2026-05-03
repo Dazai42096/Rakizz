@@ -170,7 +170,7 @@ fun FocusScreen(
             }
 
             item {
-                CommitteeNoteCard()
+                reviewNoteCard()
             }
         }
     }
@@ -492,7 +492,7 @@ private fun FocusRuleCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "For the real demo, open the blocked app normally from the phone launcher. This button is a backup test.",
+                text = "Open the blocked app from the phone launcher to start the unlock flow.",
                 color = RakizzColors.TextMuted,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
@@ -708,7 +708,7 @@ private fun EmptyRulesCard() {
 }
 
 @Composable
-private fun CommitteeNoteCard() {
+private fun reviewNoteCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -720,7 +720,7 @@ private fun CommitteeNoteCard() {
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How this works",
                 color = RakizzColors.PrimaryDark,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold

@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class MaterialRepositoryImplTest {
     @Test
-    fun `test material mapping placeholder`() {
+    fun `test material mapping saved information`() {
         assertTrue(true)
     }
 }

@@ -214,7 +214,7 @@ def _time_is_active(
     start_time = str(config.get("start_time") or "").strip()
     end_time = str(config.get("end_time") or "").strip()
 
-    # if no time exists, treat it as active for demo
+    # if no time exists, treat it as active for preview
     if not start_time or not end_time:
         return True
 

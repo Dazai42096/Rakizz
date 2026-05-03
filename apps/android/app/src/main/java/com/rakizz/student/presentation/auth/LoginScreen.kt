@@ -1,7 +1,6 @@
 package com.rakizz.student.presentation.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,7 +60,7 @@ import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String) -> Unit,
     onForgotPasswordClick: () -> Unit = {},
     onCreateAccountClick: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel()
@@ -79,8 +79,11 @@ fun LoginScreen(
     val errorMessage = (state as? UiState.Error)?.message
 
     LaunchedEffect(state) {
-        if (state is UiState.Success) {
-            onLoginSuccess()
+        val successState = state as? UiState.Success
+
+        if (successState != null) {
+            // send the logged-in role to navigation
+            onLoginSuccess(successState.data.role)
         }
     }
 
@@ -420,7 +423,7 @@ private fun AuthTextField(
         visualTransformation = if (isPassword) {
             PasswordVisualTransformation()
         } else {
-            androidx.compose.ui.text.input.VisualTransformation.None
+            VisualTransformation.None
         },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = RakizzColors.TextMain,

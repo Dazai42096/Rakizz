@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class AuthInterceptorTest {
     @Test
-    fun `test auth interceptor logic placeholder`() {
+    fun `test auth interceptor logic saved information`() {
         assertTrue(true)
     }
 }

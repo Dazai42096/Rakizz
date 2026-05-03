@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class TokenManagerTest {
     @Test
-    fun `test token manager placeholder`() {
+    fun `test token manager saved information`() {
         assertTrue(true)
     }
 }

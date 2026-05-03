@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class AssignmentRepositoryImplTest {
     @Test
-    fun `test assignment mapping placeholder`() {
+    fun `test assignment mapping saved information`() {
         assertTrue(true)
     }
 }

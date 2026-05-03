@@ -12,7 +12,7 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- needed so the app can read installed apps for the checkpoint demo -->
+    <!-- needed so the app can read installed apps Note preview -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

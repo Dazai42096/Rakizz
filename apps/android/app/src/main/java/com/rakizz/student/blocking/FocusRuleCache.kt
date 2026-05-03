@@ -143,7 +143,7 @@ object FocusRuleCache {
         startText: String,
         endText: String
     ): Boolean {
-        // if parent did not set time correctly, keep it active for demo
+        // if parent did not set time correctly, keep it active for preview
         if (startText.isBlank() || endText.isBlank()) {
             return true
         }

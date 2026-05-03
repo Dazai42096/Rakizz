@@ -99,7 +99,7 @@ fun HomeScreen(
 
             SectionTitle(
                 title = "Student tools",
-                subtitle = "Use these modules for the checkpoint demo."
+                subtitle = "Use these modules Note preview."
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -469,7 +469,7 @@ private fun ParentPortalCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Use this only when demonstrating parent controls: link student, load apps, select blocked apps, and save focus time.",
+                text = "Use this only when previewnstrating parent controls: link student, load apps, select blocked apps, and save focus time.",
                 color = RakizzColors.TextSecond,
                 fontSize = 14.sp,
                 lineHeight = 20.sp

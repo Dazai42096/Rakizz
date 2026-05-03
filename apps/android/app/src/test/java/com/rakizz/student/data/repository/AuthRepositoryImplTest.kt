@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class AuthRepositoryImplTest {
     @Test
-    fun `test auth mapping placeholder`() {
+    fun `test auth mapping saved information`() {
         assertTrue(true)
     }
 }

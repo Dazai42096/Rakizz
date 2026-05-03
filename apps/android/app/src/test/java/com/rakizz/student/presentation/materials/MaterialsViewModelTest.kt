@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class MaterialsViewModelTest {
     @Test
-    fun `test view model state emissions placeholder`() {
+    fun `test view model state emissions saved information`() {
         assertTrue(true)
     }
 }

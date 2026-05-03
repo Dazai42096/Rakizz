@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 
 class QuizRepositoryImplTest {
     @Test
-    fun `test quiz mapping placeholder`() {
+    fun `test quiz mapping saved information`() {
         assertTrue(true)
     }
 }

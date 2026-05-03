@@ -257,7 +257,7 @@ fun ParentFocusScreen(
             }
 
             item {
-                CommitteeExplanationCard()
+                reviewExplanationCard()
             }
         }
     }
@@ -908,7 +908,7 @@ private fun EmptyRulesCard() {
 }
 
 @Composable
-private fun CommitteeExplanationCard() {
+private fun reviewExplanationCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -920,7 +920,7 @@ private fun CommitteeExplanationCard() {
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How this works",
                 color = RakizzColors.PrimaryDark,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold

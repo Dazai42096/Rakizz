@@ -283,7 +283,7 @@ private fun AssignmentsScreenContent(
             }
 
             item {
-                CommitteeNoteCard()
+                reviewNoteCard()
             }
         }
     }
@@ -763,7 +763,7 @@ private fun MessageCard(
 }
 
 @Composable
-private fun CommitteeNoteCard() {
+private fun reviewNoteCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -775,7 +775,7 @@ private fun CommitteeNoteCard() {
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How this works",
                 color = RakizzColors.PrimaryDark,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold
