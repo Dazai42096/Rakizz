@@ -44,3 +44,6 @@ services/api/uploads/
 uploads/
 
 .agent/
+
+services/api/.venv/
+services/api/venv/
