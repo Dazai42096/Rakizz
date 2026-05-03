@@ -13,4 +13,5 @@ shared_python/schemas/material.py
 shared_python/schemas/policy.py
 shared_python/schemas/quiz.py
 shared_python/schemas/report.py
+shared_python/schemas/unlock.py
 shared_python/schemas/user.py

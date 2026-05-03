@@ -33,11 +33,11 @@ fun RakizzNavHost(
 ) {
     val navController = rememberNavController()
 
-    // if the accessibility service opens Rakizz, go straight to unlock quiz
     LaunchedEffect(startUnlockPackage, forceUnlock) {
         val blockedPackage = startUnlockPackage
 
         if (!blockedPackage.isNullOrBlank()) {
+            // opened from accessibility service when a blocked app is clicked
             navController.navigate(
                 NavRoutes.UnlockQuiz.createRoute(
                     packageName = blockedPackage,
@@ -58,7 +58,7 @@ fun RakizzNavHost(
         composable(NavRoutes.Auth.route) {
             LoginScreen(
                 onLoginSuccess = { role ->
-                    // parent should not enter the student dashboard
+                    // student goes to student dashboard, parent goes to parent page
                     val targetRoute = if (role.equals("PARENT", ignoreCase = true)) {
                         NavRoutes.ParentFocus.route
                     } else {
@@ -125,7 +125,6 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onCreateAccountDone = {
-                    // parent signup goes directly to parent portal
                     navController.navigate(NavRoutes.ParentFocus.route) {
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
@@ -163,11 +162,6 @@ fun RakizzNavHost(
                 },
                 onOpenFocus = {
                     navController.navigate(NavRoutes.Focus.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenParentFocus = {
-                    navController.navigate(NavRoutes.ParentFocus.route) {
                         launchSingleTop = true
                     }
                 },
@@ -328,7 +322,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onTryBlockedAppClick = { packageName ->
-                    // backup manual way to open unlock quiz from inside Rakizz
+                    // this button is just a manual way to open unlock flow from focus screen
                     navController.navigate(
                         NavRoutes.UnlockQuiz.createRoute(
                             packageName = packageName,
@@ -365,6 +359,7 @@ fun RakizzNavHost(
         composable(NavRoutes.ParentFocus.route) {
             ParentFocusScreen(
                 onBackClick = {
+                    // parent page uses back as sign out for checkpoint simplicity
                     navController.navigate(NavRoutes.Auth.route) {
                         popUpTo(0) {
                             inclusive = true

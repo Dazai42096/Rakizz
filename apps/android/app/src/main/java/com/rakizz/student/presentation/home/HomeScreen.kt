@@ -9,21 +9,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -46,7 +46,6 @@ fun HomeScreen(
     onOpenAssignments: () -> Unit,
     onOpenQuizzes: () -> Unit,
     onOpenFocus: () -> Unit,
-    onOpenParentFocus: () -> Unit,
     onOpenProfile: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -99,7 +98,7 @@ fun HomeScreen(
 
             SectionTitle(
                 title = "Student tools",
-                subtitle = "Use these modules Note preview."
+                subtitle = "Use these modules to study, practice, and stay focused."
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -109,12 +108,6 @@ fun HomeScreen(
                 onOpenQuizzes = onOpenQuizzes,
                 onOpenAssignments = onOpenAssignments,
                 onOpenFocus = onOpenFocus
-            )
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            ParentPortalCard(
-                onOpenParentFocus = onOpenParentFocus
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -176,7 +169,7 @@ private fun HomeTopBar(
 
     Spacer(modifier = Modifier.height(10.dp))
 
-    // small logout link, not a big scary button
+    // simple logout text so the page does not look crowded
     Text(
         text = "Sign out",
         color = RakizzColors.TextMuted,
@@ -291,7 +284,7 @@ private fun FocusStatusCard(
                 )
 
                 Text(
-                    text = "Parent rules and quiz unlock are managed here.",
+                    text = "View your active focus rules and synced apps.",
                     color = RakizzColors.TextSecond,
                     fontSize = 14.sp,
                     lineHeight = 19.sp
@@ -445,58 +438,6 @@ private fun SmallFeatureCard(
 }
 
 @Composable
-private fun ParentPortalCard(
-    onOpenParentFocus: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.CardSoft,
-        shadowElevation = 1.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
-                .padding(18.dp)
-        ) {
-            Text(
-                text = "Parent portal",
-                color = RakizzColors.PrimaryDark,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Use this only when previewnstrating parent controls: link student, load apps, select blocked apps, and save focus time.",
-                color = RakizzColors.TextSecond,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onOpenParentFocus,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                ),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = "Open parent controls",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 14.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun StudentBottomBar(
     onOpenHome: () -> Unit,
     onOpenLibrary: () -> Unit,
@@ -584,7 +525,11 @@ private fun BottomItem(
             text = label,
             color = textColor,
             fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Bold
+            fontWeight = if (selected) {
+                FontWeight.ExtraBold
+            } else {
+                FontWeight.Bold
+            }
         )
     }
 }
