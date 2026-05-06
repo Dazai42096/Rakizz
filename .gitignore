@@ -47,3 +47,6 @@ uploads/
 
 services/api/.venv/
 services/api/venv/
+
+services/api/.venv/
+services/api/venv/
