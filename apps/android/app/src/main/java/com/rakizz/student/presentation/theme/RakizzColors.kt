@@ -23,7 +23,7 @@ object RakizzColors {
     val PrimarySoft = Color(0xFFDDEBE8)
 
     // warm academic accent
-    // use this for badges and small highlights, not everywhere
+    //  for badges and small highlights
     val Accent = Color(0xFFC9A27E)
     val AccentSoft = Color(0xFFF0DFCE)
 
