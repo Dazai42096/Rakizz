@@ -60,9 +60,9 @@ fun RakizzNavHost(
                 onLoginSuccess = { role ->
                     // student goes to student dashboard, parent goes to parent page
                     val targetRoute = if (role.equals("PARENT", ignoreCase = true)) {
-                        NavRoutes.ParentFocus.route
+                        NavRoutes.ParentFocus.route //parent login desti
                     } else {
-                        NavRoutes.Home.route
+                        NavRoutes.Home.route //student login desti
                     }
 
                     navController.navigate(targetRoute) {
@@ -73,7 +73,7 @@ fun RakizzNavHost(
                     }
                 },
                 onCreateAccountClick = {
-                    navController.navigate(NavRoutes.ChooseRole.route) {
+                    navController.navigate(NavRoutes.ChooseRole.route) { //create-account desti
                         launchSingleTop = true
                     }
                 }
@@ -83,12 +83,12 @@ fun RakizzNavHost(
         composable(NavRoutes.ChooseRole.route) {
             ChooseRoleScreen(
                 onContinueAsStudent = {
-                    navController.navigate(NavRoutes.StudentSignUp.route) {
+                    navController.navigate(NavRoutes.StudentSignUp.route) { //student role button desti
                         launchSingleTop = true
                     }
                 },
                 onContinueAsParent = {
-                    navController.navigate(NavRoutes.ParentSignUp.route) {
+                    navController.navigate(NavRoutes.ParentSignUp.route) { //parent role button desti
                         launchSingleTop = true
                     }
                 }
@@ -101,7 +101,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onCreateAccountClick = {
-                    navController.navigate(NavRoutes.Home.route) {
+                    navController.navigate(NavRoutes.Home.route) { //student signup success desti
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -109,7 +109,7 @@ fun RakizzNavHost(
                     }
                 },
                 onAlreadyHaveAccountClick = {
-                    navController.navigate(NavRoutes.Auth.route) {
+                    navController.navigate(NavRoutes.Auth.route) { //already have account desti
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -125,7 +125,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onCreateAccountDone = {
-                    navController.navigate(NavRoutes.ParentFocus.route) {
+                    navController.navigate(NavRoutes.ParentFocus.route) { //\parent signup success desti
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -133,7 +133,7 @@ fun RakizzNavHost(
                     }
                 },
                 onAlreadyHaveAccountClick = {
-                    navController.navigate(NavRoutes.Auth.route) {
+                    navController.navigate(NavRoutes.Auth.route) { //already have account desti
                         popUpTo(NavRoutes.Auth.route) {
                             inclusive = true
                         }
@@ -146,32 +146,32 @@ fun RakizzNavHost(
         composable(NavRoutes.Home.route) {
             HomeScreen(
                 onOpenMaterials = {
-                    navController.navigate(NavRoutes.MaterialsList.route) {
+                    navController.navigate(NavRoutes.MaterialsList.route) { //Home materials button desti
                         launchSingleTop = true
                     }
                 },
                 onOpenAssignments = {
-                    navController.navigate(NavRoutes.AssignmentsList.route) {
+                    navController.navigate(NavRoutes.AssignmentsList.route) { //Home assignments button desti
                         launchSingleTop = true
                     }
                 },
                 onOpenQuizzes = {
-                    navController.navigate(NavRoutes.QuizzesList.route) {
+                    navController.navigate(NavRoutes.QuizzesList.route) { //Home quizzes button desti
                         launchSingleTop = true
                     }
                 },
                 onOpenFocus = {
-                    navController.navigate(NavRoutes.Focus.route) {
+                    navController.navigate(NavRoutes.Focus.route) { // Home focus button dest
                         launchSingleTop = true
                     }
                 },
                 onOpenProfile = {
-                    navController.navigate(NavRoutes.Profile.route) {
+                    navController.navigate(NavRoutes.Profile.route) { //Home profile button desti
                         launchSingleTop = true
                     }
                 },
                 onLogout = {
-                    navController.navigate(NavRoutes.Auth.route) {
+                    navController.navigate(NavRoutes.Auth.route) { //logout desti
                         popUpTo(0) {
                             inclusive = true
                         }
@@ -191,17 +191,17 @@ fun RakizzNavHost(
                     }
                 },
                 onOpenHome = {
-                    navController.navigate(NavRoutes.Home.route) {
+                    navController.navigate(NavRoutes.Home.route) { //Materials bottom/home desti
                         launchSingleTop = true
                     }
                 },
                 onOpenFocus = {
-                    navController.navigate(NavRoutes.Focus.route) {
+                    navController.navigate(NavRoutes.Focus.route) { //Materials focus desti
                         launchSingleTop = true
                     }
                 },
                 onOpenProfile = {
-                    navController.navigate(NavRoutes.Profile.route) {
+                    navController.navigate(NavRoutes.Profile.route) { //Materials profile desti
                         launchSingleTop = true
                     }
                 },
@@ -262,22 +262,22 @@ fun RakizzNavHost(
                     }
                 },
                 onOpenHome = {
-                    navController.navigate(NavRoutes.Home.route) {
+                    navController.navigate(NavRoutes.Home.route) { //Quizzes home desti
                         launchSingleTop = true
                     }
                 },
                 onOpenLibrary = {
-                    navController.navigate(NavRoutes.MaterialsList.route) {
+                    navController.navigate(NavRoutes.MaterialsList.route) { //Quizzes library desti
                         launchSingleTop = true
                     }
                 },
                 onOpenFocus = {
-                    navController.navigate(NavRoutes.Focus.route) {
+                    navController.navigate(NavRoutes.Focus.route) { //Quizzes focus desti
                         launchSingleTop = true
                     }
                 },
                 onOpenProfile = {
-                    navController.navigate(NavRoutes.Profile.route) {
+                    navController.navigate(NavRoutes.Profile.route) { //Quizzes profile destin
                         launchSingleTop = true
                     }
                 }
@@ -292,12 +292,12 @@ fun RakizzNavHost(
             QuizDetailScreen(
                 quizId = quizId,
                 onGoHome = {
-                    navController.navigate(NavRoutes.Home.route) {
+                    navController.navigate(NavRoutes.Home.route) { // QuizDetail home destination
                         launchSingleTop = true
                     }
                 },
                 onBackToMaterials = {
-                    navController.navigate(NavRoutes.MaterialsList.route) {
+                    navController.navigate(NavRoutes.MaterialsList.route) { //QuizDetail back destination
                         launchSingleTop = true
                     }
                 }
@@ -322,7 +322,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onTryBlockedAppClick = { packageName ->
-                    // this button is just a manual way to open unlock flow from focus screen
+                    //manual way to open unlock flow from focus screen
                     navController.navigate(
                         NavRoutes.UnlockQuiz.createRoute(
                             packageName = packageName,
@@ -359,8 +359,8 @@ fun RakizzNavHost(
         composable(NavRoutes.ParentFocus.route) {
             ParentFocusScreen(
                 onBackClick = {
-                    // parent page uses back as sign out for checkpoint simplicity
-                    navController.navigate(NavRoutes.Auth.route) {
+                    // parent page uses back as sign out for simple navigation
+                    navController.navigate(NavRoutes.Auth.route) { //parent back/sign-out destination
                         popUpTo(0) {
                             inclusive = true
                         }
@@ -376,7 +376,7 @@ fun RakizzNavHost(
                     navController.popBackStack()
                 },
                 onLogoutClick = {
-                    navController.navigate(NavRoutes.Auth.route) {
+                    navController.navigate(NavRoutes.Auth.route) { //profile logout destination
                         popUpTo(0) {
                             inclusive = true
                         }

@@ -37,11 +37,10 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -49,7 +48,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -101,6 +99,7 @@ fun MaterialsScreen(
     var linkTitle by rememberSaveable { mutableStateOf("") }
     var linkUrl by rememberSaveable { mutableStateOf("") }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
+    //var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -138,6 +137,13 @@ fun MaterialsScreen(
         is UiState.Success -> uiState.data
         else -> emptyList()
     }
+
+    /*val filteredMaterials = allMaterials.filter { material ->
+    material.title.contains(
+        other = searchQuery,
+        ignoreCase = true
+    )
+}*/
 
     val filteredMaterials = allMaterials.filter { material ->
         material.title.contains(
@@ -254,16 +260,6 @@ fun MaterialsScreen(
                     state is UiState.Loading -> {
                         items(4) {
                             LoadingMaterialCard()
-                        }
-                    }
-
-                    filteredMaterials.isEmpty() -> {
-                        item {
-                            EmptyLibraryCard(
-                                onAddClick = {
-                                    showAddSheet = true
-                                }
-                            )
                         }
                     }
 
@@ -495,7 +491,7 @@ private fun LibraryInfoCard() {
                 .padding(18.dp)
         ) {
             Text(
-                text = "How Rakizz uses materials",
+                text = "Rakizz Materials",
                 color = RakizzColors.PrimaryDark,
                 fontSize = 19.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -647,61 +643,6 @@ private fun SmallPill(
             fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold
         )
-    }
-}
-
-@Composable
-private fun EmptyLibraryCard(
-    onAddClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.CardBorder,
-                    shape = RoundedCornerShape(26.dp)
-                )
-                .padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "No materials yet",
-                color = RakizzColors.TextMain,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Add your first study material so Rakizz can generate AI quizzes from it.",
-                color = RakizzColors.TextSecond,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onAddClick,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Add Material",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
     }
 }
 

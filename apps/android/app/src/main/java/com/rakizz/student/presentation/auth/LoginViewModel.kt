@@ -26,10 +26,16 @@ class LoginViewModel @Inject constructor(
     val uiState: StateFlow<UiState<LoginResult>?> = _uiState.asStateFlow()
 
     fun login(email: String, pass: String) {
-        viewModelScope.launch {
-            _uiState.value = UiState.Loading
+    viewModelScope.launch {
 
-            val result = authRepository.login(email, pass)
+        if (email.isBlank() || pass.isBlank()) {
+            _uiState.value = UiState.Error("Please enter your email and password")
+            return@launch
+        }
+
+        _uiState.value = UiState.Loading
+
+        val result = authRepository.login(email, pass)
 
             result.onSuccess {
                 try {
@@ -58,5 +64,6 @@ class LoginViewModel @Inject constructor(
         if (_uiState.value is UiState.Error) {
             _uiState.value = null
         }
+        
     }
 }

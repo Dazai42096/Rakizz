@@ -1,5 +1,6 @@
 package com.rakizz.student.presentation.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -45,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -107,7 +114,6 @@ fun LoginScreen(
                 pass = password
             )
         },
-        onForgotPasswordClick = onForgotPasswordClick,
         onCreateAccountClick = onCreateAccountClick
     )
 }
@@ -121,11 +127,17 @@ private fun LoginScreenContent(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit,
     onCreateAccountClick: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+
+    // false = password starts hidden
+    // true = password starts visible
+    var passwordVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     Column(
         modifier = Modifier
@@ -195,11 +207,19 @@ private fun LoginScreenContent(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done,
                     isPassword = true,
+                    passwordVisible = passwordVisible,
+                    onPasswordVisibilityClick = {
+                        passwordVisible = !passwordVisible
+                        
+                    },
                     onValueChange = onPasswordChange,
                     onDone = {
                         keyboardController?.hide()
                         focusManager.clearFocus()
-                        onLoginClick()
+
+                        if (email.isNotBlank() && password.isNotBlank()) {
+                            onLoginClick()
+                        }
                     }
                 )
 
@@ -216,7 +236,7 @@ private fun LoginScreenContent(
                         focusManager.clearFocus()
                         onLoginClick()
                     },
-                    enabled = !isLoading,
+                    enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp),
@@ -253,7 +273,13 @@ private fun LoginScreenContent(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .clickable {
-                            onForgotPasswordClick()
+                            Toast
+                                .makeText(
+                                    context,
+                                    "We wanted to implement this with a whatsapp+Email API Service, but we couldnt at this stage because it takes a subscription and we are on a tight budget, so maybe in the future updates, and compicated procsess, but for now, you can contact us on our social media or email to reset your password :) so we left it at the end on the full implmentation list, but we will try to implement it as soon as we can, thank you for understanding, when we are ready to deploy.",
+                                    Toast.LENGTH_LONG
+                                )
+                                .show()
                         }
                 )
             }
@@ -395,6 +421,8 @@ private fun AuthTextField(
     keyboardType: KeyboardType,
     imeAction: ImeAction,
     isPassword: Boolean = false,
+    passwordVisible: Boolean = false,
+    onPasswordVisibilityClick: () -> Unit = {},
     onValueChange: (String) -> Unit,
     onNext: () -> Unit = {},
     onDone: () -> Unit = {}
@@ -420,10 +448,33 @@ private fun AuthTextField(
                 onDone()
             }
         ),
-        visualTransformation = if (isPassword) {
+        visualTransformation = if (isPassword && !passwordVisible) {
             PasswordVisualTransformation()
         } else {
             VisualTransformation.None
+        },
+        trailingIcon = if (isPassword) {
+            {
+                IconButton(
+                    onClick = onPasswordVisibilityClick
+                ) {
+                    Icon(
+                        imageVector = if (passwordVisible) {
+                            Icons.Default.VisibilityOff
+                        } else {
+                            Icons.Default.Visibility
+                        },
+                        contentDescription = if (passwordVisible) {
+                            "Hide password"
+                        } else {
+                            "Show password"
+                        },
+                        tint = RakizzColors.TextSecond
+                    )
+                }
+            }
+        } else {
+            null
         },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = RakizzColors.TextMain,

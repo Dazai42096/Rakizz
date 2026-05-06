@@ -57,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -82,12 +81,19 @@ fun StudentSignUpScreen(
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+
     var showPassword by rememberSaveable { mutableStateOf(false) }
+    var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
+
+    // This is only for screen-side validation before calling the backend.
+    var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val state by viewModel.uiState.collectAsState()
 
     val isLoading = state is UiState.Loading
-    val errorMessage = (state as? UiState.Error)?.message
+    val backendErrorMessage = (state as? UiState.Error)?.message
+    val visibleErrorMessage = localErrorMessage ?: backendErrorMessage
 
     LaunchedEffect(state) {
         if (state is UiState.Success) {
@@ -99,25 +105,48 @@ fun StudentSignUpScreen(
         fullName = fullName,
         email = email,
         password = password,
+        confirmPassword = confirmPassword,
         showPassword = showPassword,
+        showConfirmPassword = showConfirmPassword,
         isLoading = isLoading,
-        errorMessage = errorMessage,
+        errorMessage = visibleErrorMessage,
         onFullNameChange = {
             fullName = it
+            localErrorMessage = null
             viewModel.clearError()
         },
         onEmailChange = {
             email = it
+            localErrorMessage = null
             viewModel.clearError()
         },
         onPasswordChange = {
             password = it
+            localErrorMessage = null
+            viewModel.clearError()
+        },
+        onConfirmPasswordChange = {
+            confirmPassword = it
+            localErrorMessage = null
             viewModel.clearError()
         },
         onTogglePassword = {
             showPassword = !showPassword
         },
+        onToggleConfirmPassword = {
+            showConfirmPassword = !showConfirmPassword
+        },
         onCreateClick = {
+            if (confirmPassword.isBlank()) {
+                localErrorMessage = "Please confirm your password"
+                return@StudentSignupContent
+            }
+
+            if (password != confirmPassword) {
+                localErrorMessage = "Passwords do not match"
+                return@StudentSignupContent
+            }
+
             // student signup uses student role in the viewmodel
             viewModel.register(
                 fullName = fullName,
@@ -135,13 +164,17 @@ private fun StudentSignupContent(
     fullName: String,
     email: String,
     password: String,
+    confirmPassword: String,
     showPassword: Boolean,
+    showConfirmPassword: Boolean,
     isLoading: Boolean,
     errorMessage: String?,
     onFullNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
+    onToggleConfirmPassword: () -> Unit,
     onCreateClick: () -> Unit,
     onBackClick: () -> Unit,
     onAlreadyHaveAccountClick: () -> Unit
@@ -236,11 +269,25 @@ private fun StudentSignupContent(
                         value = password,
                         label = "Password",
                         keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
+                        imeAction = ImeAction.Next,
                         isPassword = true,
                         showPassword = showPassword,
                         onTogglePassword = onTogglePassword,
                         onValueChange = onPasswordChange,
+                        onNext = {
+                            focusManager.moveFocus(FocusDirection.Down)
+                        }
+                    )
+
+                    SignupTextField(
+                        value = confirmPassword,
+                        label = "Confirm password",
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                        isPassword = true,
+                        showPassword = showConfirmPassword,
+                        onTogglePassword = onToggleConfirmPassword,
+                        onValueChange = onConfirmPasswordChange,
                         onDone = {
                             keyboardController?.hide()
                             focusManager.clearFocus()
