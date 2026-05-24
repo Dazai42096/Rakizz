@@ -22,14 +22,11 @@ import kotlinx.coroutines.launch
 data class UnlockQuizUiState(
     val isLoading: Boolean = true,
     val isSubmitting: Boolean = false,
-
     val packageName: String = "",
     val appName: String = "",
     val quiz: QuizDto? = null,
     val result: QuizAttemptResultDto? = null,
-
     val selectedAnswers: Map<String, String> = emptyMap(),
-
     val message: String? = null,
     val error: String? = null,
     val unlockedUntil: String? = null
@@ -48,14 +45,22 @@ class UnlockQuizViewModel @Inject constructor(
         packageName: String,
         forceBlocked: Boolean
     ) {
+        if (packageName.isBlank()) {
+            _uiState.value = UnlockQuizUiState(
+                isLoading = false,
+                error = "Blocked app package name is missing"
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = UnlockQuizUiState(
                 isLoading = true,
-                packageName = packageName
+                packageName = packageName,
+                appName = packageName
             )
 
             try {
-                // if forceBlocked is true, backend will generate quiz directly
                 val check = api.checkBlockedApp(
                     UnlockCheckRequestDto(
                         packageName = packageName,
@@ -66,49 +71,76 @@ class UnlockQuizViewModel @Inject constructor(
                 if (!check.blocked) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
+                        appName = check.appName ?: check.packageName,
                         message = check.message,
                         unlockedUntil = check.unlockedUntil
                     )
                     return@launch
                 }
 
-                if (check.materialId.isNullOrBlank()) {
+                val materialId = check.materialId
+
+                if (materialId.isNullOrBlank()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = check.message
+                        appName = check.appName ?: check.packageName,
+                        error = check.message.ifBlank {
+                            "This app is blocked, but no study material was found. Upload material first."
+                        }
                     )
                     return@launch
                 }
 
-                // generate mixed AI quiz from newest material
                 val quiz = api.generateQuiz(
                     QuizGenerateRequestDto(
-                        materialId = check.materialId,
-                        difficulty = "MIXED"
+                        materialId = materialId,
+                        difficulty = "MEDIUM"
                     )
                 )
+
+                if (quiz.questions.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        appName = check.appName ?: check.packageName,
+                        error = "Quiz was generated, but no questions were returned"
+                    )
+                    return@launch
+                }
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     appName = check.appName ?: check.packageName,
                     quiz = quiz,
-                    message = check.message
+                    result = null,
+                    selectedAnswers = emptyMap(),
+                    message = check.message.ifBlank {
+                        "This app is blocked. Pass the quiz to unlock it."
+                    },
+                    error = null,
+                    unlockedUntil = null
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Could not start unlock quiz"
+                    error = readableError(
+                        fallback = "Could not start unlock quiz",
+                        throwable = e
+                    )
                 )
             }
         }
     }
 
-    fun selectAnswer(questionId: String, answer: String) {
-        val current = _uiState.value.selectedAnswers.toMutableMap()
-        current[questionId] = answer
+    fun selectAnswer(
+        questionId: String,
+        answer: String
+    ) {
+        val currentAnswers = _uiState.value.selectedAnswers.toMutableMap()
+        currentAnswers[questionId] = answer
 
         _uiState.value = _uiState.value.copy(
-            selectedAnswers = current
+            selectedAnswers = currentAnswers,
+            error = null
         )
     }
 
@@ -117,21 +149,27 @@ class UnlockQuizViewModel @Inject constructor(
         val quiz = state.quiz
 
         if (quiz == null) {
-            _uiState.value = state.copy(error = "Quiz is not ready")
+            _uiState.value = state.copy(
+                error = "Quiz is not ready yet"
+            )
             return
         }
 
         if (quiz.questions.isEmpty()) {
-            _uiState.value = state.copy(error = "No questions found")
+            _uiState.value = state.copy(
+                error = "No questions found"
+            )
             return
         }
 
-        val missing = quiz.questions.firstOrNull { question ->
+        val missingQuestion = quiz.questions.firstOrNull { question ->
             state.selectedAnswers[question.id].isNullOrBlank()
         }
 
-        if (missing != null) {
-            _uiState.value = state.copy(error = "Answer all questions first")
+        if (missingQuestion != null) {
+            _uiState.value = state.copy(
+                error = "Answer all questions first"
+            )
             return
         }
 
@@ -159,7 +197,6 @@ class UnlockQuizViewModel @Inject constructor(
                         )
                     )
 
-                    // local unlock makes accessibility stop blocking it
                     FocusRuleCache.saveLocalUnlock(
                         context = context,
                         packageName = state.packageName,
@@ -170,19 +207,24 @@ class UnlockQuizViewModel @Inject constructor(
                         isSubmitting = false,
                         result = result,
                         message = "App unlocked for ${unlock.grantedMinutes} minutes",
-                        unlockedUntil = unlock.expiresAt
+                        unlockedUntil = unlock.expiresAt,
+                        error = null
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isSubmitting = false,
                         result = result,
-                        message = "Quiz failed. App is still blocked."
+                        message = "Quiz failed.\nApp is still blocked.",
+                        error = null
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
-                    error = e.message ?: "Could not submit unlock quiz"
+                    error = readableError(
+                        fallback = "Could not submit unlock quiz",
+                        throwable = e
+                    )
                 )
             }
         }
@@ -191,15 +233,53 @@ class UnlockQuizViewModel @Inject constructor(
     fun retryWithNewQuiz() {
         val packageName = _uiState.value.packageName
 
-        if (packageName.isNotBlank()) {
-            startUnlockFlow(
-                packageName = packageName,
-                forceBlocked = true
+        if (packageName.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                error = "Blocked app package name is missing"
             )
+            return
         }
+
+        startUnlockFlow(
+            packageName = packageName,
+            forceBlocked = true
+        )
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.value = _uiState.value.copy(
+            error = null
+        )
+    }
+
+    private fun readableError(
+        fallback: String,
+        throwable: Exception
+    ): String {
+        val message = throwable.message.orEmpty()
+
+        return when {
+            message.contains("422", ignoreCase = true) -> {
+                "$fallback. The quiz request was rejected by the backend."
+            }
+
+            message.contains("401", ignoreCase = true) -> {
+                "$fallback. Please login again."
+            }
+
+            message.contains("403", ignoreCase = true) -> {
+                "$fallback. This action is only allowed for a student account."
+            }
+
+            message.contains("404", ignoreCase = true) -> {
+                "$fallback. Required data was not found."
+            }
+
+            message.isNotBlank() -> {
+                "$fallback: $message"
+            }
+
+            else -> fallback
+        }
     }
 }
