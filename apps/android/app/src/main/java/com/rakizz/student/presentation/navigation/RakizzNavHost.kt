@@ -1,8 +1,12 @@
 package com.rakizz.student.presentation.navigation
 
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -397,12 +401,34 @@ fun RakizzNavHost(
         }
 
         composable(NavRoutes.PairCode.route) {
+            val context = LocalContext.current
+            val clipboard = LocalClipboardManager.current
+
             PairCodeScreen(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onCopyClick = {},
-                onShareClick = {},
+                onCopyClick = { code ->
+                    clipboard.setText(
+                        AnnotatedString(code)
+                    )
+                },
+                onShareClick = { code ->
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            "Use this Rakizz pair code to link with my student account: $code"
+                        )
+                    }
+
+                    context.startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share Rakizz Pair Code"
+                        )
+                    )
+                },
                 onRegenerateClick = {}
             )
         }
