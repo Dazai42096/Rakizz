@@ -38,7 +38,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Logout
@@ -70,20 +69,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rakizz.student.presentation.theme.RakizzColors
-import androidx.compose.ui.graphics.Color
 
 @Composable
 fun ProfileScreen(
@@ -145,7 +142,7 @@ fun ProfileScreen(
                         onEditClick = viewModel::startEditing,
                         onCancelClick = viewModel::cancelEditing,
                         onSaveClick = viewModel::saveProfile,
-                        onShowPairCodeClick = viewModel::togglePairCode,
+                        onOpenPairCodeClick = onGeneratePairCodeClick,
                         onFullNameChange = viewModel::onFullNameChange,
                         onSchoolChange = viewModel::onSchoolChange,
                         onGradeChange = viewModel::onGradeChange,
@@ -207,7 +204,7 @@ private fun ProfileContent(
     onEditClick: () -> Unit,
     onCancelClick: () -> Unit,
     onSaveClick: () -> Unit,
-    onShowPairCodeClick: () -> Unit,
+    onOpenPairCodeClick: () -> Unit,
     onFullNameChange: (String) -> Unit,
     onSchoolChange: (String) -> Unit,
     onGradeChange: (String) -> Unit,
@@ -216,7 +213,6 @@ private fun ProfileContent(
     onLogoutClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
 
     var showImageMenu by remember { mutableStateOf(false) }
     var showImagePreview by remember { mutableStateOf(false) }
@@ -226,13 +222,12 @@ private fun ProfileContent(
     ) { uri ->
         if (uri != null) {
             try {
-                // keep image permission so it still opens later
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: Exception) {
-                // some emulators ignore this
+                // Some emulators ignore persistent URI permission.
             }
 
             onImageChange(uri.toString())
@@ -246,9 +241,7 @@ private fun ProfileContent(
     ) {
         ProfileHeroCard(
             uiState = uiState,
-            onImageClick = {
-                showImageMenu = true
-            }
+            onImageClick = { showImageMenu = true }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -266,12 +259,7 @@ private fun ProfileContent(
 
         if (uiState.role.lowercase() == "student") {
             PairCodeCard(
-                userId = uiState.userId,
-                showPairCode = uiState.showPairCode,
-                onShowClick = onShowPairCodeClick,
-                onCopyClick = {
-                    clipboard.setText(AnnotatedString(uiState.userId))
-                }
+                onOpenClick = onOpenPairCodeClick
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -378,9 +366,7 @@ private fun ProfileContent(
     if (showImageMenu) {
         ImageMenuDialog(
             hasImage = uiState.profileImageUrl.isNotBlank(),
-            onDismiss = {
-                showImageMenu = false
-            },
+            onDismiss = { showImageMenu = false },
             onViewImage = {
                 showImageMenu = false
                 showImagePreview = true
@@ -395,9 +381,7 @@ private fun ProfileContent(
     if (showImagePreview) {
         ImagePreviewDialog(
             imageUri = uiState.profileImageUrl,
-            onDismiss = {
-                showImagePreview = false
-            }
+            onDismiss = { showImagePreview = false }
         )
     }
 }
@@ -436,9 +420,7 @@ private fun ProfileHeroCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = uiState.fullName.ifBlank {
-                    roleTitle(uiState.role)
-                },
+                text = uiState.fullName.ifBlank { roleTitle(uiState.role) },
                 color = RakizzColors.White,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold,
@@ -484,9 +466,7 @@ private fun ProfileImage(
             .clip(CircleShape)
             .background(RakizzColors.Card)
             .border(3.dp, RakizzColors.White.copy(alpha = 0.55f), CircleShape)
-            .clickable {
-                onClick()
-            },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (imageBitmap != null) {
@@ -511,10 +491,7 @@ private fun ProfileImage(
 
 @Composable
 private fun PairCodeCard(
-    userId: String,
-    showPairCode: Boolean,
-    onShowClick: () -> Unit,
-    onCopyClick: () -> Unit
+    onOpenClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -547,7 +524,7 @@ private fun PairCodeCard(
                     )
 
                     Text(
-                        text = "Parent uses this to link with the student.",
+                        text = "Open the secure pair-code screen to link this student account with a parent.",
                         color = RakizzColors.TextSecond,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -556,65 +533,21 @@ private fun PairCodeCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            if (showPairCode) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    color = RakizzColors.PrimarySoft,
-                    border = BorderStroke(1.dp, RakizzColors.CardBorder)
-                ) {
-                    Text(
-                        text = userId,
-                        color = RakizzColors.PrimaryDark,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(14.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = onCopyClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RakizzColors.Primary,
-                        contentColor = RakizzColors.White
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(19.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(9.dp))
-
-                    Text(
-                        text = "Copy Code",
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            } else {
-                Button(
-                    onClick = onShowClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RakizzColors.Primary,
-                        contentColor = RakizzColors.White
-                    )
-                ) {
-                    Text(
-                        text = "Show Pair Code",
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
+            Button(
+                onClick = onOpenClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
+                )
+            ) {
+                Text(
+                    text = "Open Pair Code",
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
         }
     }
@@ -1008,9 +941,7 @@ private fun MessageCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
+            .clickable { onClick() },
         shape = RoundedCornerShape(22.dp),
         color = RakizzColors.Card,
         shadowElevation = 1.dp,
@@ -1119,6 +1050,7 @@ private fun rememberImageBitmap(
                         context.contentResolver,
                         uri
                     )
+
                     ImageDecoder.decodeBitmap(source)
                 } else {
                     MediaStore.Images.Media.getBitmap(

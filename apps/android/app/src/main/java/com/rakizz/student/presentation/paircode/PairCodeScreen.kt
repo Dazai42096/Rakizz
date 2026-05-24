@@ -2,7 +2,6 @@ package com.rakizz.student.presentation.paircode
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,18 +34,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 private val ScreenTop = Color(0xFF03112A)
 private val ScreenBottom = Color(0xFF000000)
@@ -58,15 +57,25 @@ private val CardBorder = Color(0xFF2A2F3A)
 private val PrimaryBlue = Color(0xFF2457D6)
 private val BlueSoft = Color(0xFF6EA7FF)
 private val GreenAccent = Color(0xFF30D158)
+private val ErrorRed = Color(0xFFFF5C5C)
 
 @Composable
 fun PairCodeScreen(
     onBackClick: () -> Unit,
     onCopyClick: (String) -> Unit = {},
     onShareClick: (String) -> Unit = {},
-    onRegenerateClick: (String) -> Unit = {}
+    onRegenerateClick: (String) -> Unit = {},
+    viewModel: PairCodeViewModel = hiltViewModel()
 ) {
-    var pairCode by rememberSaveable { mutableStateOf("RKZ-4829") }
+    val uiState by viewModel.uiState.collectAsState()
+
+    val pairCodeText = when {
+        uiState.isLoading && uiState.pairCode.isBlank() -> "Loading..."
+        uiState.error != null && uiState.pairCode.isBlank() -> "No Code"
+        else -> uiState.pairCode
+    }
+
+    val hasValidCode = uiState.pairCode.isNotBlank() && !uiState.isLoading
 
     Scaffold(
         containerColor = Color.Black
@@ -102,14 +111,17 @@ fun PairCodeScreen(
 
             item {
                 CodeCard(
-                    code = pairCode
+                    code = pairCodeText,
+                    isLoading = uiState.isLoading,
+                    error = uiState.error
                 )
             }
 
             item {
                 ActionButtonsRow(
-                    onCopyClick = { onCopyClick(pairCode) },
-                    onShareClick = { onShareClick(pairCode) }
+                    enabled = hasValidCode,
+                    onCopyClick = { onCopyClick(uiState.pairCode) },
+                    onShareClick = { onShareClick(uiState.pairCode) }
                 )
             }
 
@@ -119,14 +131,20 @@ fun PairCodeScreen(
 
             item {
                 Button(
-                    onClick = { onRegenerateClick(pairCode) },
+                    onClick = {
+                        viewModel.loadPairCode()
+                        onRegenerateClick(uiState.pairCode)
+                    },
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(66.dp),
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
-                        contentColor = WhiteText
+                        contentColor = WhiteText,
+                        disabledContainerColor = PrimaryBlue.copy(alpha = 0.45f),
+                        disabledContentColor = WhiteText.copy(alpha = 0.7f)
                     )
                 ) {
                     Icon(
@@ -138,7 +156,7 @@ fun PairCodeScreen(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
-                        text = "Generate New Code",
+                        text = if (uiState.isLoading) "Loading Code..." else "Refresh Code",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -245,7 +263,9 @@ private fun PairCodeHero() {
 
 @Composable
 private fun CodeCard(
-    code: String
+    code: String,
+    isLoading: Boolean,
+    error: String?
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -289,8 +309,12 @@ private fun CodeCard(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Expires in 10 minutes",
-                color = GreenAccent,
+                text = when {
+                    isLoading -> "Loading your pair code..."
+                    error != null -> "Could not load pair code. Make sure you are logged in and the backend is running."
+                    else -> "Use this code in the parent app"
+                },
+                color = if (error != null) ErrorRed else GreenAccent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -300,6 +324,7 @@ private fun CodeCard(
 
 @Composable
 private fun ActionButtonsRow(
+    enabled: Boolean,
     onCopyClick: () -> Unit,
     onShareClick: () -> Unit
 ) {
@@ -311,6 +336,7 @@ private fun ActionButtonsRow(
             modifier = Modifier.weight(1f),
             text = "Copy",
             icon = Icons.Rounded.ContentCopy,
+            enabled = enabled,
             onClick = onCopyClick
         )
 
@@ -318,6 +344,7 @@ private fun ActionButtonsRow(
             modifier = Modifier.weight(1f),
             text = "Share",
             icon = Icons.Rounded.Share,
+            enabled = enabled,
             onClick = onShareClick
         )
     }
@@ -327,16 +354,20 @@ private fun ActionButtonsRow(
 private fun SecondaryActionButton(
     modifier: Modifier = Modifier,
     text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(60.dp),
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color(0xFF1B1F27),
-            contentColor = WhiteText
+            contentColor = WhiteText,
+            disabledContainerColor = Color(0xFF1B1F27).copy(alpha = 0.45f),
+            disabledContentColor = WhiteText.copy(alpha = 0.45f)
         )
     ) {
         Icon(
@@ -452,7 +483,7 @@ private fun SecurityNoticeCard() {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "This code is temporary and should only be shared with your parent or guardian.",
+                    text = "This code should only be shared with your parent or guardian.",
                     color = SecondaryText,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
