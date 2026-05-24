@@ -90,31 +90,27 @@ private val RakizzLightPalette = RakizzPalette(
 
 object RakizzThemeController {
 
-    var mode by mutableStateOf(RakizzThemeMode.SYSTEM)
+    var mode by mutableStateOf(RakizzThemeMode.DARK)
         private set
 
-    fun isCurrentlyDark(
-        systemDarkTheme: Boolean
-    ): Boolean {
-        return when (mode) {
-            RakizzThemeMode.SYSTEM -> systemDarkTheme
-            RakizzThemeMode.LIGHT -> false
-            RakizzThemeMode.DARK -> true
-        }
+    fun isCurrentlyDark(): Boolean {
+        return mode == RakizzThemeMode.DARK
     }
 
-    fun toggle(
-        systemDarkTheme: Boolean
-    ) {
-        mode = if (isCurrentlyDark(systemDarkTheme)) {
+    fun toggleTheme() {
+        mode = if (mode == RakizzThemeMode.DARK) {
             RakizzThemeMode.LIGHT
         } else {
             RakizzThemeMode.DARK
         }
     }
 
-    fun useSystemTheme() {
-        mode = RakizzThemeMode.SYSTEM
+    fun setLight() {
+        mode = RakizzThemeMode.LIGHT
+    }
+
+    fun setDark() {
+        mode = RakizzThemeMode.DARK
     }
 }
 
@@ -202,15 +198,10 @@ object RakizzColors {
 
 @Composable
 fun RakizzTheme(
-    darkTheme: Boolean? = null,
+    darkTheme: Boolean = RakizzThemeController.isCurrentlyDark(),
     content: @Composable () -> Unit
 ) {
-    val systemDarkTheme = isSystemInDarkTheme()
-
-    val selectedDarkTheme = darkTheme
-        ?: RakizzThemeController.isCurrentlyDark(systemDarkTheme)
-
-    val palette = if (selectedDarkTheme) {
+    val palette = if (darkTheme) {
         RakizzDarkPalette
     } else {
         RakizzLightPalette
@@ -218,7 +209,7 @@ fun RakizzTheme(
 
     RakizzColors.applyPalette(palette)
 
-    val materialColors = if (selectedDarkTheme) {
+    val materialColors = if (darkTheme) {
         darkColorScheme(
             primary = palette.primary,
             onPrimary = palette.white,

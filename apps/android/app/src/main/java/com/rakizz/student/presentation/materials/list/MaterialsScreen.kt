@@ -1,4 +1,4 @@
-package com.rakizz.student.presentation.materials.list
+﻿package com.rakizz.student.presentation.materials.list
 
 import android.content.Context
 import android.net.Uri
@@ -288,7 +288,7 @@ fun MaterialsScreen(
             },
             sheetState = sheetState,
             containerColor = RakizzColors.Card,
-            scrimColor = Color.Black.copy(alpha = 0.45f),
+            scrimColor = com.rakizz.student.presentation.theme.RakizzColors.Background.copy(alpha = 0.55f),
             shape = RoundedCornerShape(
                 topStart = 30.dp,
                 topEnd = 30.dp

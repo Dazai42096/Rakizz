@@ -1,4 +1,4 @@
-package com.rakizz.student.presentation.quizzes.list
+﻿package com.rakizz.student.presentation.quizzes.list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -262,7 +262,7 @@ private fun LightPill(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(11.dp))
-            .background(Color.White.copy(alpha = 0.15f))
+            .background(com.rakizz.student.presentation.theme.RakizzColors.White.copy(alpha = 0.15f))
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Text(
