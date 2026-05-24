@@ -10,6 +10,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
+enum class RakizzThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
 data class RakizzPalette(
     val background: Color,
     val backgroundSoft: Color,
@@ -81,6 +87,36 @@ private val RakizzLightPalette = RakizzPalette(
 
     white = Color(0xFFFFFFFF)
 )
+
+object RakizzThemeController {
+
+    var mode by mutableStateOf(RakizzThemeMode.SYSTEM)
+        private set
+
+    fun isCurrentlyDark(
+        systemDarkTheme: Boolean
+    ): Boolean {
+        return when (mode) {
+            RakizzThemeMode.SYSTEM -> systemDarkTheme
+            RakizzThemeMode.LIGHT -> false
+            RakizzThemeMode.DARK -> true
+        }
+    }
+
+    fun toggle(
+        systemDarkTheme: Boolean
+    ) {
+        mode = if (isCurrentlyDark(systemDarkTheme)) {
+            RakizzThemeMode.LIGHT
+        } else {
+            RakizzThemeMode.DARK
+        }
+    }
+
+    fun useSystemTheme() {
+        mode = RakizzThemeMode.SYSTEM
+    }
+}
 
 object RakizzColors {
 
@@ -166,10 +202,15 @@ object RakizzColors {
 
 @Composable
 fun RakizzTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean? = null,
     content: @Composable () -> Unit
 ) {
-    val palette = if (darkTheme) {
+    val systemDarkTheme = isSystemInDarkTheme()
+
+    val selectedDarkTheme = darkTheme
+        ?: RakizzThemeController.isCurrentlyDark(systemDarkTheme)
+
+    val palette = if (selectedDarkTheme) {
         RakizzDarkPalette
     } else {
         RakizzLightPalette
@@ -177,7 +218,7 @@ fun RakizzTheme(
 
     RakizzColors.applyPalette(palette)
 
-    val materialColors = if (darkTheme) {
+    val materialColors = if (selectedDarkTheme) {
         darkColorScheme(
             primary = palette.primary,
             onPrimary = palette.white,

@@ -3,6 +3,7 @@ package com.rakizz.student.presentation.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rakizz.student.presentation.theme.RakizzColors
+import com.rakizz.student.presentation.theme.RakizzThemeController
 
 @Composable
 fun HomeScreen(
@@ -49,6 +51,9 @@ fun HomeScreen(
     onOpenProgress: () -> Unit = {},
     onLogout: () -> Unit
 ) {
+    val systemDarkTheme = isSystemInDarkTheme()
+    val isDarkMode = RakizzThemeController.isCurrentlyDark(systemDarkTheme)
+
     Scaffold(
         containerColor = RakizzColors.Background,
         bottomBar = {
@@ -89,6 +94,15 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            ThemeToggleCard(
+                isDarkMode = isDarkMode,
+                onToggleTheme = {
+                    RakizzThemeController.toggle(systemDarkTheme)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             FocusStatusCard(
                 onOpenFocus = onOpenFocus
@@ -246,6 +260,80 @@ private fun MainWelcomeCard(
                     fontSize = 15.sp
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ThemeToggleCard(
+    isDarkMode: Boolean,
+    onToggleTheme: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onToggleTheme()
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(RakizzColors.PrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isDarkMode) "D" else "L",
+                    color = RakizzColors.Primary,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = if (isDarkMode) "Dark mode" else "Light mode",
+                    color = RakizzColors.TextMain,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = if (isDarkMode) {
+                        "Current theme uses the dark Rakizz app colors."
+                    } else {
+                        "Current theme uses the light blue poster colors."
+                    },
+                    color = RakizzColors.TextSecond,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            Text(
+                text = if (isDarkMode) "Light" else "Dark",
+                color = RakizzColors.Primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
         }
     }
 }
