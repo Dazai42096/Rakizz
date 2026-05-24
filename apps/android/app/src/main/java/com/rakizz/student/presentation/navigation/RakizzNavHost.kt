@@ -407,11 +407,40 @@ fun RakizzNavHost(
         }
 
         composable(NavRoutes.Progress.route) {
+            val context = LocalContext.current
+
             StudentProgressScreen(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onDownloadClick = {}
+                onDownloadClick = {
+                    val reportText = """
+                        Rakizz Progress Report
+
+                        This report summarizes the student's learning and focus activity:
+                        - AI quiz practice from uploaded materials
+                        - Assignment and study progress
+                        - Focus rules and blocked-app unlock attempts
+                        - Quiz unlock flow requiring 70% pass score
+
+                        Generated from the Rakizz student progress screen.
+                    """.trimIndent()
+
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            reportText
+                        )
+                    }
+
+                    context.startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share Rakizz Progress Report"
+                        )
+                    )
+                }
             )
         }
 
