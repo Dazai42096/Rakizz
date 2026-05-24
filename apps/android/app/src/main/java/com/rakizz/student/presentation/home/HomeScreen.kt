@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -115,7 +114,8 @@ fun HomeScreen(
                 onOpenQuizzes = onOpenQuizzes,
                 onOpenAssignments = onOpenAssignments,
                 onOpenFocus = onOpenFocus,
-                onOpenProgress = onOpenProgress
+                onOpenProgress = onOpenProgress,
+                onOpenProfile = onOpenProfile
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -416,7 +416,8 @@ private fun FeatureGrid(
     onOpenQuizzes: () -> Unit,
     onOpenAssignments: () -> Unit,
     onOpenFocus: () -> Unit,
-    onOpenProgress: () -> Unit
+    onOpenProgress: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -477,7 +478,7 @@ private fun FeatureGrid(
                 title = "Profile",
                 shortText = "Pair code and account.",
                 badge = "Link",
-                onClick = {}
+                onClick = onOpenProfile
             )
         }
     }
