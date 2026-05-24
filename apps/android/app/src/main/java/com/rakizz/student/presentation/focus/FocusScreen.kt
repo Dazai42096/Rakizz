@@ -1,7 +1,9 @@
 package com.rakizz.student.presentation.focus
 
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,7 +43,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,7 +52,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,6 +71,7 @@ fun FocusScreen(
     viewModel: FocusViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = RakizzColors.Background
@@ -135,6 +140,16 @@ fun FocusScreen(
             }
 
             item {
+                AccessibilitySettingsCard(
+                    onOpenSettingsClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        )
+                    }
+                )
+            }
+
+            item {
                 QuizUnlockInfoCard()
             }
 
@@ -170,7 +185,7 @@ fun FocusScreen(
             }
 
             item {
-                reviewNoteCard()
+                ReviewNoteCard()
             }
         }
     }
@@ -291,7 +306,7 @@ private fun SyncAppsCard(
         shape = RoundedCornerShape(26.dp),
         color = RakizzColors.Card,
         shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp)
@@ -361,13 +376,78 @@ private fun SyncAppsCard(
 }
 
 @Composable
+private fun AccessibilitySettingsCard(
+    onOpenSettingsClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.Settings,
+                    color = RakizzColors.Warning
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Enable app blocking",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = "Turn on Rakizz in Accessibility Settings so the app can detect blocked apps during focus time.",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onOpenSettingsClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RakizzColors.Primary,
+                    contentColor = RakizzColors.White
+                )
+            ) {
+                Text(
+                    text = "Open Accessibility Settings",
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun QuizUnlockInfoCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
         color = RakizzColors.Card,
         shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -417,7 +497,7 @@ private fun FocusRuleCard(
         shape = RoundedCornerShape(26.dp),
         color = RakizzColors.Card,
         shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp)
@@ -471,7 +551,7 @@ private fun FocusRuleCard(
 
             Button(
                 onClick = {
-                    // this is still useful as a safe test from inside the app
+                    // Safe demo button from inside the app.
                     onTryBlockedAppClick(rule.packageName)
                 },
                 modifier = Modifier
@@ -511,7 +591,7 @@ private fun InfoBox(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         color = RakizzColors.CardSoft,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(14.dp)
@@ -602,19 +682,17 @@ private fun SectionTitle(
 private fun MessageCard(
     title: String,
     message: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     onClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
+            .clickable { onClick() },
         shape = RoundedCornerShape(22.dp),
         color = RakizzColors.Card,
         shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -644,7 +722,7 @@ private fun LoadingCard() {
         shape = RoundedCornerShape(24.dp),
         color = RakizzColors.Card,
         shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Row(
             modifier = Modifier.padding(18.dp),
@@ -675,7 +753,7 @@ private fun EmptyRulesCard() {
         shape = RoundedCornerShape(26.dp),
         color = RakizzColors.Card,
         shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(22.dp),
@@ -708,13 +786,13 @@ private fun EmptyRulesCard() {
 }
 
 @Composable
-private fun reviewNoteCard() {
+private fun ReviewNoteCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = RakizzColors.AccentSoft,
         shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -729,7 +807,7 @@ private fun reviewNoteCard() {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Parent focus rules define blocked apps and focus time. During an active rule, opening a blocked app sends the student to an AI quiz unlock flow. Passing score is 70%.",
+                text = "Parent focus rules define blocked apps and focus time.\nDuring an active rule, opening a blocked app sends the student to an AI quiz unlock flow.\nPassing score is 70%.",
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium,
                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
@@ -741,7 +819,7 @@ private fun reviewNoteCard() {
 @Composable
 private fun IconBubble(
     icon: ImageVector,
-    color: androidx.compose.ui.graphics.Color
+    color: Color
 ) {
     Surface(
         modifier = Modifier.size(42.dp),
