@@ -1,21 +1,35 @@
 from typing import Any, List
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_role
 from app.crud import crud_link
-from app.crud.crud_user import get_user_by_pair_code
 from app.models.user import User
 from shared_python.enums import Role
-from shared_python.schemas.user import (
-    PairCodeLinkRequest,
-    PairCodeLinkResponse,
-    ParentStudentLinkBase,
-    UserResponse,
-)
+from shared_python.schemas.user import ParentStudentLinkBase, UserResponse
 
 router = APIRouter()
+
+
+class PairCodeLinkRequest(BaseModel):
+    pair_code: str
+
+
+def user_to_response(user: User) -> dict:
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "pair_code": user.pair_code,
+        "full_name": user.full_name,
+        "school": user.school,
+        "grade_level": user.grade_level,
+        "phone_number": user.phone_number,
+        "profile_image_url": user.profile_image_url,
+    }
 
 
 @router.post("/")
@@ -24,7 +38,6 @@ def link_student(
     db: Session = Depends(get_db),
     current_parent: User = Depends(require_role(Role.PARENT)),
 ) -> Any:
-    # old endpoint kept in case we need it for testing
     if str(current_parent.id) != str(link_in.parent_id):
         raise HTTPException(
             status_code=403,
@@ -48,31 +61,34 @@ def link_student(
 
     crud_link.link_student_to_parent(
         db,
-        parent_id=current_parent.id,
-        student_id=student.id,
+        parent_id=link_in.parent_id,
+        student_id=link_in.student_id,
     )
 
     return {"status": "success"}
 
 
-@router.post("/pair-code", response_model=PairCodeLinkResponse)
+@router.post("/pair-code")
 def link_student_by_pair_code(
-    request: PairCodeLinkRequest,
+    link_in: PairCodeLinkRequest,
     db: Session = Depends(get_db),
     current_parent: User = Depends(require_role(Role.PARENT)),
 ) -> Any:
-    pair_code = request.pair_code.strip().upper()
+    code = link_in.pair_code.strip().upper()
 
-    if not pair_code:
+    if not code:
         raise HTTPException(
             status_code=400,
             detail="Pair code is required",
         )
 
-    # parent enters RKZ code here
-    student = get_user_by_pair_code(
-        db=db,
-        pair_code=pair_code,
+    student = (
+        db.query(User)
+        .filter(
+            User.pair_code == code,
+            User.role == Role.STUDENT.value,
+        )
+        .first()
     )
 
     if not student:
@@ -87,10 +103,10 @@ def link_student_by_pair_code(
         student_id=student.id,
     )
 
-    return PairCodeLinkResponse(
-        status="success",
-        student=student,
-    )
+    return {
+        "status": "success",
+        "student": user_to_response(student),
+    }
 
 
 @router.get("/students", response_model=List[UserResponse])
