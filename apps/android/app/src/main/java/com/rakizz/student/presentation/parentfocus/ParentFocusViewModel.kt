@@ -3,6 +3,7 @@ package com.rakizz.student.presentation.parentfocus
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rakizz.student.data.network.RakizzApi
+import com.rakizz.student.data.remote.dto.CurrentUserDto
 import com.rakizz.student.data.remote.dto.InstalledAppResponseDto
 import com.rakizz.student.data.remote.dto.PairCodeLinkRequestDto
 import com.rakizz.student.data.remote.dto.PolicyCreateRequestDto
@@ -23,6 +24,8 @@ data class ParentFocusUiState(
     val isSaving: Boolean = false,
 
     val pairCode: String = "",
+
+    val linkedStudents: List<CurrentUserDto> = emptyList(),
     val linkedStudentId: String = "",
     val linkedStudentEmail: String = "",
 
@@ -31,6 +34,7 @@ data class ParentFocusUiState(
 
     val studentApps: List<InstalledAppResponseDto> = emptyList(),
     val selectedPackages: Set<String> = emptySet(),
+
     val policies: List<PolicyDto> = emptyList(),
 
     val message: String? = null,
@@ -46,7 +50,48 @@ class ParentFocusViewModel @Inject constructor(
     val uiState: StateFlow<ParentFocusUiState> = _uiState.asStateFlow()
 
     init {
-        loadPolicies()
+        loadParentDashboard()
+    }
+
+    fun loadParentDashboard() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                error = null,
+                message = null
+            )
+
+            try {
+                val students = api.getLinkedStudents()
+                val policies = runCatching {
+                    api.getPolicies()
+                }.getOrDefault(emptyList())
+
+                val selectedStudent = students.firstOrNull()
+                val apps = if (selectedStudent != null) {
+                    runCatching {
+                        api.getStudentInstalledApps(selectedStudent.id).apps
+                    }.getOrDefault(emptyList())
+                } else {
+                    emptyList()
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    linkedStudents = students,
+                    linkedStudentId = selectedStudent?.id.orEmpty(),
+                    linkedStudentEmail = selectedStudent?.email.orEmpty(),
+                    studentApps = apps,
+                    selectedPackages = emptySet(),
+                    policies = policies
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Could not load parent focus data"
+                )
+            }
+        }
     }
 
     fun onPairCodeChange(value: String) {
@@ -58,11 +103,19 @@ class ParentFocusViewModel @Inject constructor(
     }
 
     fun onStartTimeChange(value: String) {
-        _uiState.value = _uiState.value.copy(startTime = value)
+        _uiState.value = _uiState.value.copy(
+            startTime = value,
+            error = null,
+            message = null
+        )
     }
 
     fun onEndTimeChange(value: String) {
-        _uiState.value = _uiState.value.copy(endTime = value)
+        _uiState.value = _uiState.value.copy(
+            endTime = value,
+            error = null,
+            message = null
+        )
     }
 
     fun clearMessages() {
@@ -76,7 +129,9 @@ class ParentFocusViewModel @Inject constructor(
         val code = _uiState.value.pairCode.trim().uppercase()
 
         if (code.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Enter student pair code")
+            _uiState.value = _uiState.value.copy(
+                error = "Enter student pair code"
+            )
             return
         }
 
@@ -88,20 +143,32 @@ class ParentFocusViewModel @Inject constructor(
             )
 
             try {
-                // parent uses RKZ code here, not the student database id
                 val result = api.linkStudentByPairCode(
                     PairCodeLinkRequestDto(
                         pairCode = code
                     )
                 )
 
+                val apps = runCatching {
+                    api.getStudentInstalledApps(result.student.id).apps
+                }.getOrDefault(emptyList())
+
+                val updatedStudents = buildList {
+                    addAll(_uiState.value.linkedStudents)
+                    if (_uiState.value.linkedStudents.none { it.id == result.student.id }) {
+                        add(result.student)
+                    }
+                }
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    pairCode = "",
+                    linkedStudents = updatedStudents,
                     linkedStudentId = result.student.id,
                     linkedStudentEmail = result.student.email,
-                    studentApps = emptyList(),
+                    studentApps = apps,
                     selectedPackages = emptySet(),
-                    message = "Student linked"
+                    message = "Student linked successfully"
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -112,11 +179,42 @@ class ParentFocusViewModel @Inject constructor(
         }
     }
 
+    fun selectStudent(student: CurrentUserDto) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                linkedStudentId = student.id,
+                linkedStudentEmail = student.email,
+                selectedPackages = emptySet(),
+                studentApps = emptyList(),
+                error = null,
+                message = null
+            )
+
+            try {
+                val apps = api.getStudentInstalledApps(student.id).apps
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    studentApps = apps,
+                    message = "Loaded ${apps.size} apps"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Could not load student apps"
+                )
+            }
+        }
+    }
+
     fun loadStudentApps() {
         val studentId = _uiState.value.linkedStudentId
 
         if (studentId.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Link student first")
+            _uiState.value = _uiState.value.copy(
+                error = "Link student first"
+            )
             return
         }
 
@@ -130,7 +228,6 @@ class ParentFocusViewModel @Inject constructor(
             )
 
             try {
-                // now we use the real student id after linking
                 val response = api.getStudentInstalledApps(studentId)
 
                 _uiState.value = _uiState.value.copy(
@@ -148,16 +245,18 @@ class ParentFocusViewModel @Inject constructor(
     }
 
     fun toggleApp(packageName: String) {
-        val old = _uiState.value.selectedPackages
+        val oldSelected = _uiState.value.selectedPackages
 
-        val newSet = if (old.contains(packageName)) {
-            old - packageName
+        val newSelected = if (oldSelected.contains(packageName)) {
+            oldSelected - packageName
         } else {
-            old + packageName
+            oldSelected + packageName
         }
 
         _uiState.value = _uiState.value.copy(
-            selectedPackages = newSet
+            selectedPackages = newSelected,
+            error = null,
+            message = null
         )
     }
 
@@ -167,13 +266,17 @@ class ParentFocusViewModel @Inject constructor(
             .toSet()
 
         _uiState.value = _uiState.value.copy(
-            selectedPackages = allPackages
+            selectedPackages = allPackages,
+            error = null,
+            message = null
         )
     }
 
     fun clearSelectedApps() {
         _uiState.value = _uiState.value.copy(
-            selectedPackages = emptySet()
+            selectedPackages = emptySet(),
+            error = null,
+            message = null
         )
     }
 
@@ -185,8 +288,10 @@ class ParentFocusViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     policies = rules
                 )
-            } catch (_: Exception) {
-                // keep parent page open even if old rules fail
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Could not load focus rules"
+                )
             }
         }
     }
@@ -195,17 +300,23 @@ class ParentFocusViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.linkedStudentId.isBlank()) {
-            _uiState.value = state.copy(error = "Link student first")
+            _uiState.value = state.copy(
+                error = "Link student first"
+            )
             return
         }
 
         if (state.selectedPackages.isEmpty()) {
-            _uiState.value = state.copy(error = "Choose at least one app")
+            _uiState.value = state.copy(
+                error = "Choose at least one app"
+            )
             return
         }
 
         if (state.startTime.isBlank() || state.endTime.isBlank()) {
-            _uiState.value = state.copy(error = "Focus time is required")
+            _uiState.value = state.copy(
+                error = "Focus time is required"
+            )
             return
         }
 
@@ -217,11 +328,14 @@ class ParentFocusViewModel @Inject constructor(
             )
 
             try {
-                val chosenApps = state.studentApps.filter { app ->
-                    state.selectedPackages.contains(app.packageName)
+                val chosenApps = state.selectedPackages.map { packageName ->
+                    val app = state.studentApps.firstOrNull {
+                        it.packageName == packageName
+                    }
+
+                    packageName to (app?.appName ?: packageName)
                 }
 
-                // saved in backend as one focus-time rule
                 val config = buildJsonObject {
                     put("start_time", state.startTime.trim())
                     put("end_time", state.endTime.trim())
@@ -231,8 +345,8 @@ class ParentFocusViewModel @Inject constructor(
                         chosenApps.forEach { app ->
                             add(
                                 buildJsonObject {
-                                    put("package_name", app.packageName)
-                                    put("app_name", app.appName)
+                                    put("package_name", app.first)
+                                    put("app_name", app.second)
                                 }
                             )
                         }
@@ -247,12 +361,15 @@ class ParentFocusViewModel @Inject constructor(
                     )
                 )
 
+                val updatedPolicies = runCatching {
+                    api.getPolicies()
+                }.getOrDefault(state.policies)
+
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
+                    policies = updatedPolicies,
                     message = "Focus rule saved"
                 )
-
-                loadPolicies()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,

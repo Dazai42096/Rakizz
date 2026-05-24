@@ -73,6 +73,12 @@ interface RakizzApi {
         @Body request: PairCodeLinkRequestDto
     ): PairCodeLinkResponseDto
 
+    @GET("api/v1/links/students")
+    suspend fun getLinkedStudents(): List<CurrentUserDto>
+
+    @GET("api/v1/links/parents")
+    suspend fun getLinkedParents(): List<CurrentUserDto>
+
     @GET("api/v1/materials")
     suspend fun getMaterials(): List<MaterialDto>
 
