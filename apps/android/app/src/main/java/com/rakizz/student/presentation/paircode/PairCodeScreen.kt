@@ -40,24 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-
-private val ScreenTop = Color(0xFF03112A)
-private val ScreenBottom = Color(0xFF000000)
-private val WhiteText = Color(0xFFF7F8FA)
-private val SecondaryText = Color(0xFF8A92A3)
-private val CardSurface = Color(0xFF171717)
-private val CardSurface2 = Color(0xFF11151E)
-private val CardBorder = Color(0xFF2A2F3A)
-private val PrimaryBlue = Color(0xFF2457D6)
-private val BlueSoft = Color(0xFF6EA7FF)
-private val GreenAccent = Color(0xFF30D158)
-private val ErrorRed = Color(0xFFFF5C5C)
+import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun PairCodeScreen(
@@ -78,14 +66,17 @@ fun PairCodeScreen(
     val hasValidCode = uiState.pairCode.isNotBlank() && !uiState.isLoading
 
     Scaffold(
-        containerColor = Color.Black
+        containerColor = RakizzColors.Background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                        colors = listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
                 .padding(innerPadding)
@@ -120,8 +111,12 @@ fun PairCodeScreen(
             item {
                 ActionButtonsRow(
                     enabled = hasValidCode,
-                    onCopyClick = { onCopyClick(uiState.pairCode) },
-                    onShareClick = { onShareClick(uiState.pairCode) }
+                    onCopyClick = {
+                        onCopyClick(uiState.pairCode)
+                    },
+                    onShareClick = {
+                        onShareClick(uiState.pairCode)
+                    }
                 )
             }
 
@@ -141,10 +136,10 @@ fun PairCodeScreen(
                         .height(66.dp),
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WhiteText,
-                        disabledContainerColor = PrimaryBlue.copy(alpha = 0.45f),
-                        disabledContentColor = WhiteText.copy(alpha = 0.7f)
+                        containerColor = RakizzColors.Primary,
+                        contentColor = RakizzColors.White,
+                        disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.45f),
+                        disabledContentColor = RakizzColors.White.copy(alpha = 0.7f)
                     )
                 ) {
                     Icon(
@@ -182,7 +177,7 @@ private fun PairCodeTopBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = "Back",
-                tint = WhiteText,
+                tint = RakizzColors.TextMain,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -191,7 +186,7 @@ private fun PairCodeTopBar(
 
         Text(
             text = "Pair Code",
-            color = WhiteText,
+            color = RakizzColors.TextMain,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.weight(1f)
@@ -215,8 +210,8 @@ private fun PairCodeHero() {
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                PrimaryBlue.copy(alpha = 0.25f),
-                                Color.Transparent
+                                RakizzColors.Primary.copy(alpha = 0.25f),
+                                RakizzColors.Background.copy(alpha = 0f)
                             )
                         ),
                         shape = CircleShape
@@ -227,14 +222,14 @@ private fun PairCodeHero() {
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(CardSurface2)
-                    .border(1.dp, CardBorder, CircleShape),
+                    .background(RakizzColors.Card)
+                    .border(1.dp, RakizzColors.CardBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.QrCode2,
                     contentDescription = null,
-                    tint = BlueSoft,
+                    tint = RakizzColors.Accent,
                     modifier = Modifier.size(40.dp)
                 )
             }
@@ -244,7 +239,7 @@ private fun PairCodeHero() {
 
         Text(
             text = "Link with a Parent",
-            color = WhiteText,
+            color = RakizzColors.TextMain,
             fontSize = 28.sp,
             fontWeight = FontWeight.ExtraBold
         )
@@ -253,7 +248,7 @@ private fun PairCodeHero() {
 
         Text(
             text = "Share this code with your parent so they can connect to your student account.",
-            color = SecondaryText,
+            color = RakizzColors.TextSecond,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             lineHeight = 22.sp
@@ -270,7 +265,11 @@ private fun CodeCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Column(
             modifier = Modifier
@@ -280,7 +279,7 @@ private fun CodeCard(
         ) {
             Text(
                 text = "YOUR ACTIVE PAIR CODE",
-                color = SecondaryText,
+                color = RakizzColors.TextMuted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.1.sp
@@ -292,14 +291,18 @@ private fun CodeCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(26.dp))
-                    .background(Color(0xFF0E254F))
-                    .border(1.dp, PrimaryBlue.copy(alpha = 0.25f), RoundedCornerShape(26.dp))
+                    .background(RakizzColors.PrimarySoft)
+                    .border(
+                        width = 1.dp,
+                        color = RakizzColors.Primary.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(26.dp)
+                    )
                     .padding(vertical = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = code,
-                    color = WhiteText,
+                    color = RakizzColors.TextMain,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 2.sp
@@ -314,7 +317,11 @@ private fun CodeCard(
                     error != null -> "Could not load pair code. Make sure you are logged in and the backend is running."
                     else -> "Use this code in the parent app"
                 },
-                color = if (error != null) ErrorRed else GreenAccent,
+                color = if (error != null) {
+                    RakizzColors.Error
+                } else {
+                    RakizzColors.Success
+                },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -364,10 +371,14 @@ private fun SecondaryActionButton(
         modifier = modifier.height(60.dp),
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF1B1F27),
-            contentColor = WhiteText,
-            disabledContainerColor = Color(0xFF1B1F27).copy(alpha = 0.45f),
-            disabledContentColor = WhiteText.copy(alpha = 0.45f)
+            containerColor = RakizzColors.Card,
+            contentColor = RakizzColors.TextMain,
+            disabledContainerColor = RakizzColors.Card.copy(alpha = 0.45f),
+            disabledContentColor = RakizzColors.TextMain.copy(alpha = 0.45f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
         )
     ) {
         Icon(
@@ -391,7 +402,11 @@ private fun InstructionCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Column(
             modifier = Modifier
@@ -401,7 +416,7 @@ private fun InstructionCard() {
         ) {
             Text(
                 text = "HOW TO USE",
-                color = SecondaryText,
+                color = RakizzColors.TextMuted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.1.sp
@@ -426,12 +441,12 @@ private fun StepRow(
             modifier = Modifier
                 .size(28.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF0E254F)),
+                .background(RakizzColors.PrimarySoft),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = number,
-                color = BlueSoft,
+                color = RakizzColors.Primary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -441,7 +456,7 @@ private fun StepRow(
 
         Text(
             text = text,
-            color = WhiteText,
+            color = RakizzColors.TextMain,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             lineHeight = 22.sp,
@@ -455,7 +470,11 @@ private fun SecurityNoticeCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = CardSurface2
+        color = RakizzColors.CardSoft,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Row(
             modifier = Modifier
@@ -466,7 +485,7 @@ private fun SecurityNoticeCard() {
             Icon(
                 imageVector = Icons.Rounded.VerifiedUser,
                 contentDescription = null,
-                tint = GreenAccent,
+                tint = RakizzColors.Success,
                 modifier = Modifier.size(22.dp)
             )
 
@@ -475,7 +494,7 @@ private fun SecurityNoticeCard() {
             Column {
                 Text(
                     text = "Secure pairing",
-                    color = WhiteText,
+                    color = RakizzColors.TextMain,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -484,7 +503,7 @@ private fun SecurityNoticeCard() {
 
                 Text(
                     text = "This code should only be shared with your parent or guardian.",
-                    color = SecondaryText,
+                    color = RakizzColors.TextSecond,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     lineHeight = 21.sp

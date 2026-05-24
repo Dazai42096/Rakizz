@@ -3,7 +3,6 @@ package com.rakizz.student.presentation.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,8 +49,7 @@ fun HomeScreen(
     onOpenProgress: () -> Unit = {},
     onLogout: () -> Unit
 ) {
-    val systemDarkTheme = isSystemInDarkTheme()
-    val isDarkMode = RakizzThemeController.isCurrentlyDark(systemDarkTheme)
+    val isDarkMode = RakizzThemeController.isCurrentlyDark()
 
     Scaffold(
         containerColor = RakizzColors.Background,
@@ -98,7 +95,7 @@ fun HomeScreen(
             ThemeToggleCard(
                 isDarkMode = isDarkMode,
                 onToggleTheme = {
-                    RakizzThemeController.toggle(systemDarkTheme)
+                    RakizzThemeController.toggleTheme()
                 }
             )
 
@@ -235,7 +232,7 @@ private fun MainWelcomeCard(
 
             Text(
                 text = "Your materials, AI quizzes, assignments, focus rules, and progress reports are grouped here in one simple dashboard.",
-                color = Color.White.copy(alpha = 0.86f),
+                color = RakizzColors.White.copy(alpha = 0.86f),
                 fontSize = 15.sp,
                 lineHeight = 21.sp
             )
