@@ -72,8 +72,10 @@ fun UnlockQuizScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    val quiz = uiState.quiz
+    val result = uiState.result
+
     LaunchedEffect(packageName, forceUnlock) {
-        // this starts the unlock flow when blocked app opens
         viewModel.startUnlockFlow(
             packageName = packageName,
             forceBlocked = forceUnlock
@@ -107,13 +109,16 @@ fun UnlockQuizScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                TopBar(onBackClick = onBackClick)
+                TopBar(
+                    onBackClick = onBackClick
+                )
             }
 
             item {
                 LockedAppHeroCard(
                     appName = uiState.appName.ifBlank { packageName },
-                    packageName = packageName
+                    packageName = packageName,
+                    isUnlocked = result?.passed == true || uiState.unlockedUntil != null
                 )
             }
 
@@ -150,22 +155,27 @@ fun UnlockQuizScreen(
                     }
                 }
 
-                uiState.quiz != null && uiState.result == null -> {
+                quiz != null && result == null -> {
                     item {
                         QuizIntroCard(
-                            quiz = uiState.quiz!!,
+                            quiz = quiz,
                             selectedCount = uiState.selectedAnswers.size
                         )
                     }
 
-                    itemsIndexed(uiState.quiz!!.questions) { index, question ->
+                    itemsIndexed(
+                        items = quiz.questions,
+                        key = { _, question -> question.id }
+                    ) { index, question ->
                         QuestionCard(
                             questionNumber = index + 1,
                             question = question,
                             selectedAnswer = uiState.selectedAnswers[question.id],
                             onSelect = { answer ->
-                                // save selected answer in viewmodel
-                                viewModel.selectAnswer(question.id, answer)
+                                viewModel.selectAnswer(
+                                    questionId = question.id,
+                                    answer = answer
+                                )
                             }
                         )
                     }
@@ -173,44 +183,46 @@ fun UnlockQuizScreen(
                     item {
                         SubmitButton(
                             isSubmitting = uiState.isSubmitting,
+                            answeredCount = uiState.selectedAnswers.size,
+                            totalCount = quiz.questions.size,
                             onClick = viewModel::submitQuiz
                         )
                     }
                 }
 
-                uiState.result != null -> {
+                result != null -> {
                     item {
                         ResultCard(
-                            result = uiState.result!!,
+                            result = result,
                             unlockedUntil = uiState.unlockedUntil,
                             onRetryClick = viewModel::retryWithNewQuiz
                         )
                     }
 
-                    item {
-                        SectionTitle(
-                            title = "Answer review",
-                            subtitle = "Check your answers and correct mistakes."
-                        )
-                    }
+                    if (result.reviewData.isNotEmpty()) {
+                        item {
+                            SectionTitle(
+                                title = "Answer review",
+                                subtitle = "Check your answers, correct answer, and explanation."
+                            )
+                        }
 
-                    itemsIndexed(uiState.result!!.reviewData) { index, reviewItem ->
-                        ReviewCard(
-                            questionNumber = index + 1,
-                            review = reviewItem,
-                            selectedAnswer = uiState.selectedAnswers[reviewItem.id]
-                        )
+                        itemsIndexed(
+                            items = result.reviewData,
+                            key = { _, review -> review.id }
+                        ) { index, reviewItem ->
+                            ReviewCard(
+                                questionNumber = index + 1,
+                                review = reviewItem,
+                                selectedAnswer = uiState.selectedAnswers[reviewItem.id]
+                            )
+                        }
                     }
                 }
 
                 else -> {
                     item {
-                        MessageCard(
-                            title = "App is available",
-                            message = "This app is not blocked right now.",
-                            color = RakizzColors.Success,
-                            onClick = {}
-                        )
+                        AppAvailableCard()
                     }
                 }
             }
@@ -263,12 +275,19 @@ private fun TopBar(
 @Composable
 private fun LockedAppHeroCard(
     appName: String,
-    packageName: String
+    packageName: String,
+    isUnlocked: Boolean
 ) {
+    val heroColor = if (isUnlocked) {
+        RakizzColors.Success
+    } else {
+        RakizzColors.Primary
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
-        color = RakizzColors.Primary,
+        color = heroColor,
         shadowElevation = 3.dp
     ) {
         Column(
@@ -276,7 +295,7 @@ private fun LockedAppHeroCard(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            RakizzColors.Primary,
+                            heroColor,
                             RakizzColors.PrimaryDark
                         )
                     )
@@ -293,7 +312,7 @@ private fun LockedAppHeroCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Block,
+                        imageVector = if (isUnlocked) Icons.Filled.LockOpen else Icons.Filled.Block,
                         contentDescription = null,
                         tint = RakizzColors.White,
                         modifier = Modifier.size(36.dp)
@@ -304,7 +323,7 @@ private fun LockedAppHeroCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "App is locked",
+                text = if (isUnlocked) "Temporary access granted" else "App is locked",
                 color = RakizzColors.White,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
@@ -338,9 +357,9 @@ private fun LockedAppHeroCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                WhitePill("Mixed quiz")
+                WhitePill("AI quiz")
                 WhitePill("70% pass")
-                WhitePill("15 min unlock")
+                WhitePill("15 min access")
             }
         }
     }
@@ -375,14 +394,14 @@ private fun QuizIntroCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Mixed AI Unlock Quiz",
+                        text = "AI Unlock Quiz",
                         color = RakizzColors.TextMain,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold
                     )
 
                     Text(
-                        text = "Generated from uploaded material.",
+                        text = "Generated from the student's uploaded material.",
                         color = RakizzColors.TextSecond,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -559,6 +578,8 @@ private fun AnswerOption(
 @Composable
 private fun SubmitButton(
     isSubmitting: Boolean,
+    answeredCount: Int,
+    totalCount: Int,
     onClick: () -> Unit
 ) {
     Button(
@@ -589,7 +610,7 @@ private fun SubmitButton(
             text = if (isSubmitting) {
                 "Submitting..."
             } else {
-                "Submit Unlock Quiz"
+                "Submit Unlock Quiz ($answeredCount/$totalCount)"
             },
             fontWeight = FontWeight.ExtraBold,
             style = MaterialTheme.typography.titleMedium
@@ -605,6 +626,7 @@ private fun ResultCard(
 ) {
     val percent = (result.score * 100).toInt()
     val passed = result.passed
+
     val color = if (passed) {
         RakizzColors.Success
     } else {
@@ -650,9 +672,9 @@ private fun ResultCard(
 
             Text(
                 text = if (passed) {
-                    "The app is unlocked for a short time. Until: ${unlockedUntil ?: "soon"}"
+                    "The app is unlocked for a short time.\nUntil: ${unlockedUntil ?: "soon"}"
                 } else {
-                    "The app stays blocked. Take another quiz to unlock it."
+                    "The app stays blocked.\nTake another quiz to unlock it."
                 },
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium,
@@ -699,6 +721,7 @@ private fun ReviewCard(
     selectedAnswer: String?
 ) {
     val correct = selectedAnswer == review.correctAnswer
+
     val color = if (correct) {
         RakizzColors.Success
     } else {
@@ -747,7 +770,8 @@ private fun ReviewCard(
                 text = review.questionText,
                 color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                lineHeight = MaterialTheme.typography.titleMedium.lineHeight
             )
 
             AnswerLine(
@@ -775,6 +799,45 @@ private fun ReviewCard(
                     value = review.sourceChunkSnippet
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AppAvailableCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.Success.copy(alpha = 0.35f))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconBubbleLarge(
+                icon = Icons.Filled.LockOpen,
+                color = RakizzColors.Success
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "App is available",
+                color = RakizzColors.Success,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "This app is not blocked right now.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -903,7 +966,8 @@ private fun MessageCard(
             Text(
                 text = message,
                 color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
             )
         }
     }
