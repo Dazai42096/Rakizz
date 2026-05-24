@@ -11,6 +11,7 @@ import com.rakizz.student.domain.repository.FocusRepository
 import com.rakizz.student.usage.InstalledAppsReader
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -25,10 +26,12 @@ class FocusRepositoryImpl @Inject constructor(
 
     override suspend fun getPolicies(): Result<List<FocusPolicy>> {
         return try {
-            // get rules parent made for this student
+            // Student loads parent rules from backend.
             val policies = api.getPolicies()
 
-            // save rules locally so accessibility service can block apps
+            // Important:
+            // Accessibility service cannot call Compose/ViewModel directly.
+            // It reads local cache, so we save the latest parent rules here.
             FocusRuleCache.savePolicies(
                 context = context,
                 policies = policies
@@ -46,7 +49,7 @@ class FocusRepositoryImpl @Inject constructor(
 
     override suspend fun syncInstalledApps(): Result<Int> {
         return try {
-            // student phone sends its apps to backend
+            // Student phone sends installed apps to backend.
             val phoneApps = installedAppsReader.readInstalledApps()
 
             val request = InstalledAppsSyncRequestDto(
@@ -68,60 +71,45 @@ class FocusRepositoryImpl @Inject constructor(
     }
 
     private fun PolicyDto.toDomain(): FocusPolicy {
-        val blockedAppNames = mutableListOf<String>()
-        val blockedPackages = mutableListOf<String>()
+        val blockedApps = configJson["blocked_apps"]
+            ?.jsonArray
+            ?.mapNotNull { item ->
+                try {
+                    val obj = item.jsonObject
 
-        val blockedAppsArray = configJson["blocked_apps"]?.jsonArray
-
-        blockedAppsArray?.forEach { item ->
-            try {
-                val obj = item.jsonObject
-
-                val packageName = obj["package_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                val appName = obj["app_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-
-                if (packageName.isNotBlank()) {
-                    blockedPackages.add(packageName)
+                    obj["app_name"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["package_name"]?.jsonPrimitive?.contentOrNull
+                } catch (_: Exception) {
+                    null
                 }
-
-                if (appName.isNotBlank()) {
-                    blockedAppNames.add(appName)
-                }
-            } catch (_: Exception) {
-                // skip bad app item
             }
-        }
-
-        val firstPackage = configJson.stringValue("package_name")
-            ?: blockedPackages.firstOrNull()
-            ?: blockedAppNames.firstOrNull()
-            ?: "focus_rule"
-
-        val namesForUi = if (blockedAppNames.isNotEmpty()) {
-            blockedAppNames
-        } else {
-            blockedPackages
-        }
+            .orEmpty()
 
         return FocusPolicy(
             id = id,
             parentId = parentId,
             studentId = studentId,
             ruleType = ruleType,
-            packageName = firstPackage,
+            packageName = configJson.stringValue("package_name")
+                ?: blockedApps.firstOrNull()
+                ?: "focus rule",
             dailyLimitMinutes = configJson.intValue("daily_limit_minutes"),
             note = configJson.stringValue("note"),
             startTime = configJson.stringValue("start_time"),
             endTime = configJson.stringValue("end_time"),
-            blockedApps = namesForUi
+            blockedApps = blockedApps
         )
     }
 
-    private fun kotlinx.serialization.json.JsonObject.stringValue(key: String): String? {
+    private fun JsonObject.stringValue(
+        key: String
+    ): String? {
         return this[key]?.jsonPrimitive?.contentOrNull
     }
 
-    private fun kotlinx.serialization.json.JsonObject.intValue(key: String): Int? {
+    private fun JsonObject.intValue(
+        key: String
+    ): Int? {
         return this[key]?.jsonPrimitive?.intOrNull
     }
 }
