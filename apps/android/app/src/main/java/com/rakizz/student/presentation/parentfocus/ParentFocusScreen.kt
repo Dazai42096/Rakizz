@@ -2,7 +2,6 @@ package com.rakizz.student.presentation.parentfocus
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +25,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -41,8 +51,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rakizz.student.data.remote.dto.CurrentUserDto
 import com.rakizz.student.data.remote.dto.InstalledAppResponseDto
 import com.rakizz.student.data.remote.dto.PolicyDto
 import com.rakizz.student.presentation.theme.RakizzColors
@@ -100,9 +109,7 @@ fun ParentFocusScreen(
             item {
                 TopBar(
                     onBackClick = onBackClick,
-                    onRefreshClick = {
-                        viewModel.loadPolicies()
-                    }
+                    onRefreshClick = viewModel::loadParentDashboard
                 )
             }
 
@@ -116,9 +123,7 @@ fun ParentFocusScreen(
                         title = "Done",
                         message = message,
                         color = RakizzColors.Success,
-                        onClick = {
-                            viewModel.clearMessages()
-                        }
+                        onClick = viewModel::clearMessages
                     )
                 }
             }
@@ -129,9 +134,7 @@ fun ParentFocusScreen(
                         title = "Error",
                         message = error,
                         color = RakizzColors.Error,
-                        onClick = {
-                            viewModel.clearMessages()
-                        }
+                        onClick = viewModel::clearMessages
                     )
                 }
             }
@@ -140,7 +143,7 @@ fun ParentFocusScreen(
                 StepTitle(
                     number = "1",
                     title = "Link student",
-                    subtitle = "Use the pair code from the student profile."
+                    subtitle = "Use the pair code generated from the student's profile."
                 )
             }
 
@@ -150,6 +153,16 @@ fun ParentFocusScreen(
                     onPairCodeChange = viewModel::onPairCodeChange,
                     onLinkStudentClick = viewModel::linkStudent
                 )
+            }
+
+            if (uiState.linkedStudents.isNotEmpty()) {
+                item {
+                    LinkedStudentsCard(
+                        students = uiState.linkedStudents,
+                        selectedStudentId = uiState.linkedStudentId,
+                        onStudentClick = viewModel::selectStudent
+                    )
+                }
             }
 
             if (uiState.linkedStudentId.isNotBlank()) {
@@ -163,8 +176,8 @@ fun ParentFocusScreen(
                 item {
                     StepTitle(
                         number = "2",
-                        title = "Load apps",
-                        subtitle = "Get the synced apps from the student's phone."
+                        title = "Load student apps",
+                        subtitle = "Get the apps synced from the student's phone."
                     )
                 }
 
@@ -212,7 +225,7 @@ fun ParentFocusScreen(
                     StepTitle(
                         number = "4",
                         title = "Set focus time",
-                        subtitle = "The app will be blocked only during this time window."
+                        subtitle = "The selected apps will be blocked during this time window."
                     )
                 }
 
@@ -243,7 +256,11 @@ fun ParentFocusScreen(
                 )
             }
 
-            if (uiState.policies.isEmpty()) {
+            if (uiState.isLoading && uiState.policies.isEmpty()) {
+                item {
+                    LoadingCard()
+                }
+            } else if (uiState.policies.isEmpty()) {
                 item {
                     EmptyRulesCard()
                 }
@@ -252,12 +269,14 @@ fun ParentFocusScreen(
                     items = uiState.policies,
                     key = { policy -> policy.id }
                 ) { policy ->
-                    PolicyCard(policy = policy)
+                    PolicyCard(
+                        policy = policy
+                    )
                 }
             }
 
             item {
-                reviewExplanationCard()
+                ReviewExplanationCard()
             }
         }
     }
@@ -298,21 +317,24 @@ private fun TopBar(
             )
 
             Text(
-                text = "Create rules for the student focus time.",
+                text = "Create app blocking rules for students.",
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
 
-        Text(
-            text = "Refresh",
-            color = RakizzColors.Primary,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.clickable {
-                onRefreshClick()
-            }
-        )
+        FilledIconButton(
+            onClick = onRefreshClick,
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = RakizzColors.PrimarySoft,
+                contentColor = RakizzColors.Primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = "Refresh"
+            )
+        }
     }
 }
 
@@ -346,7 +368,7 @@ private fun ParentMainCard() {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Parents link the student account, load the student's phone apps, choose blocked apps, and save a focus rule.",
+                text = "Link a student, load their synced phone apps, choose distracting apps, and save a focus rule.",
                 color = RakizzColors.White.copy(alpha = 0.88f),
                 style = MaterialTheme.typography.bodyLarge,
                 lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
@@ -431,18 +453,33 @@ private fun PairCodeCard(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Student pair code",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.Badge,
+                    color = RakizzColors.Primary
+                )
 
-            Text(
-                text = "Example: RKZ-123456",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Student pair code",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = "Example: RKZ-123456",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
 
             AcademicTextField(
                 value = uiState.pairCode,
@@ -485,6 +522,100 @@ private fun PairCodeCard(
 }
 
 @Composable
+private fun LinkedStudentsCard(
+    students: List<CurrentUserDto>,
+    selectedStudentId: String,
+    onStudentClick: (CurrentUserDto) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Linked students",
+                color = RakizzColors.TextMain,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Choose which linked student you want to manage.",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            students.forEach { student ->
+                val selected = student.id == selectedStudentId
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onStudentClick(student)
+                        },
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (selected) {
+                        RakizzColors.PrimarySoft
+                    } else {
+                        RakizzColors.CardSoft
+                    },
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (selected) {
+                            RakizzColors.Primary
+                        } else {
+                            RakizzColors.CardBorder
+                        }
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconBubble(
+                            icon = if (selected) Icons.Filled.CheckCircle else Icons.Filled.School,
+                            color = if (selected) RakizzColors.Primary else RakizzColors.TextMuted
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = student.fullName ?: student.email,
+                                color = RakizzColors.TextMain,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            Text(
+                                text = student.email,
+                                color = RakizzColors.TextSecond,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun LinkedStudentCard(
     email: String,
     studentId: String
@@ -500,7 +631,7 @@ private fun LinkedStudentCard(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Student linked",
+                text = "Student selected",
                 color = RakizzColors.Success,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold
@@ -544,24 +675,38 @@ private fun LoadAppsCard(
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
-            Text(
-                text = "Student phone apps",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.PhoneAndroid,
+                    color = RakizzColors.Primary
+                )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = if (appCount > 0) {
-                    "$appCount apps loaded from the student account."
-                } else {
-                    "Load apps after the student presses Sync Phone Apps."
-                },
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Student phone apps",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = if (appCount > 0) {
+                            "$appCount apps loaded from the student account."
+                        } else {
+                            "Load apps after the student presses Sync Phone Apps."
+                        },
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -579,6 +724,16 @@ private fun LoadAppsCard(
                     disabledContentColor = RakizzColors.White
                 )
             ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = RakizzColors.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+
                 Text(
                     text = if (isLoading) "Loading..." else "Load Student Apps",
                     fontWeight = FontWeight.ExtraBold
@@ -605,12 +760,24 @@ private fun AppsActionRow(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "$selectedCount / $totalCount selected",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.SelectAll,
+                    color = RakizzColors.Primary
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = "$selectedCount / $totalCount selected",
+                    color = RakizzColors.TextMain,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -668,7 +835,11 @@ private fun StudentAppRow(
         shadowElevation = 1.dp,
         border = BorderStroke(
             width = 1.dp,
-            color = if (isChecked) RakizzColors.Primary else RakizzColors.CardBorder
+            color = if (isChecked) {
+                RakizzColors.Primary
+            } else {
+                RakizzColors.CardBorder
+            }
         )
     ) {
         Row(
@@ -733,18 +904,33 @@ private fun FocusTimeCard(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Focus time window",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBubble(
+                    icon = Icons.Filled.Schedule,
+                    color = RakizzColors.Primary
+                )
 
-            Text(
-                text = "Use 24-hour format, for example 16:00 to 18:00.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Focus time window",
+                        color = RakizzColors.TextMain,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Text(
+                        text = "Use 24-hour format, for example 16:00 to 18:00.",
+                        color = RakizzColors.TextSecond,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -786,6 +972,14 @@ private fun FocusTimeCard(
                     )
 
                     Spacer(modifier = Modifier.width(10.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Save,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
                 }
 
                 Text(
@@ -804,20 +998,24 @@ private fun PolicyCard(
     val start = policy.configJson["start_time"]?.jsonPrimitive?.contentOrNull
     val end = policy.configJson["end_time"]?.jsonPrimitive?.contentOrNull
 
-    val apps = policy.configJson["blocked_apps"]?.jsonArray?.mapNotNull { item ->
-        try {
-            val obj = item.jsonObject
-            obj["app_name"]?.jsonPrimitive?.contentOrNull
-                ?: obj["package_name"]?.jsonPrimitive?.contentOrNull
-        } catch (_: Exception) {
-            null
+    val apps = policy.configJson["blocked_apps"]
+        ?.jsonArray
+        ?.mapNotNull { item ->
+            try {
+                val obj = item.jsonObject
+
+                obj["app_name"]?.jsonPrimitive?.contentOrNull
+                    ?: obj["package_name"]?.jsonPrimitive?.contentOrNull
+            } catch (_: Exception) {
+                null
+            }
         }
-    }.orEmpty()
+        .orEmpty()
 
     val timeText = if (start != null && end != null) {
         "$start - $end"
     } else {
-        "No time"
+        "No time window"
     }
 
     val appsText = if (apps.isEmpty()) {
@@ -877,7 +1075,7 @@ private fun WaitingCard(
     ) {
         Text(
             text = if (linked) {
-                "Student is linked. Load the student apps to continue."
+                "Student is linked.\nLoad the student apps to continue."
             } else {
                 "Start by linking the student using the pair code."
             },
@@ -908,7 +1106,38 @@ private fun EmptyRulesCard() {
 }
 
 @Composable
-private fun reviewExplanationCard() {
+private fun LoadingCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                color = RakizzColors.Primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(26.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = "Loading parent focus data...",
+                color = RakizzColors.TextSecond,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewExplanationCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -929,7 +1158,7 @@ private fun reviewExplanationCard() {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "This screen shows the parent side of focus control. The parent links the student, chooses apps from the student phone, sets a time window, and saves the rule. The student must pass a mixed AI quiz to unlock a blocked app.",
+                text = "The parent links the student, chooses apps from the student's synced phone app list, sets a focus time, and saves the rule.\nWhen the student opens a blocked app during focus time, Rakizz opens the quiz unlock flow.",
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium,
                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
@@ -1029,6 +1258,29 @@ private fun MessageCard(
                 text = message,
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconBubble(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color
+) {
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = color.copy(alpha = 0.13f)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp)
             )
         }
     }
