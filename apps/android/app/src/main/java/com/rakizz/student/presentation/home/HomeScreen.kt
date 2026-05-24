@@ -47,6 +47,7 @@ fun HomeScreen(
     onOpenQuizzes: () -> Unit,
     onOpenFocus: () -> Unit,
     onOpenProfile: () -> Unit,
+    onOpenProgress: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     Scaffold(
@@ -94,6 +95,12 @@ fun HomeScreen(
                 onOpenFocus = onOpenFocus
             )
 
+            Spacer(modifier = Modifier.height(14.dp))
+
+            ProgressShortcutCard(
+                onOpenProgress = onOpenProgress
+            )
+
             Spacer(modifier = Modifier.height(22.dp))
 
             SectionTitle(
@@ -107,7 +114,8 @@ fun HomeScreen(
                 onOpenMaterials = onOpenMaterials,
                 onOpenQuizzes = onOpenQuizzes,
                 onOpenAssignments = onOpenAssignments,
-                onOpenFocus = onOpenFocus
+                onOpenFocus = onOpenFocus,
+                onOpenProgress = onOpenProgress
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -169,7 +177,6 @@ private fun HomeTopBar(
 
     Spacer(modifier = Modifier.height(10.dp))
 
-    // simple logout text so the page does not look crowded
     Text(
         text = "Sign out",
         color = RakizzColors.TextMuted,
@@ -213,7 +220,7 @@ private fun MainWelcomeCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Your materials, AI quizzes, assignments, and focus rules are grouped here in one simple dashboard.",
+                text = "Your materials, AI quizzes, assignments, focus rules, and progress reports are grouped here in one simple dashboard.",
                 color = Color.White.copy(alpha = 0.86f),
                 fontSize = 15.sp,
                 lineHeight = 21.sp
@@ -228,7 +235,10 @@ private fun MainWelcomeCard(
                     containerColor = RakizzColors.White,
                     contentColor = RakizzColors.PrimaryDark
                 ),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 13.dp)
+                contentPadding = PaddingValues(
+                    horizontal = 18.dp,
+                    vertical = 13.dp
+                )
             ) {
                 Text(
                     text = "Continue studying",
@@ -252,7 +262,11 @@ private fun FocusStatusCard(
     ) {
         Row(
             modifier = Modifier
-                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
                 .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -284,7 +298,7 @@ private fun FocusStatusCard(
                 )
 
                 Text(
-                    text = "View your active focus rules and synced apps.",
+                    text = "View active focus rules, sync phone apps, and enable blocking.",
                     color = RakizzColors.TextSecond,
                     fontSize = 14.sp,
                     lineHeight = 19.sp
@@ -299,6 +313,75 @@ private fun FocusStatusCard(
                 modifier = Modifier.clickable {
                     onOpenFocus()
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgressShortcutCard(
+    onOpenProgress: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onOpenProgress()
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = RakizzColors.Card,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(RakizzColors.AccentSoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "P",
+                    color = RakizzColors.PrimaryDark,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Progress report",
+                    color = RakizzColors.TextMain,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "Show quiz performance and blocked-app progress for checkpoint demo.",
+                    color = RakizzColors.TextSecond,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            Text(
+                text = "View",
+                color = RakizzColors.Primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
@@ -332,7 +415,8 @@ private fun FeatureGrid(
     onOpenMaterials: () -> Unit,
     onOpenQuizzes: () -> Unit,
     onOpenAssignments: () -> Unit,
-    onOpenFocus: () -> Unit
+    onOpenFocus: () -> Unit,
+    onOpenProgress: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -376,6 +460,26 @@ private fun FeatureGrid(
                 onClick = onOpenFocus
             )
         }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "Progress",
+                shortText = "Reports and insights.",
+                badge = "Stats",
+                onClick = onOpenProgress
+            )
+
+            SmallFeatureCard(
+                modifier = Modifier.weight(1f),
+                title = "Profile",
+                shortText = "Pair code and account.",
+                badge = "Link",
+                onClick = {}
+            )
+        }
     }
 }
 
@@ -399,7 +503,11 @@ private fun SmallFeatureCard(
     ) {
         Column(
             modifier = Modifier
-                .border(1.dp, RakizzColors.CardBorder, RoundedCornerShape(24.dp))
+                .border(
+                    width = 1.dp,
+                    color = RakizzColors.CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
                 .padding(16.dp)
         ) {
             Box(

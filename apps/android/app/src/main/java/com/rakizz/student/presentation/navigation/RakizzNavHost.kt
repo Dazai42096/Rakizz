@@ -172,6 +172,11 @@ fun RakizzNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenProgress = {
+                    navController.navigate(NavRoutes.Progress.route) {
+                        launchSingleTop = true
+                    }
+                },
                 onLogout = {
                     navController.navigate(NavRoutes.Auth.route) {
                         popUpTo(0) {
@@ -330,6 +335,16 @@ fun RakizzNavHost(
                             forceUnlock = true
                         )
                     ) {
+                        launchSingleTop = true
+                    }
+                },
+                onViewProgressClick = {
+                    navController.navigate(NavRoutes.Progress.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onGoToMaterialsClick = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
                         launchSingleTop = true
                     }
                 }
