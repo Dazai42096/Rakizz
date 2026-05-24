@@ -44,7 +44,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,22 +52,8 @@ import com.rakizz.student.domain.model.Material
 import com.rakizz.student.presentation.common.UiState
 import com.rakizz.student.presentation.common.components.ErrorView
 import com.rakizz.student.presentation.common.components.LoadingView
+import com.rakizz.student.presentation.theme.RakizzColors
 import kotlinx.coroutines.delay
-
-private val ScreenTop = Color(0xFF041127)
-private val ScreenMid = Color(0xFF01050B)
-private val ScreenBottom = Color(0xFF000000)
-private val AccentBlue = Color(0xFF2157D8)
-private val AccentBlueSoft = Color(0xFF6AA5FF)
-private val CardSurface = Color.White.copy(alpha = 0.07f)
-private val CardBorder = Color.White.copy(alpha = 0.08f)
-private val SecondaryText = Color(0xFF8F97A9)
-private val InfoSurface = Color(0xFF10203E)
-private val InfoBorder = Color(0xFF264A8A)
-private val ErrorSurface = Color(0xFF2B0E12)
-private val ErrorBorder = Color(0xFF5B222C)
-private val ErrorText = Color(0xFFFFB4C0)
-private val GreenText = Color(0xFF30D158)
 
 @Composable
 fun QuizSetupScreen(
@@ -138,12 +123,15 @@ private fun QuizSetupContent(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(ScreenTop, ScreenMid, ScreenBottom)
+                    colors = listOf(
+                        RakizzColors.Background,
+                        RakizzColors.BackgroundSoft
+                    )
                 )
             )
     ) {
         Scaffold(
-            containerColor = Color.Transparent
+            containerColor = androidx.compose.ui.graphics.Color.Transparent
         ) { innerPadding ->
             LazyColumn(
                 modifier = Modifier
@@ -174,7 +162,7 @@ private fun QuizSetupContent(
                 item {
                     InfoCard(
                         title = "Mixed AI Quiz",
-                        body = "Rakizz will generate one mixed quiz from this material. The quiz includes easy, medium, and hard questions together."
+                        body = "Rakizz will generate one mixed quiz from this material.\nThe quiz includes easy, medium, and hard questions together."
                     )
                 }
 
@@ -203,16 +191,16 @@ private fun QuizSetupContent(
                             .height(76.dp),
                         shape = RoundedCornerShape(26.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentBlue,
-                            contentColor = Color.White,
-                            disabledContainerColor = Color(0xFF214488),
-                            disabledContentColor = Color.White.copy(alpha = 0.8f)
+                            containerColor = RakizzColors.Primary,
+                            contentColor = RakizzColors.White,
+                            disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
+                            disabledContentColor = RakizzColors.White.copy(alpha = 0.8f)
                         )
                     ) {
                         if (isGenerating) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(22.dp),
-                                color = Color.White,
+                                color = RakizzColors.White,
                                 strokeWidth = 2.dp
                             )
 
@@ -241,9 +229,9 @@ private fun QuizSetupContent(
 
                 item {
                     Text(
-                        text = "The student does not choose the level. Rakizz decides the mix automatically.",
+                        text = "The student does not choose the level.\nRakizz decides the mix automatically.",
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFF566074),
+                        color = RakizzColors.TextMuted,
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center
                     )
@@ -270,8 +258,8 @@ private fun TopBar(
         FilledIconButton(
             onClick = onBackClick,
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = Color.White.copy(alpha = 0.10f),
-                contentColor = Color.White
+                containerColor = RakizzColors.Card,
+                contentColor = RakizzColors.Primary
             )
         ) {
             Icon(
@@ -286,7 +274,7 @@ private fun TopBar(
             text = "Generate AI Quiz",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White
+            color = RakizzColors.TextMain
         )
     }
 }
@@ -303,9 +291,9 @@ private fun TargetMaterialCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = CardSurface
+            containerColor = RakizzColors.Card
         ),
-        border = BorderStroke(1.dp, CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -316,7 +304,7 @@ private fun TargetMaterialCard(
             Surface(
                 modifier = Modifier.size(84.dp),
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF103A9C)
+                color = RakizzColors.PrimarySoft
             ) {
                 Box(
                     contentAlignment = Alignment.Center
@@ -324,7 +312,7 @@ private fun TargetMaterialCard(
                     Icon(
                         imageVector = Icons.Filled.Description,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = RakizzColors.Primary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -340,20 +328,20 @@ private fun TargetMaterialCard(
                     text = "SELECTED MATERIAL",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = AccentBlueSoft
+                    color = RakizzColors.Primary
                 )
 
                 Text(
                     text = material.title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = RakizzColors.TextMain
                 )
 
                 Text(
                     text = descriptionText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = SecondaryText,
+                    color = RakizzColors.TextSecond,
                     maxLines = 3
                 )
 
@@ -374,9 +362,9 @@ private fun InfoCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = InfoSurface
+            containerColor = RakizzColors.PrimarySoft
         ),
-        border = BorderStroke(1.dp, InfoBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -384,14 +372,14 @@ private fun InfoCard(
         ) {
             Text(
                 text = title,
-                color = Color.White,
+                color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
 
             Text(
                 text = body,
-                color = Color(0xFFB7C4E6),
+                color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyLarge
             )
         }
@@ -404,9 +392,9 @@ private fun RequirementsCard() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = CardSurface
+            containerColor = RakizzColors.Card
         ),
-        border = BorderStroke(1.dp, CardBorder)
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Column(
             modifier = Modifier
@@ -416,7 +404,7 @@ private fun RequirementsCard() {
         ) {
             Text(
                 text = "What Rakizz will do",
-                color = Color.White,
+                color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -455,8 +443,8 @@ private fun RequirementRow(
     ) {
         Surface(
             shape = CircleShape,
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, CardBorder)
+            color = RakizzColors.PrimarySoft,
+            border = BorderStroke(1.dp, RakizzColors.CardBorder)
         ) {
             Box(
                 modifier = Modifier.padding(10.dp),
@@ -465,7 +453,7 @@ private fun RequirementRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = AccentBlueSoft,
+                    tint = RakizzColors.Primary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -475,7 +463,7 @@ private fun RequirementRow(
 
         Text(
             text = text,
-            color = SecondaryText,
+            color = RakizzColors.TextSecond,
             style = MaterialTheme.typography.bodyLarge
         )
     }
@@ -490,17 +478,29 @@ private fun MessageCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isError) ErrorSurface else InfoSurface
+            containerColor = if (isError) {
+                RakizzColors.Error.copy(alpha = 0.14f)
+            } else {
+                RakizzColors.PrimarySoft
+            }
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isError) ErrorBorder else InfoBorder
+            color = if (isError) {
+                RakizzColors.Error.copy(alpha = 0.55f)
+            } else {
+                RakizzColors.Primary.copy(alpha = 0.35f)
+            }
         )
     ) {
         Text(
             text = message,
             modifier = Modifier.padding(16.dp),
-            color = if (isError) ErrorText else Color.White,
+            color = if (isError) {
+                RakizzColors.Error
+            } else {
+                RakizzColors.TextMain
+            },
             style = MaterialTheme.typography.bodyLarge
         )
     }
@@ -512,7 +512,8 @@ private fun MetaPill(
 ) {
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = Color.White.copy(alpha = 0.08f)
+        color = RakizzColors.CardSoft,
+        border = BorderStroke(1.dp, RakizzColors.CardBorder)
     ) {
         Text(
             text = text,
@@ -522,7 +523,7 @@ private fun MetaPill(
             ),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = RakizzColors.TextMain
         )
     }
 }
@@ -534,7 +535,7 @@ private fun GeneratingOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.94f)),
+            .background(RakizzColors.Background.copy(alpha = 0.96f)),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -542,7 +543,7 @@ private fun GeneratingOverlay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             CircularProgressIndicator(
-                color = AccentBlue,
+                color = RakizzColors.Primary,
                 strokeWidth = 5.dp,
                 modifier = Modifier.size(80.dp)
             )
@@ -551,7 +552,7 @@ private fun GeneratingOverlay(
 
             Text(
                 text = "Generating mixed AI quiz...",
-                color = Color.White,
+                color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
@@ -561,7 +562,7 @@ private fun GeneratingOverlay(
 
             Text(
                 text = "Analyzing ${materialTitle.take(35)} and creating easy, medium, and hard questions.",
-                color = Color(0xFFB0B8C8),
+                color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
