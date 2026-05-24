@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,15 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -40,16 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-private val ScreenTop = Color(0xFF03112A)
-private val ScreenBottom = Color(0xFF000000)
-private val WhiteText = Color(0xFFF7F8FA)
-private val SecondaryText = Color(0xFF8A92A3)
-private val PrimaryBlue = Color(0xFF2457D6)
-private val CardSurface = Color(0xFF171717)
-private val CardBorder = Color(0xFF2A2F3A)
-private val GreenAccent = Color(0xFF22C55E)
-private val RedAccent = Color(0xFFFF3B30)
+import com.rakizz.student.presentation.theme.RakizzColors
 
 @Composable
 fun StudentProgressScreen(
@@ -57,14 +45,17 @@ fun StudentProgressScreen(
     onDownloadClick: () -> Unit = {}
 ) {
     Scaffold(
-        containerColor = Color.Black
+        containerColor = RakizzColors.Background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(ScreenTop, ScreenBottom)
+                        colors = listOf(
+                            RakizzColors.Background,
+                            RakizzColors.BackgroundSoft
+                        )
                     )
                 )
                 .padding(innerPadding)
@@ -103,8 +94,8 @@ fun StudentProgressScreen(
                         title = "PASS RATE",
                         value = "92%",
                         subtitle = "↗ Top 5% of class",
-                        valueColor = WhiteText,
-                        subtitleColor = GreenAccent
+                        valueColor = RakizzColors.TextMain,
+                        subtitleColor = RakizzColors.Success
                     )
 
                     MetricCard(
@@ -112,8 +103,8 @@ fun StudentProgressScreen(
                         title = "BLOCKED",
                         value = "142",
                         subtitle = "Apps stopped today",
-                        valueColor = WhiteText,
-                        subtitleColor = SecondaryText
+                        valueColor = RakizzColors.TextMain,
+                        subtitleColor = RakizzColors.TextSecond
                     )
                 }
             }
@@ -121,7 +112,7 @@ fun StudentProgressScreen(
             item {
                 Text(
                     text = "TOP DISTRACTIONS BLOCKED",
-                    color = SecondaryText,
+                    color = RakizzColors.TextMuted,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.2.sp
@@ -133,7 +124,7 @@ fun StudentProgressScreen(
                     appName = "Instagram",
                     category = "Social Media",
                     savedTime = "45m",
-                    accent = Color(0xFFE1306C),
+                    accent = RakizzColors.Error,
                     shortLabel = "IG"
                 )
             }
@@ -143,7 +134,7 @@ fun StudentProgressScreen(
                     appName = "TikTok",
                     category = "Entertainment",
                     savedTime = "32m",
-                    accent = Color(0xFF25F4EE),
+                    accent = RakizzColors.Accent,
                     shortLabel = "TT"
                 )
             }
@@ -153,7 +144,7 @@ fun StudentProgressScreen(
                     appName = "YouTube",
                     category = "Video",
                     savedTime = "15m",
-                    accent = Color(0xFFFF0000),
+                    accent = RakizzColors.Warning,
                     shortLabel = "YT"
                 )
             }
@@ -174,7 +165,7 @@ private fun ProgressTopBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = "Back",
-                tint = WhiteText,
+                tint = RakizzColors.TextMain,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -183,7 +174,7 @@ private fun ProgressTopBar(
 
         Text(
             text = "Student Progress",
-            color = WhiteText,
+            color = RakizzColors.TextMain,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.weight(1f)
@@ -193,7 +184,7 @@ private fun ProgressTopBar(
             Icon(
                 imageVector = Icons.Rounded.Download,
                 contentDescription = "Download",
-                tint = WhiteText,
+                tint = RakizzColors.TextMain,
                 modifier = Modifier.size(26.dp)
             )
         }
@@ -205,7 +196,11 @@ private fun InsightCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Row(
             modifier = Modifier
@@ -216,13 +211,13 @@ private fun InsightCard() {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF132C63)),
+                    .background(RakizzColors.PrimarySoft),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.AutoAwesome,
                     contentDescription = null,
-                    tint = PrimaryBlue,
+                    tint = RakizzColors.Primary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -234,7 +229,7 @@ private fun InsightCard() {
             ) {
                 Text(
                     text = "AI INSIGHT",
-                    color = Color(0xFFAFC6FF),
+                    color = RakizzColors.Primary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.1.sp
@@ -243,8 +238,8 @@ private fun InsightCard() {
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Your best focus days are Tue–Wed. You tend to study 25% longer when starting before 10 AM.",
-                    color = WhiteText,
+                    text = "Your best focus days are Tue–Wed.\nYou tend to study 25% longer when starting before 10 AM.",
+                    color = RakizzColors.TextMain,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                     lineHeight = 28.sp
@@ -259,7 +254,11 @@ private fun WeeklyFocusCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Column(
             modifier = Modifier
@@ -271,7 +270,7 @@ private fun WeeklyFocusCard() {
             ) {
                 Text(
                     text = "WEEKLY FOCUS",
-                    color = SecondaryText,
+                    color = RakizzColors.TextMuted,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.2.sp
@@ -282,12 +281,12 @@ private fun WeeklyFocusCard() {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF0E254F))
+                        .background(RakizzColors.PrimarySoft)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Total: 14h 20m",
-                        color = PrimaryBlue,
+                        color = RakizzColors.Primary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -336,12 +335,17 @@ private fun WeeklyBar(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White)
+                    .background(RakizzColors.CardSoft)
+                    .border(
+                        width = 1.dp,
+                        color = RakizzColors.CardBorder,
+                        shape = RoundedCornerShape(10.dp)
+                    )
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = value,
-                    color = Color.Black,
+                    color = RakizzColors.TextMain,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -356,12 +360,17 @@ private fun WeeklyBar(
             modifier = Modifier
                 .width(26.dp)
                 .height(height)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 12.dp,
+                        topEnd = 12.dp
+                    )
+                )
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            PrimaryBlue,
-                            Color(0xFF0E254F)
+                            RakizzColors.Primary,
+                            RakizzColors.PrimarySoft
                         )
                     )
                 )
@@ -371,7 +380,7 @@ private fun WeeklyBar(
 
         Text(
             text = day,
-            color = WhiteText,
+            color = RakizzColors.TextMain,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
@@ -390,7 +399,11 @@ private fun MetricCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Column(
             modifier = Modifier
@@ -399,7 +412,7 @@ private fun MetricCard(
         ) {
             Text(
                 text = title,
-                color = SecondaryText,
+                color = RakizzColors.TextMuted,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.1.sp
@@ -437,7 +450,11 @@ private fun DistractionRow(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = CardSurface
+        color = RakizzColors.Card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Row(
             modifier = Modifier
@@ -450,7 +467,11 @@ private fun DistractionRow(
                     .size(56.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(accent.copy(alpha = 0.16f))
-                    .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(18.dp)),
+                    .border(
+                        width = 1.dp,
+                        color = accent.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(18.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -468,7 +489,7 @@ private fun DistractionRow(
             ) {
                 Text(
                     text = appName,
-                    color = WhiteText,
+                    color = RakizzColors.TextMain,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -477,7 +498,7 @@ private fun DistractionRow(
 
                 Text(
                     text = category,
-                    color = SecondaryText,
+                    color = RakizzColors.TextSecond,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -488,7 +509,7 @@ private fun DistractionRow(
             ) {
                 Text(
                     text = savedTime,
-                    color = RedAccent,
+                    color = RakizzColors.Error,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -497,7 +518,7 @@ private fun DistractionRow(
 
                 Text(
                     text = "Saved",
-                    color = SecondaryText,
+                    color = RakizzColors.TextSecond,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
