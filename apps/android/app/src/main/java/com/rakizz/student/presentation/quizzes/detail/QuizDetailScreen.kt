@@ -1,12 +1,21 @@
 package com.rakizz.student.presentation.quizzes.detail
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,20 +35,22 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Reviews
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,11 +58,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +76,11 @@ import com.rakizz.student.domain.model.Quiz
 import com.rakizz.student.domain.model.QuizQuestion
 import com.rakizz.student.domain.model.QuizReviewItem
 import com.rakizz.student.presentation.common.UiState
+import com.rakizz.student.presentation.common.components.RakizzAnimatedTopBar
+import com.rakizz.student.presentation.common.components.RakizzGlassCard
+import com.rakizz.student.presentation.common.components.RakizzPrimaryButton
+import com.rakizz.student.presentation.common.components.RakizzSecondaryButton
+import com.rakizz.student.presentation.common.components.RakizzStatusChip
 import com.rakizz.student.presentation.theme.RakizzColors
 import kotlinx.coroutines.delay
 
@@ -113,6 +133,7 @@ fun QuizDetailScreen(
                 onSubmitQuiz = viewModel::submitQuiz,
                 onRetryQuiz = viewModel::retryQuiz,
                 onGoHome = onGoHome,
+                onTryAnotherQuiz = onTryAnotherQuiz,
                 onBackToMaterials = onBackToMaterials
             )
         }
@@ -132,227 +153,212 @@ private fun QuizDetailContent(
     onSubmitQuiz: () -> Unit,
     onRetryQuiz: () -> Unit,
     onGoHome: () -> Unit,
+    onTryAnotherQuiz: () -> Unit,
     onBackToMaterials: () -> Unit
 ) {
     val result = attemptResult
 
+    var showContent by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(Unit) {
+        showContent = true
+    }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        RakizzColors.Background,
-                        RakizzColors.BackgroundSoft
-                    )
-                )
-            )
+        modifier = Modifier.fillMaxSize()
     ) {
         Scaffold(
             containerColor = RakizzColors.Background
         ) { paddingValues ->
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                RakizzColors.Background,
+                                RakizzColors.BackgroundSoft
+                            )
+                        )
+                    )
                     .padding(paddingValues)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 14.dp,
-                    bottom = 30.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
-                    TopBar(
-                        title = if (result == null) "Solve Quiz" else "Quiz Review",
-                        subtitle = if (result == null) {
-                            "Answer all questions, then submit."
-                        } else {
-                            "Review your score and answers."
-                        },
-                        onBackClick = onBackToMaterials
-                    )
-                }
-
-                item {
-                    QuizHeaderCard(
-                        quiz = quiz,
-                        selectedCount = selectedAnswers.size,
-                        result = result
-                    )
-                }
-
-                if (!actionMessage.isNullOrBlank()) {
-                    item {
-                        MessageCard(
-                            title = "Notice",
-                            message = actionMessage.orEmpty(),
-                            color = RakizzColors.Primary
-                        )
-                    }
-                }
-
-                if (result == null) {
-                    item {
-                        QuizProgressCard(
-                            selectedCount = selectedAnswers.size,
-                            totalCount = quiz.questions.size
-                        )
-                    }
-
-                    if (quiz.questions.isEmpty()) {
-                        item {
-                            MessageCard(
-                                title = "No questions",
-                                message = "This quiz does not have questions yet.",
-                                color = RakizzColors.Warning
-                            )
+                AnimatedVisibility(
+                    visible = showContent,
+                    enter = fadeIn(
+                        animationSpec = tween(durationMillis = 450)
+                    ) + slideInVertically(
+                        animationSpec = tween(durationMillis = 450),
+                        initialOffsetY = {
+                            it / 5
                         }
-                    } else {
-                        itemsIndexed(quiz.questions) { index, question ->
-                            QuestionCard(
-                                questionNumber = index + 1,
-                                question = question,
-                                selectedAnswer = selectedAnswers[question.id],
-                                enabled = !isSubmitting,
-                                onSelectAnswer = { answer ->
-                                    onSelectAnswer(question.id, answer)
-                                }
-                            )
-                        }
-
+                    )
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .navigationBarsPadding(),
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 18.dp,
+                            bottom = 30.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         item {
-                            Button(
-                                onClick = onSubmitQuiz,
-                                enabled = !isSubmitting,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(66.dp),
-                                shape = RoundedCornerShape(22.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RakizzColors.Primary,
-                                    contentColor = RakizzColors.White,
-                                    disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
-                                    disabledContentColor = RakizzColors.White
-                                )
-                            ) {
-                                if (isSubmitting) {
-                                    CircularProgressIndicator(
-                                        color = RakizzColors.White,
-                                        strokeWidth = 2.dp,
-                                        modifier = Modifier.size(22.dp)
+                            RakizzAnimatedTopBar(
+                                title = if (result == null) {
+                                    "AI Quiz"
+                                } else {
+                                    "Quiz Review"
+                                },
+                                subtitle = if (result == null) {
+                                    "Answer the questions and submit your attempt."
+                                } else {
+                                    "Review your score, answers, and AI explanations."
+                                },
+                                showBackButton = true,
+                                onBackClick = onBackToMaterials,
+                                trailingContent = {
+                                    RakizzStatusChip(
+                                        text = if (result == null) {
+                                            "SOLVE"
+                                        } else {
+                                            "RESULT"
+                                        },
+                                        icon = if (result == null) {
+                                            Icons.Rounded.Quiz
+                                        } else {
+                                            Icons.Rounded.Reviews
+                                        }
                                     )
-
-                                    Spacer(modifier = Modifier.width(12.dp))
                                 }
+                            )
+                        }
 
-                                Text(
-                                    text = if (isSubmitting) "Submitting..." else "Submit Quiz",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold
+                        item {
+                            QuizHeroCard(
+                                quiz = quiz,
+                                selectedCount = selectedAnswers.size,
+                                result = result
+                            )
+                        }
+
+                        if (!actionMessage.isNullOrBlank()) {
+                            item {
+                                NoticeCard(
+                                    title = "Notice",
+                                    message = actionMessage,
+                                    color = RakizzColors.Primary
                                 )
                             }
                         }
-                    }
 
-                    item {
-                        OutlinedButton(
-                            onClick = onBackToMaterials,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, RakizzColors.Primary),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = RakizzColors.Primary
-                            )
-                        ) {
-                            Text(
-                                text = "Back to Materials",
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                    }
-                } else {
-                    item {
-                        ResultCard(result = result)
-                    }
-
-                    item {
-                        SectionTitle(
-                            title = "Answer review",
-                            subtitle = "Correct answers, explanations, and source snippets"
-                        )
-                    }
-
-                    itemsIndexed(result.reviewData) { index, reviewItem ->
-                        ReviewCard(
-                            questionNumber = index + 1,
-                            reviewItem = reviewItem,
-                            selectedAnswer = selectedAnswers[reviewItem.id]
-                        )
-                    }
-
-                    item {
-                        if (result.passed == true) {
-                            Button(
-                                onClick = onGoHome,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(62.dp),
-                                shape = RoundedCornerShape(22.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RakizzColors.Success,
-                                    contentColor = RakizzColors.White
+                        if (result == null) {
+                            item {
+                                QuizProgressCard(
+                                    selectedCount = selectedAnswers.size,
+                                    totalCount = quiz.questions.size
                                 )
-                            ) {
-                                Text(
-                                    text = "Done",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    style = MaterialTheme.typography.titleLarge
+                            }
+
+                            if (quiz.questions.isEmpty()) {
+                                item {
+                                    NoticeCard(
+                                        title = "No questions",
+                                        message = "This quiz does not have questions yet.",
+                                        color = RakizzColors.Warning
+                                    )
+                                }
+                            } else {
+                                itemsIndexed(quiz.questions) { index, question ->
+                                    QuestionCard(
+                                        questionNumber = index + 1,
+                                        question = question,
+                                        selectedAnswer = selectedAnswers[question.id],
+                                        enabled = !isSubmitting,
+                                        onSelectAnswer = { answer ->
+                                            onSelectAnswer(question.id, answer)
+                                        }
+                                    )
+                                }
+
+                                item {
+                                    RakizzPrimaryButton(
+                                        text = if (isSubmitting) {
+                                            "Submitting..."
+                                        } else {
+                                            "Submit Quiz"
+                                        },
+                                        enabled = !isSubmitting,
+                                        icon = Icons.Rounded.TaskAlt,
+                                        onClick = onSubmitQuiz
+                                    )
+                                }
+                            }
+
+                            item {
+                                RakizzSecondaryButton(
+                                    text = "Back to Materials",
+                                    icon = Icons.Rounded.Description,
+                                    onClick = onBackToMaterials
                                 )
                             }
                         } else {
-                            Button(
-                                onClick = onRetryQuiz,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(62.dp),
-                                shape = RoundedCornerShape(22.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RakizzColors.Primary,
-                                    contentColor = RakizzColors.White
-                                )
-                            ) {
-                                Text(
-                                    text = "Retry Quiz",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    style = MaterialTheme.typography.titleLarge
+                            item {
+                                ResultCard(
+                                    result = result
                                 )
                             }
-                        }
-                    }
 
-                    item {
-                        OutlinedButton(
-                            onClick = onBackToMaterials,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, RakizzColors.Primary),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = RakizzColors.Primary
-                            )
-                        ) {
-                            Text(
-                                text = "Back to Materials",
-                                fontWeight = FontWeight.ExtraBold
-                            )
+                            item {
+                                ReviewSectionTitle()
+                            }
+
+                            itemsIndexed(result.reviewData) { index, reviewItem ->
+                                ReviewCard(
+                                    questionNumber = index + 1,
+                                    reviewItem = reviewItem,
+                                    selectedAnswer = selectedAnswers[reviewItem.id]
+                                )
+                            }
+
+                            item {
+                                if (result.passed == true) {
+                                    RakizzPrimaryButton(
+                                        text = "Done",
+                                        icon = Icons.Filled.DoneAll,
+                                        onClick = onGoHome
+                                    )
+                                } else {
+                                    RakizzPrimaryButton(
+                                        text = "Retry Quiz",
+                                        icon = Icons.Rounded.Refresh,
+                                        onClick = onRetryQuiz
+                                    )
+                                }
+                            }
+
+                            item {
+                                RakizzSecondaryButton(
+                                    text = "Try Another Quiz",
+                                    icon = Icons.Rounded.AutoAwesome,
+                                    onClick = onTryAnotherQuiz
+                                )
+                            }
+
+                            item {
+                                RakizzSecondaryButton(
+                                    text = "Back to Materials",
+                                    icon = Icons.Rounded.Description,
+                                    onClick = onBackToMaterials
+                                )
+                            }
                         }
                     }
                 }
@@ -366,159 +372,144 @@ private fun QuizDetailContent(
 }
 
 @Composable
-private fun TopBar(
-    title: String,
-    subtitle: String,
-    onBackClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        FilledIconButton(
-            onClick = onBackClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = RakizzColors.Card,
-                contentColor = RakizzColors.Primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Text(
-                text = subtitle,
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuizHeaderCard(
+private fun QuizHeroCard(
     quiz: Quiz,
     selectedCount: Int,
     result: Quiz?
 ) {
-    val total = quiz.questions.size
+    val totalQuestions = quiz.questions.size
     val isResult = result != null
 
     val title = when {
         isResult && result?.passed == true -> "Quiz Passed"
-        isResult && result?.passed == false -> "Quiz Failed"
-        total >= 20 -> "Mixed AI Quiz"
-        else -> "AI Quiz"
+        isResult && result?.passed == false -> "Quiz Needs Review"
+        totalQuestions >= 20 -> "Mixed AI Quiz"
+        else -> "AI Practice Quiz"
     }
 
-    val color = when {
+    val accentColor = when {
         isResult && result?.passed == true -> RakizzColors.Success
         isResult && result?.passed == false -> RakizzColors.Error
         else -> RakizzColors.Primary
     }
 
-    val subtitle = if (isResult) {
-        "Your answers were graded by the backend."
-    } else {
-        "Generated from uploaded study material."
-    }
-
-    Surface(
+    RakizzGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = color,
-        shadowElevation = 3.dp
+        cornerRadius = 34.dp,
+        glow = true,
+        contentPadding = PaddingValues(22.dp)
     ) {
         Column(
-            modifier = Modifier
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            color,
-                            if (color == RakizzColors.Primary) {
-                                RakizzColors.PrimaryDark
-                            } else {
-                                color.copy(alpha = 0.82f)
-                            }
-                        )
-                    )
-                )
-                .padding(22.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = CircleShape,
-                color = RakizzColors.White.copy(alpha = 0.17f)
-            ) {
-                Box(
-                    modifier = Modifier.padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = when {
-                            isResult && result?.passed == true -> Icons.Filled.Check
-                            isResult && result?.passed == false -> Icons.Filled.Close
-                            else -> Icons.Filled.Description
-                        },
-                        contentDescription = null,
-                        tint = RakizzColors.White,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
+            PulsingQuizIcon(
+                color = accentColor,
+                result = result
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = title,
-                color = RakizzColors.White,
+                color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "$total questions",
-                color = RakizzColors.White.copy(alpha = 0.9f),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = subtitle,
-                color = RakizzColors.White.copy(alpha = 0.82f),
+                text = if (isResult) {
+                    "Your attempt was graded. Review the explanations below."
+                } else {
+                    "Generated from your uploaded material by Rakizz AI Tutor."
+                },
+                color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
             )
 
-            if (!isResult) {
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WhitePill("Answered $selectedCount")
-                    WhitePill("70% pass")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RakizzStatusChip(
+                    text = "$totalQuestions questions",
+                    color = RakizzColors.Primary,
+                    softColor = RakizzColors.PrimarySoft
+                )
+
+                if (!isResult) {
+                    RakizzStatusChip(
+                        text = "$selectedCount answered",
+                        color = RakizzColors.Accent,
+                        softColor = RakizzColors.AccentSoft
+                    )
+                } else {
+                    RakizzStatusChip(
+                        text = "${result?.score ?: 0}%",
+                        color = accentColor,
+                        softColor = accentColor.copy(alpha = 0.13f)
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PulsingQuizIcon(
+    color: Color,
+    result: Quiz?
+) {
+    val infiniteTransition = rememberInfiniteTransition(
+        label = "quiz_icon_transition"
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.20f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "quiz_icon_glow_alpha"
+    )
+
+    Box(
+        modifier = Modifier.size(92.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(92.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = glowAlpha))
+        )
+
+        Surface(
+            modifier = Modifier.size(66.dp),
+            shape = CircleShape,
+            color = color,
+            shadowElevation = 8.dp
+        ) {
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when {
+                        result?.passed == true -> Icons.Filled.Check
+                        result?.passed == false -> Icons.Filled.Close
+                        else -> Icons.Rounded.School
+                    },
+                    contentDescription = null,
+                    tint = RakizzColors.White,
+                    modifier = Modifier.size(32.dp)
+                )
             }
         }
     }
@@ -533,51 +524,61 @@ private fun QuizProgressCard(
         0f
     } else {
         selectedCount.toFloat() / totalCount.toFloat()
-    }
+    }.coerceIn(0f, 1f)
 
-    Surface(
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 450),
+        label = "quiz_progress"
+    )
+
+    RakizzGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        cornerRadius = 28.dp,
+        contentPadding = PaddingValues(18.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Answer progress",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "$selectedCount / $totalCount answered",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(RakizzColors.PrimarySoft)
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(40.dp))
-                        .background(RakizzColors.Primary)
+                Text(
+                    text = "Answer progress",
+                    color = RakizzColors.TextMain,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                Text(
+                    text = "$selectedCount / $totalCount answered",
+                    color = RakizzColors.TextSecond,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
+
+            RakizzStatusChip(
+                text = "${(animatedProgress * 100).toInt()}%",
+                color = RakizzColors.Primary,
+                softColor = RakizzColors.PrimarySoft
+            )
         }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        LinearProgressIndicator(
+            progress = {
+                animatedProgress
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(9.dp)
+                .clip(RoundedCornerShape(50)),
+            color = RakizzColors.Primary,
+            trackColor = RakizzColors.PrimarySoft
+        )
     }
 }
 
@@ -589,49 +590,62 @@ private fun QuestionCard(
     enabled: Boolean,
     onSelectAnswer: (String) -> Unit
 ) {
-    Surface(
+    RakizzGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        cornerRadius = 30.dp,
+        contentPadding = PaddingValues(18.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                QuestionNumberBubble(number = questionNumber)
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "Question $questionNumber",
-                    color = RakizzColors.Primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-
-            Text(
-                text = question.questionText,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                lineHeight = MaterialTheme.typography.titleMedium.lineHeight
+            QuestionNumberBubble(
+                number = questionNumber
             )
 
-            question.options.forEach { option ->
-                AnswerOptionCard(
-                    option = option,
-                    selected = selectedAnswer == option,
-                    enabled = enabled,
-                    onClick = {
-                        onSelectAnswer(option)
-                    }
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+                Text(
+                    text = "QUESTION $questionNumber",
+                    color = RakizzColors.Primary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold
                 )
+
+                Text(
+                    text = "Choose one answer",
+                    color = RakizzColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = question.questionText,
+            color = RakizzColors.TextMain,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = MaterialTheme.typography.titleMedium.lineHeight
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        question.options.forEachIndexed { index, option ->
+            AnswerOptionCard(
+                optionLetter = ('A' + index).toString(),
+                option = option,
+                selected = selectedAnswer == option,
+                enabled = enabled,
+                onClick = {
+                    onSelectAnswer(option)
+                }
+            )
+
+            if (index != question.options.lastIndex) {
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }
@@ -641,28 +655,42 @@ private fun QuestionCard(
 private fun QuestionNumberBubble(
     number: Int
 ) {
-    Box(
-        modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(RakizzColors.PrimarySoft),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = number.toString(),
-            color = RakizzColors.Primary,
-            fontWeight = FontWeight.ExtraBold
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = RakizzColors.PrimarySoft,
+        border = BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.Primary.copy(alpha = 0.28f)
         )
+    ) {
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = number.toString(),
+                color = RakizzColors.Primary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
 
 @Composable
 private fun AnswerOptionCard(
+    optionLetter: String,
     option: String,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.02f else 1f,
+        animationSpec = tween(durationMillis = 150),
+        label = "answer_option_scale"
+    )
+
     val borderColor = if (selected) {
         RakizzColors.Primary
     } else {
@@ -678,42 +706,60 @@ private fun AnswerOptionCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale
+            )
             .clickable(enabled = enabled) {
                 onClick()
             },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         color = bgColor,
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(
+            width = 1.dp,
+            color = borderColor
+        ),
+        shadowElevation = if (selected) {
+            4.dp
+        } else {
+            0.dp
+        }
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (selected) {
-                            RakizzColors.Primary
-                        } else {
-                            RakizzColors.Card
-                        }
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = borderColor,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+            Surface(
+                modifier = Modifier.size(30.dp),
+                shape = CircleShape,
+                color = if (selected) {
+                    RakizzColors.Primary
+                } else {
+                    RakizzColors.Card
+                },
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = borderColor
+                )
             ) {
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = RakizzColors.White,
-                        modifier = Modifier.size(14.dp)
-                    )
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = RakizzColors.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Text(
+                            text = optionLetter,
+                            color = RakizzColors.TextMuted,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                 }
             }
 
@@ -723,7 +769,11 @@ private fun AnswerOptionCard(
                 text = option,
                 color = RakizzColors.TextMain,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                fontWeight = if (selected) {
+                    FontWeight.ExtraBold
+                } else {
+                    FontWeight.Medium
+                },
                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
             )
         }
@@ -736,29 +786,43 @@ private fun ResultCard(
 ) {
     val score = result.score ?: 0
     val passed = result.passed == true
-    val color = if (passed) RakizzColors.Success else RakizzColors.Error
+    val color = if (passed) {
+        RakizzColors.Success
+    } else {
+        RakizzColors.Error
+    }
+
     val progress = (score.coerceIn(0, 100)).toFloat() / 100f
 
-    Surface(
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 700),
+        label = "result_progress"
+    )
+
+    RakizzGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        cornerRadius = 34.dp,
+        glow = true,
+        contentPadding = PaddingValues(24.dp)
     ) {
         Column(
-            modifier = Modifier.padding(22.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconCircle(
-                icon = if (passed) Icons.Filled.DoneAll else Icons.Filled.Close,
-                color = color
+            PulsingQuizIcon(
+                color = color,
+                result = result
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (passed) "Passed" else "Not passed",
+                text = if (passed) {
+                    "Passed"
+                } else {
+                    "Not Passed"
+                },
                 color = color,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold
@@ -775,35 +839,52 @@ private fun ResultCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Box(
+            LinearProgressIndicator(
+                progress = {
+                    animatedProgress
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp)
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(RakizzColors.BackgroundSoft)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(40.dp))
-                        .background(color)
-                )
-            }
+                    .clip(RoundedCornerShape(50)),
+                color = color,
+                trackColor = color.copy(alpha = 0.15f)
+            )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = if (passed) {
-                    "Great. The student reached the 70% passing score."
+                    "Great work. You reached the 70% passing score."
                 } else {
-                    "The score is below 70%. The student should review and try again."
+                    "The score is below 70%. Review the explanations and try again."
                 },
                 color = RakizzColors.TextSecond,
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
             )
         }
+    }
+}
+
+@Composable
+private fun ReviewSectionTitle() {
+    Column {
+        Text(
+            text = "AI Answer Review",
+            color = RakizzColors.TextMain,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Correct answers, explanations, and source snippets.",
+            color = RakizzColors.TextSecond,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -814,68 +895,104 @@ private fun ReviewCard(
     selectedAnswer: String?
 ) {
     val correct = selectedAnswer == reviewItem.correctAnswer
-    val color = if (correct) RakizzColors.Success else RakizzColors.Error
+    val color = if (correct) {
+        RakizzColors.Success
+    } else {
+        RakizzColors.Error
+    }
 
-    Surface(
+    RakizzGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        cornerRadius = 30.dp,
+        contentPadding = PaddingValues(18.dp),
+        glow = false
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            QuestionNumberBubble(
+                number = questionNumber
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                QuestionNumberBubble(number = questionNumber)
-
-                Spacer(modifier = Modifier.width(12.dp))
-
                 Text(
-                    text = if (correct) "Correct answer" else "Needs review",
+                    text = if (correct) {
+                        "Correct answer"
+                    } else {
+                        "Needs review"
+                    },
                     color = color,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold
                 )
-            }
 
-            Text(
-                text = reviewItem.questionText,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            AnswerReviewLine(
-                label = "Your answer",
-                value = selectedAnswer ?: "No answer",
-                color = color
-            )
-
-            AnswerReviewLine(
-                label = "Correct answer",
-                value = reviewItem.correctAnswer,
-                color = RakizzColors.Success
-            )
-
-            SourceBox(
-                title = "Explanation",
-                text = reviewItem.explanation.ifBlank {
-                    "No explanation was provided."
-                },
-                icon = Icons.Filled.Check
-            )
-
-            if (!reviewItem.sourceChunkSnippet.isNullOrBlank()) {
-                SourceBox(
-                    title = "Source snippet",
-                    text = reviewItem.sourceChunkSnippet,
-                    icon = Icons.Filled.Description
+                Text(
+                    text = "AI explanation included",
+                    color = RakizzColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
+
+            RakizzStatusChip(
+                text = if (correct) {
+                    "Correct"
+                } else {
+                    "Review"
+                },
+                color = color,
+                softColor = color.copy(alpha = 0.13f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = reviewItem.questionText,
+            color = RakizzColors.TextMain,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = MaterialTheme.typography.titleMedium.lineHeight
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        AnswerReviewLine(
+            label = "Your answer",
+            value = selectedAnswer ?: "No answer",
+            color = color
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        AnswerReviewLine(
+            label = "Correct answer",
+            value = reviewItem.correctAnswer,
+            color = RakizzColors.Success
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        SourceBox(
+            title = "AI Explanation",
+            text = reviewItem.explanation.ifBlank {
+                "No explanation was provided."
+            },
+            icon = Icons.Rounded.CheckCircle
+        )
+
+        if (!reviewItem.sourceChunkSnippet.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SourceBox(
+                title = "Source Snippet",
+                text = reviewItem.sourceChunkSnippet,
+                icon = Icons.Rounded.Description
+            )
         }
     }
 }
@@ -914,9 +1031,12 @@ private fun SourceBox(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
         color = RakizzColors.CardSoft,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        border = BorderStroke(
+            width = 1.dp,
+            color = RakizzColors.CardBorder
+        )
     ) {
         Column(
             modifier = Modifier.padding(14.dp)
@@ -954,40 +1074,19 @@ private fun SourceBox(
 }
 
 @Composable
-private fun SectionTitle(
-    title: String,
-    subtitle: String
-) {
-    Column {
-        Text(
-            text = title,
-            color = RakizzColors.TextMain,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = subtitle,
-            color = RakizzColors.TextSecond,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-
-@Composable
-private fun MessageCard(
+private fun NoticeCard(
     title: String,
     message: String,
     color: Color
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        shape = RoundedCornerShape(24.dp),
+        color = color.copy(alpha = 0.13f),
+        border = BorderStroke(
+            width = 1.dp,
+            color = color.copy(alpha = 0.35f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1011,74 +1110,29 @@ private fun MessageCard(
 }
 
 @Composable
-private fun IconCircle(
-    icon: ImageVector,
-    color: Color
-) {
-    Surface(
-        shape = CircleShape,
-        color = color.copy(alpha = 0.13f)
-    ) {
-        Box(
-            modifier = Modifier.padding(18.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(32.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun WhitePill(
-    text: String
-) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = RakizzColors.White.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(11.dp)
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Text(
-            text = text,
-            color = RakizzColors.White,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
-
-@Composable
 private fun SubmittingOverlay() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(RakizzColors.Background.copy(alpha = 0.96f)),
+            .background(RakizzColors.Background.copy(alpha = 0.97f)),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        RakizzGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            shape = RoundedCornerShape(30.dp),
-            color = RakizzColors.Card,
-            shadowElevation = 6.dp,
-            border = BorderStroke(1.dp, RakizzColors.CardBorder)
+            cornerRadius = 34.dp,
+            glow = true,
+            contentPadding = PaddingValues(26.dp)
         ) {
             Column(
-                modifier = Modifier.padding(26.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(
                     color = RakizzColors.Primary,
                     strokeWidth = 4.dp,
-                    modifier = Modifier.size(72.dp)
+                    modifier = Modifier.size(76.dp)
                 )
 
                 Spacer(modifier = Modifier.height(22.dp))
@@ -1094,10 +1148,11 @@ private fun SubmittingOverlay() {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Rakizz is grading the quiz and preparing the review.",
+                    text = "Rakizz is grading your quiz and preparing the AI review.",
                     color = RakizzColors.TextSecond,
                     style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
                 )
             }
         }
@@ -1109,17 +1164,22 @@ private fun QuizLoadingScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(RakizzColors.Background),
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        RakizzColors.Background,
+                        RakizzColors.BackgroundSoft
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = RakizzColors.Card,
-            shadowElevation = 4.dp,
-            border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        RakizzGlassCard(
+            cornerRadius = 30.dp,
+            glow = true,
+            contentPadding = PaddingValues(28.dp)
         ) {
             Column(
-                modifier = Modifier.padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(
@@ -1148,24 +1208,47 @@ private fun QuizErrorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(RakizzColors.Background)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        RakizzColors.Background,
+                        RakizzColors.BackgroundSoft
+                    )
+                )
+            )
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = RakizzColors.Card,
-            shadowElevation = 4.dp,
-            border = BorderStroke(1.dp, RakizzColors.Error.copy(alpha = 0.35f))
+        RakizzGlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            cornerRadius = 30.dp,
+            glow = false,
+            contentPadding = PaddingValues(24.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                IconCircle(
-                    icon = Icons.Filled.Close,
-                    color = RakizzColors.Error
-                )
+                Surface(
+                    modifier = Modifier.size(70.dp),
+                    shape = CircleShape,
+                    color = RakizzColors.Error.copy(alpha = 0.13f),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = RakizzColors.Error.copy(alpha = 0.35f)
+                    )
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = RakizzColors.Error,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -1182,24 +1265,16 @@ private fun QuizErrorScreen(
                     text = message,
                     color = RakizzColors.TextSecond,
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                Button(
-                    onClick = onBackToMaterials,
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RakizzColors.Primary,
-                        contentColor = RakizzColors.White
-                    )
-                ) {
-                    Text(
-                        text = "Back",
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
+                RakizzPrimaryButton(
+                    text = "Back to Materials",
+                    onClick = onBackToMaterials
+                )
             }
         }
     }

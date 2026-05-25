@@ -1,6 +1,5 @@
 package com.rakizz.student.presentation.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -11,7 +10,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 enum class RakizzThemeMode {
-    SYSTEM,
     LIGHT,
     DARK
 }
@@ -116,84 +114,65 @@ object RakizzThemeController {
 
 object RakizzColors {
 
-    var Background by mutableStateOf(RakizzDarkPalette.background)
-        private set
+    private val palette: RakizzPalette
+        get() {
+            return if (RakizzThemeController.isCurrentlyDark()) {
+                RakizzDarkPalette
+            } else {
+                RakizzLightPalette
+            }
+        }
 
-    var BackgroundSoft by mutableStateOf(RakizzDarkPalette.backgroundSoft)
-        private set
+    val Background: Color
+        get() = palette.background
 
-    var Card by mutableStateOf(RakizzDarkPalette.card)
-        private set
+    val BackgroundSoft: Color
+        get() = palette.backgroundSoft
 
-    var CardSoft by mutableStateOf(RakizzDarkPalette.cardSoft)
-        private set
+    val Card: Color
+        get() = palette.card
 
-    var CardBorder by mutableStateOf(RakizzDarkPalette.cardBorder)
-        private set
+    val CardSoft: Color
+        get() = palette.cardSoft
 
-    var Primary by mutableStateOf(RakizzDarkPalette.primary)
-        private set
+    val CardBorder: Color
+        get() = palette.cardBorder
 
-    var PrimaryDark by mutableStateOf(RakizzDarkPalette.primaryDark)
-        private set
+    val Primary: Color
+        get() = palette.primary
 
-    var PrimarySoft by mutableStateOf(RakizzDarkPalette.primarySoft)
-        private set
+    val PrimaryDark: Color
+        get() = palette.primaryDark
 
-    var Accent by mutableStateOf(RakizzDarkPalette.accent)
-        private set
+    val PrimarySoft: Color
+        get() = palette.primarySoft
 
-    var AccentSoft by mutableStateOf(RakizzDarkPalette.accentSoft)
-        private set
+    val Accent: Color
+        get() = palette.accent
 
-    var TextMain by mutableStateOf(RakizzDarkPalette.textMain)
-        private set
+    val AccentSoft: Color
+        get() = palette.accentSoft
 
-    var TextSecond by mutableStateOf(RakizzDarkPalette.textSecond)
-        private set
+    val TextMain: Color
+        get() = palette.textMain
 
-    var TextMuted by mutableStateOf(RakizzDarkPalette.textMuted)
-        private set
+    val TextSecond: Color
+        get() = palette.textSecond
 
-    var Success by mutableStateOf(RakizzDarkPalette.success)
-        private set
+    val TextMuted: Color
+        get() = palette.textMuted
 
-    var Warning by mutableStateOf(RakizzDarkPalette.warning)
-        private set
+    val Success: Color
+        get() = palette.success
 
-    var Error by mutableStateOf(RakizzDarkPalette.error)
-        private set
+    val Warning: Color
+        get() = palette.warning
 
-    var White by mutableStateOf(RakizzDarkPalette.white)
-        private set
+    val Error: Color
+        get() = palette.error
 
-    fun applyPalette(
-        palette: RakizzPalette
-    ) {
-        Background = palette.background
-        BackgroundSoft = palette.backgroundSoft
-
-        Card = palette.card
-        CardSoft = palette.cardSoft
-        CardBorder = palette.cardBorder
-
-        Primary = palette.primary
-        PrimaryDark = palette.primaryDark
-        PrimarySoft = palette.primarySoft
-
-        Accent = palette.accent
-        AccentSoft = palette.accentSoft
-
-        TextMain = palette.textMain
-        TextSecond = palette.textSecond
-        TextMuted = palette.textMuted
-
-        Success = palette.success
-        Warning = palette.warning
-        Error = palette.error
-
-        White = palette.white
-    }
+    val White: Color
+        get() = palette.white
 }
 
 @Composable
@@ -206,8 +185,6 @@ fun RakizzTheme(
     } else {
         RakizzLightPalette
     }
-
-    RakizzColors.applyPalette(palette)
 
     val materialColors = if (darkTheme) {
         darkColorScheme(

@@ -1,546 +1,1127 @@
 package com.rakizz.student.presentation.auth.parentsignup
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.FamilyRestroom
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.rakizz.student.presentation.common.UiState
-import com.rakizz.student.presentation.theme.RakizzColors
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import kotlinx.coroutines.delay
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ParentSignUpScreen(
-    onBackClick: () -> Unit,
-    onCreateAccountDone: () -> Unit,
-    onAlreadyHaveAccountClick: () -> Unit,
-    viewModel: ParentSignUpViewModel = hiltViewModel()
+    navController: NavController? = null,
+    viewModel: ParentSignUpViewModel? = null,
+
+    // Back/login callbacks.
+    onBackClick: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
+    onBackToLogin: () -> Unit = {},
+    onLoginClick: () -> Unit = {},
+
+    // Names used by RakizzNavHost.kt.
+    onCreateAccountClick: () -> Unit = {},
+    onCreateAccountDone: () -> Unit = {},
+    onAlreadyHaveAccountClick: () -> Unit = {},
+
+    // Success callbacks.
+    onSignUpSuccess: () -> Unit = {},
+    onSignupSuccess: () -> Unit = {},
+    onRegisterSuccess: () -> Unit = {},
+    onAccountCreated: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
+    onOpenHome: () -> Unit = {},
+    onNavigateToParentFocus: () -> Unit = {},
+    onOpenParentFocus: () -> Unit = {},
+
+    // Other auth callbacks.
+    onStudentSignUpClick: () -> Unit = {},
+    onChooseRoleClick: () -> Unit = {},
+    onContinueAsParent: () -> Unit = {},
+    onPairCodeClick: () -> Unit = {},
+    onOpenPairCodeClick: () -> Unit = {}
 ) {
-    var fullName by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var showPassword by rememberSaveable { mutableStateOf(false) }
+    val colors = parentSignUpColors()
 
-    val state by viewModel.uiState.collectAsState()
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var relationship by remember { mutableStateOf("Parent") }
+    var pairCode by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var acceptTerms by remember { mutableStateOf(true) }
+    var message by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
 
-    val isLoading = state is UiState.Loading
-    val errorMessage = (state as? UiState.Error)?.message
+    val infiniteTransition = rememberInfiniteTransition(label = "parent_signup_animation")
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "parent_signup_glow"
+    )
 
-    LaunchedEffect(state) {
-        if (state is UiState.Success) {
-            onCreateAccountDone()
+    LaunchedEffect(message) {
+        if (message.isNotEmpty()) {
+            delay(2300)
+            message = ""
         }
     }
 
-    ParentSignupContent(
-        fullName = fullName,
-        email = email,
-        password = password,
-        showPassword = showPassword,
-        isLoading = isLoading,
-        errorMessage = errorMessage,
-        onFullNameChange = {
-            fullName = it
-            viewModel.clearError()
-        },
-        onEmailChange = {
-            email = it
-            viewModel.clearError()
-        },
-        onPasswordChange = {
-            password = it
-            viewModel.clearError()
-        },
-        onTogglePassword = {
-            showPassword = !showPassword
-        },
-        onCreateClick = {
-            // parent signup uses parent role in the viewmodel
-            viewModel.registerParent(
-                fullName = fullName,
-                email = email,
-                pass = password
+    fun goBack() {
+        if (navController != null) {
+            navController.popBackStack()
+        } else {
+            onBackClick()
+            onNavigateBack()
+            onBackToLogin()
+        }
+    }
+
+    fun createParentAccount() {
+        if (fullName.isBlank()) {
+            isError = true
+            message = "Please enter your full name."
+            return
+        }
+
+        if (email.isBlank()) {
+            isError = true
+            message = "Please enter your email."
+            return
+        }
+
+        if (password.length < 6) {
+            isError = true
+            message = "Password must be at least 6 characters."
+            return
+        }
+
+        if (password != confirmPassword) {
+            isError = true
+            message = "Passwords do not match."
+            return
+        }
+
+        if (!acceptTerms) {
+            isError = true
+            message = "Please accept the account terms."
+            return
+        }
+
+        isError = false
+        message = "Parent account created for demo."
+
+        // Keep all common callbacks supported for your NavHost.
+        onCreateAccountClick()
+        onCreateAccountDone()
+        onContinueAsParent()
+        onSignUpSuccess()
+        onSignupSuccess()
+        onRegisterSuccess()
+        onAccountCreated()
+        onNavigateToHome()
+        onOpenHome()
+        onNavigateToParentFocus()
+        onOpenParentFocus()
+    }
+
+    fun alreadyHaveAccount() {
+        onAlreadyHaveAccountClick()
+        onLoginClick()
+        goBack()
+    }
+
+    fun openPairCodeHelp() {
+        onPairCodeClick()
+        onOpenPairCodeClick()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        colors.backgroundTop,
+                        colors.backgroundMiddle,
+                        colors.backgroundBottom
+                    )
+                )
             )
-        },
-        onBackClick = onBackClick,
-        onAlreadyHaveAccountClick = onAlreadyHaveAccountClick
-    )
-}
+    ) {
+        // Soft animated background glow.
+        Box(
+            modifier = Modifier
+                .size(300.dp)
+                .align(Alignment.TopCenter)
+                .offset(y = (-135).dp)
+                .graphicsLayer {
+                    scaleX = glowScale
+                    scaleY = glowScale
+                    alpha = 0.9f
+                }
+                .background(
+                    brush = Brush.radialGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.42f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
 
-@Composable
-private fun ParentSignupContent(
-    fullName: String,
-    email: String,
-    password: String,
-    showPassword: Boolean,
-    isLoading: Boolean,
-    errorMessage: String?,
-    onFullNameChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onTogglePassword: () -> Unit,
-    onCreateClick: () -> Unit,
-    onBackClick: () -> Unit,
-    onAlreadyHaveAccountClick: () -> Unit
-) {
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    Scaffold(
-        containerColor = RakizzColors.Background
-    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            RakizzColors.Background,
-                            RakizzColors.BackgroundSoft
-                        )
-                    )
-                )
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .imePadding()
+                .padding(WindowInsets.statusBars.asPaddingValues())
+                .padding(horizontal = 22.dp)
+                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ParentTopBar(
-                onBackClick = onBackClick
+            Spacer(modifier = Modifier.height(18.dp))
+
+            ParentSignUpTopBar(
+                colors = colors,
+                onBackClick = { goBack() }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            ParentHeroCard()
+            ParentSignUpLogoSection(
+                colors = colors,
+                glowScale = glowScale
+            )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                color = RakizzColors.Card,
-                shadowElevation = 3.dp,
-                border = BorderStroke(1.dp, RakizzColors.CardBorder)
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "Create parent account",
-                        color = RakizzColors.TextMain,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+            ParentSignUpHeroCard(colors = colors)
 
-                    Text(
-                        text = "This account manages focus rules for a linked student.",
-                        color = RakizzColors.TextSecond,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    ParentTextField(
-                        value = fullName,
-                        label = "Parent name",
-                        keyboardType = KeyboardType.Text,
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Next,
-                        onValueChange = onFullNameChange,
-                        onNext = {
-                            focusManager.moveFocus(FocusDirection.Down)
-                        }
-                    )
+            ParentAccountFormCard(
+                fullName = fullName,
+                email = email,
+                phone = phone,
+                relationship = relationship,
+                pairCode = pairCode,
+                password = password,
+                confirmPassword = confirmPassword,
+                passwordVisible = passwordVisible,
+                confirmPasswordVisible = confirmPasswordVisible,
+                onFullNameChange = { fullName = it },
+                onEmailChange = { email = it },
+                onPhoneChange = { phone = it },
+                onRelationshipChange = { relationship = it },
+                onPairCodeChange = { pairCode = it },
+                onPasswordChange = { password = it },
+                onConfirmPasswordChange = { confirmPassword = it },
+                onPasswordVisibleChange = { passwordVisible = !passwordVisible },
+                onConfirmPasswordVisibleChange = { confirmPasswordVisible = !confirmPasswordVisible },
+                onPairCodeHelpClick = { openPairCodeHelp() },
+                colors = colors
+            )
 
-                    ParentTextField(
-                        value = email,
-                        label = "Email",
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next,
-                        onValueChange = onEmailChange,
-                        onNext = {
-                            focusManager.moveFocus(FocusDirection.Down)
-                        }
-                    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    ParentTextField(
-                        value = password,
-                        label = "Password",
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                        isPassword = true,
-                        showPassword = showPassword,
-                        onTogglePassword = onTogglePassword,
-                        onValueChange = onPasswordChange,
-                        onDone = {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                            onCreateClick()
-                        }
-                    )
+            ParentFeaturesCard(colors = colors)
 
-                    if (!errorMessage.isNullOrBlank()) {
-                        Text(
-                            text = errorMessage,
-                            color = RakizzColors.Error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+            Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
-                        onClick = {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                            onCreateClick()
-                        },
-                        enabled = !isLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        shape = RoundedCornerShape(22.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = RakizzColors.Primary,
-                            contentColor = RakizzColors.White,
-                            disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
-                            disabledContentColor = RakizzColors.White
-                        )
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = RakizzColors.White,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(22.dp)
-                            )
+            TermsCard(
+                accepted = acceptTerms,
+                colors = colors,
+                onClick = { acceptTerms = !acceptTerms }
+            )
 
-                            Spacer(modifier = Modifier.width(10.dp))
-                        }
+            Spacer(modifier = Modifier.height(12.dp))
 
-                        Text(
-                            text = if (isLoading) {
-                                "Creating..."
-                            } else {
-                                "Create Parent Account"
-                            },
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                }
+            AnimatedVisibility(visible = message.isNotEmpty()) {
+                SignUpMessageCard(
+                    message = message,
+                    isError = isError,
+                    colors = colors
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ParentInfoCard()
+            CreateAccountButton(
+                colors = colors,
+                onClick = { createParentAccount() }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SecondaryAuthButton(
+                text = "Already have an account? Login",
+                subtitle = "Return to the login screen",
+                iconText = "↩",
+                colors = colors,
+                onClick = { alreadyHaveAccount() }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SecondaryAuthButton(
+                text = "Register as Student Instead",
+                subtitle = "Switch to student account creation",
+                iconText = "🎓",
+                colors = colors,
+                onClick = {
+                    onStudentSignUpClick()
+                    onChooseRoleClick()
+                }
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Already have an account?",
-                    color = RakizzColors.TextSecond,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            ParentSignUpExplanationCard(colors = colors)
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = "Sign in",
-                    color = RakizzColors.Primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.clickable {
-                        onAlreadyHaveAccountClick()
-                    }
-                )
-            }
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun ParentTopBar(
+private fun ParentSignUpTopBar(
+    colors: ParentSignUpColors,
     onBackClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilledIconButton(
-            onClick = onBackClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = RakizzColors.Card,
-                contentColor = RakizzColors.Primary
-            )
+        CircleIconButton(
+            text = "←",
+            colors = colors,
+            onClick = onBackClick
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
+            Text(
+                text = "Parent Sign Up",
+                color = colors.textPrimary,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = "Create your guardian control account",
+                color = colors.textSecondary,
+                fontSize = 13.sp
             )
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(colors.primary.copy(alpha = 0.14f))
+                .border(1.dp, colors.primary.copy(alpha = 0.32f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = "Parent Account",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Text(
-                text = "Create focus-control access.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
+                text = "👨‍👩‍👧",
+                fontSize = 18.sp
             )
         }
     }
 }
 
 @Composable
-private fun ParentHeroCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        color = RakizzColors.Primary,
-        shadowElevation = 3.dp
-    ) {
-        Column(
+private fun ParentSignUpLogoSection(
+    colors: ParentSignUpColors,
+    glowScale: Float
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
             modifier = Modifier
+                .size(104.dp)
+                .graphicsLayer {
+                    scaleX = glowScale
+                    scaleY = glowScale
+                }
+                .clip(RoundedCornerShape(32.dp))
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            RakizzColors.Primary,
-                            RakizzColors.PrimaryDark
+                            colors.primary,
+                            colors.accent
                         )
                     )
                 )
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .border(3.dp, colors.glassBorder, RoundedCornerShape(32.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            Surface(
-                modifier = Modifier.size(76.dp),
-                shape = CircleShape,
-                color = RakizzColors.White.copy(alpha = 0.16f)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center
+            Text(
+                text = "R",
+                color = Color.White,
+                fontSize = 50.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Parent Portal",
+            color = colors.textPrimary,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Black
+        )
+
+        Text(
+            text = "Guide focus. Monitor learning.",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun ParentSignUpHeroCard(colors: ParentSignUpColors) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.25f),
+                            colors.card,
+                            colors.cardAlt
+                        )
+                    )
+                )
+                .padding(20.dp)
+        ) {
+            Column {
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = colors.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FamilyRestroom,
-                        contentDescription = null,
-                        tint = RakizzColors.White,
-                        modifier = Modifier.size(34.dp)
+                    Text(
+                        text = "● Parent monitoring account",
+                        color = colors.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Connect with your student and manage focus rules.",
+                    color = colors.textPrimary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 30.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Parents can link to a student, select distracting apps, create focus schedules, and view learning progress.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ParentAccountFormCard(
+    fullName: String,
+    email: String,
+    phone: String,
+    relationship: String,
+    pairCode: String,
+    password: String,
+    confirmPassword: String,
+    passwordVisible: Boolean,
+    confirmPasswordVisible: Boolean,
+    onFullNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onRelationshipChange: (String) -> Unit,
+    onPairCodeChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onPasswordVisibleChange: () -> Unit,
+    onConfirmPasswordVisibleChange: () -> Unit,
+    onPairCodeHelpClick: () -> Unit,
+    colors: ParentSignUpColors
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Parent Account Information",
+                subtitle = "Fill the main parent / guardian details",
+                colors = colors
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Guide focus time",
-                color = RakizzColors.White,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center
+            SignUpTextField(
+                label = "Full name",
+                value = fullName,
+                placeholder = "Example: Parent name",
+                keyboardType = KeyboardType.Text,
+                colors = colors,
+                onValueChange = onFullNameChange
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Link a student account, choose apps, and set study-time restrictions.",
-                color = RakizzColors.White.copy(alpha = 0.86f),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+            SignUpTextField(
+                label = "Email",
+                value = email,
+                placeholder = "parent@rakizz.com",
+                keyboardType = KeyboardType.Email,
+                colors = colors,
+                onValueChange = onEmailChange
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SignUpTextField(
+                label = "Phone number",
+                value = phone,
+                placeholder = "+962 7X XXX XXXX",
+                keyboardType = KeyboardType.Phone,
+                colors = colors,
+                onValueChange = onPhoneChange
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SignUpTextField(
+                    label = "Relation",
+                    value = relationship,
+                    placeholder = "Parent",
+                    keyboardType = KeyboardType.Text,
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    onValueChange = onRelationshipChange
+                )
+
+                SignUpTextField(
+                    label = "Pair code",
+                    value = pairCode,
+                    placeholder = "RKZ-123-456",
+                    keyboardType = KeyboardType.Text,
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    onValueChange = onPairCodeChange
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable(onClick = onPairCodeHelpClick),
+                shape = RoundedCornerShape(18.dp),
+                color = colors.primary.copy(alpha = 0.10f),
+                border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.25f))
+            ) {
+                Text(
+                    text = "Need a pair code? Ask the student to open Profile → Pair Code.",
+                    color = colors.primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(13.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SignUpPasswordField(
+                label = "Password",
+                value = password,
+                placeholder = "Create password",
+                passwordVisible = passwordVisible,
+                colors = colors,
+                onValueChange = onPasswordChange,
+                onPasswordVisibleChange = onPasswordVisibleChange
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SignUpPasswordField(
+                label = "Confirm password",
+                value = confirmPassword,
+                placeholder = "Repeat password",
+                passwordVisible = confirmPasswordVisible,
+                colors = colors,
+                onValueChange = onConfirmPasswordChange,
+                onPasswordVisibleChange = onConfirmPasswordVisibleChange
             )
         }
     }
 }
 
 @Composable
-private fun ParentTextField(
-    value: String,
+private fun SignUpTextField(
     label: String,
+    value: String,
+    placeholder: String,
     keyboardType: KeyboardType,
-    imeAction: ImeAction,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
-    isPassword: Boolean = false,
-    showPassword: Boolean = false,
-    onTogglePassword: () -> Unit = {},
-    onValueChange: (String) -> Unit,
-    onNext: () -> Unit = {},
-    onDone: () -> Unit = {}
+    colors: ParentSignUpColors,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = {
-            Text(text = label)
+            Text(
+                text = label,
+                color = colors.textSecondary
+            )
         },
-        modifier = Modifier.fillMaxWidth(),
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = colors.textSecondary.copy(alpha = 0.65f)
+            )
+        },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(18.dp),
-        keyboardOptions = KeyboardOptions(
-            keyboardType = keyboardType,
-            capitalization = capitalization,
-            imeAction = imeAction
-        ),
-        keyboardActions = KeyboardActions(
-            onNext = {
-                onNext()
-            },
-            onDone = {
-                onDone()
-            }
-        ),
-        visualTransformation = if (isPassword && !showPassword) {
-            PasswordVisualTransformation()
-        } else {
-            VisualTransformation.None
-        },
-        trailingIcon = if (isPassword) {
-            {
-                IconButton(
-                    onClick = onTogglePassword
-                ) {
-                    Icon(
-                        imageVector = if (showPassword) {
-                            Icons.Rounded.VisibilityOff
-                        } else {
-                            Icons.Rounded.Visibility
-                        },
-                        contentDescription = "Toggle password",
-                        tint = RakizzColors.TextSecond
-                    )
-                }
-            }
-        } else {
-            null
-        },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = RakizzColors.TextMain,
-            unfocusedTextColor = RakizzColors.TextMain,
-            focusedContainerColor = RakizzColors.Card,
-            unfocusedContainerColor = RakizzColors.Card,
-            focusedLabelColor = RakizzColors.Primary,
-            unfocusedLabelColor = RakizzColors.TextSecond,
-            focusedBorderColor = RakizzColors.Primary,
-            unfocusedBorderColor = RakizzColors.CardBorder,
-            cursorColor = RakizzColors.Primary
-        )
+        modifier = modifier.fillMaxWidth()
     )
 }
 
 @Composable
-private fun ParentInfoCard() {
-    Surface(
+private fun SignUpPasswordField(
+    label: String,
+    value: String,
+    placeholder: String,
+    passwordVisible: Boolean,
+    colors: ParentSignUpColors,
+    onValueChange: (String) -> Unit,
+    onPasswordVisibleChange: () -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = {
+            Text(
+                text = label,
+                color = colors.textSecondary
+            )
+        },
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = colors.textSecondary.copy(alpha = 0.65f)
+            )
+        },
+        singleLine = true,
+        visualTransformation = if (passwordVisible) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
+        trailingIcon = {
+            Text(
+                text = if (passwordVisible) "Hide" else "Show",
+                color = colors.primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .padding(end = 12.dp)
+                    .clickable(onClick = onPasswordVisibleChange)
+            )
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun ParentFeaturesCard(colors: ParentSignUpColors) {
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.PrimarySoft,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Security,
-                contentDescription = null,
-                tint = RakizzColors.Primary,
-                modifier = Modifier.size(23.dp)
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Parent Features",
+                subtitle = "What this account can manage inside Rakizz",
+                colors = colors
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            Column {
-                Text(
-                    text = "Student linking comes next",
-                    color = RakizzColors.PrimaryDark,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
+            FeatureRow(
+                iconText = "🔗",
+                title = "Student Linking",
+                subtitle = "Connect to the student using a pair code.",
+                colors = colors
+            )
 
-                Spacer(modifier = Modifier.height(5.dp))
+            FeatureDivider(colors)
 
-                Text(
-                    text = "After signup, use the Parent Focus page to enter the student pair code and create focus rules.",
-                    color = RakizzColors.TextSecond,
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                )
-            }
+            FeatureRow(
+                iconText = "🛡",
+                title = "Focus Rules",
+                subtitle = "Select distracting apps and create focus schedules.",
+                colors = colors
+            )
+
+            FeatureDivider(colors)
+
+            FeatureRow(
+                iconText = "📊",
+                title = "Progress Monitoring",
+                subtitle = "View quizzes, assignments, and focus activity.",
+                colors = colors
+            )
         }
     }
 }
+
+@Composable
+private fun FeatureRow(
+    iconText: String,
+    title: String,
+    subtitle: String,
+    colors: ParentSignUpColors
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(colors.primary.copy(alpha = 0.14f))
+                .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = iconText, fontSize = 20.sp)
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = title,
+                color = colors.textPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = subtitle,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeatureDivider(colors: ParentSignUpColors) {
+    HorizontalDivider(
+        color = colors.border,
+        thickness = 1.dp,
+        modifier = Modifier.padding(start = 56.dp, top = 10.dp, bottom = 10.dp)
+    )
+}
+
+@Composable
+private fun TermsCard(
+    accepted: Boolean,
+    colors: ParentSignUpColors,
+    onClick: () -> Unit
+) {
+    val mainColor = if (accepted) colors.primary else colors.textSecondary
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(mainColor.copy(alpha = 0.13f))
+                    .border(1.dp, mainColor.copy(alpha = 0.28f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (accepted) "✓" else "○",
+                    color = mainColor,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
+            Text(
+                text = "I agree to create a Rakizz parent account for monitoring and focus-control features.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignUpMessageCard(
+    message: String,
+    isError: Boolean,
+    colors: ParentSignUpColors
+) {
+    val messageColor = if (isError) colors.danger else colors.success
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = messageColor.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, messageColor.copy(alpha = 0.32f))
+    ) {
+        Text(
+            text = message,
+            color = messageColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(14.dp),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun CreateAccountButton(
+    colors: ParentSignUpColors,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        colors.primary,
+                        colors.accent
+                    )
+                )
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Create Parent Account",
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+
+@Composable
+private fun SecondaryAuthButton(
+    text: String,
+    subtitle: String,
+    iconText: String,
+    colors: ParentSignUpColors,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(colors.primary.copy(alpha = 0.14f))
+                    .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = iconText,
+                    color = colors.primary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(
+                    text = text,
+                    color = colors.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Text(
+                    text = subtitle,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Text(
+                text = "›",
+                color = colors.textSecondary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParentSignUpExplanationCard(colors: ParentSignUpColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.primary.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.25f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Checkpoint explanation",
+                color = colors.primary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "This screen supports user management for parent accounts. A parent account can link to a student and manage focus rules, app blocking, and progress monitoring.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    subtitle: String,
+    colors: ParentSignUpColors
+) {
+    Column {
+        Text(
+            text = title,
+            color = colors.textPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = subtitle,
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+    }
+}
+
+@Composable
+private fun CircleIconButton(
+    text: String,
+    colors: ParentSignUpColors,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(colors.card)
+            .border(1.dp, colors.border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = colors.textPrimary,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+
+@Composable
+private fun parentSignUpColors(): ParentSignUpColors {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    return if (isDark) {
+        ParentSignUpColors(
+            backgroundTop = Color(0xFF020617),
+            backgroundMiddle = Color(0xFF07111F),
+            backgroundBottom = Color(0xFF000000),
+            card = Color(0xE60B1220),
+            cardAlt = Color(0xCC111A2E),
+            border = Color(0x334D9DFF),
+            primary = Color(0xFF2F80FF),
+            accent = Color(0xFF00D4FF),
+            success = Color(0xFF22C55E),
+            danger = Color(0xFFEF4444),
+            textPrimary = Color.White,
+            textSecondary = Color(0xFF94A3B8),
+            glassBorder = Color(0x66FFFFFF)
+        )
+    } else {
+        ParentSignUpColors(
+            backgroundTop = Color(0xFFF8FBFF),
+            backgroundMiddle = Color(0xFFEAF4FF),
+            backgroundBottom = Color(0xFFFFFFFF),
+            card = Color(0xFFFFFFFF),
+            cardAlt = Color(0xFFF1F7FF),
+            border = Color(0x263B82F6),
+            primary = Color(0xFF2563EB),
+            accent = Color(0xFF06B6D4),
+            success = Color(0xFF16A34A),
+            danger = Color(0xFFDC2626),
+            textPrimary = Color(0xFF0F172A),
+            textSecondary = Color(0xFF64748B),
+            glassBorder = Color(0xFFFFFFFF)
+        )
+    }
+}
+
+private data class ParentSignUpColors(
+    val backgroundTop: Color,
+    val backgroundMiddle: Color,
+    val backgroundBottom: Color,
+    val card: Color,
+    val cardAlt: Color,
+    val border: Color,
+    val primary: Color,
+    val accent: Color,
+    val success: Color,
+    val danger: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val glassBorder: Color
+)

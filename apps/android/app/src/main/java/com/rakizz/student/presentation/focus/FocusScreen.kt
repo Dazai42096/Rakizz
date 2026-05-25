@@ -1,784 +1,528 @@
 package com.rakizz.student.presentation.focus
 
-import android.content.Intent
-import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.rakizz.student.domain.model.FocusPolicy
-import com.rakizz.student.presentation.theme.RakizzColors
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun FocusScreen(
-    onBackClick: () -> Unit,
-    onTryBlockedAppClick: (String) -> Unit,
+    navController: NavController? = null,
+    viewModel: FocusViewModel? = null,
+    onBackClick: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
+    onStartFocusClick: () -> Unit = {},
+    onStartFocus: () -> Unit = {},
+    onStopFocusClick: () -> Unit = {},
+    onStopFocus: () -> Unit = {},
+    onOpenUnlockQuizClick: () -> Unit = {},
+    onUnlockQuizClick: () -> Unit = {},
+    onOpenUnlockQuiz: () -> Unit = {},
+    onNavigateToUnlockQuiz: () -> Unit = {},
+    onTryBlockedAppClick: (String) -> Unit = {},
+    onManageAppsClick: () -> Unit = {},
+    onBlockedAppsClick: () -> Unit = {},
+    onOpenBlockedAppsClick: () -> Unit = {},
+    onParentFocusClick: () -> Unit = {},
+    onOpenParentFocusClick: () -> Unit = {},
     onViewProgressClick: () -> Unit = {},
     onGoToMaterialsClick: () -> Unit = {},
-    viewModel: FocusViewModel = hiltViewModel()
+    onSettingsClick: () -> Unit = {},
+    onRefreshClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val colors = focusScreenColors()
 
-    Scaffold(
-        containerColor = RakizzColors.Background
-    ) { paddingValues ->
-        LazyColumn(
+    var focusActive by remember { mutableStateOf(false) }
+    var selectedDuration by remember { mutableStateOf("45 min") }
+    var message by remember { mutableStateOf("") }
+
+    val blockedApps = remember {
+        mutableStateListOf(
+            FocusAppItem("1", "TikTok", "Short videos", "🎵", true),
+            FocusAppItem("2", "Instagram", "Social media", "📸", true),
+            FocusAppItem("3", "YouTube", "Video streaming", "▶", true),
+            FocusAppItem("4", "Games", "Mobile games", "🎮", false),
+            FocusAppItem("5", "Browser", "Web distractions", "🌐", false)
+        )
+    }
+
+    val selectedCount = blockedApps.count { it.isBlocked }
+    val totalCount = blockedApps.size
+
+    val infiniteTransition = rememberInfiniteTransition(label = "focus_animation")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "focus_pulse"
+    )
+
+    fun goBack() {
+        if (navController != null) {
+            navController.popBackStack()
+        } else {
+            onBackClick()
+            onNavigateBack()
+        }
+    }
+
+    fun startFocusSession() {
+        focusActive = true
+        message = "Focus mode started. Distracting apps are now protected."
+        onStartFocusClick()
+        onStartFocus()
+    }
+
+    fun stopFocusSession() {
+        focusActive = false
+        message = "Focus mode stopped for demo."
+        onStopFocusClick()
+        onStopFocus()
+    }
+
+    fun openUnlockQuiz(appName: String = "TikTok") {
+        onTryBlockedAppClick(appName)
+        onOpenUnlockQuizClick()
+        onUnlockQuizClick()
+        onOpenUnlockQuiz()
+        onNavigateToUnlockQuiz()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        colors.backgroundTop,
+                        colors.backgroundMiddle,
+                        colors.backgroundBottom
+                    )
+                )
+            )
+    ) {
+        // Animated shield glow.
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .align(Alignment.TopCenter)
+                .offset(y = (-130).dp)
+                .graphicsLayer {
+                    scaleX = pulse
+                    scaleY = pulse
+                    alpha = 0.85f
+                }
+                .background(
+                    brush = Brush.radialGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.42f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            RakizzColors.Background,
-                            RakizzColors.BackgroundSoft
-                        )
-                    )
-                )
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 14.dp,
-                bottom = 30.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(WindowInsets.statusBars.asPaddingValues())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .verticalScroll(rememberScrollState())
         ) {
-            item {
-                TopBar(
-                    onBackClick = onBackClick,
-                    onRefreshClick = viewModel::loadFocusData
+            Spacer(modifier = Modifier.height(18.dp))
+
+            FocusTopBar(
+                colors = colors,
+                onBackClick = { goBack() },
+                onSettingsClick = {
+                    onSettingsClick()
+                    onRefreshClick()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            FocusHeroCard(
+                focusActive = focusActive,
+                selectedDuration = selectedDuration,
+                selectedAppsCount = selectedCount,
+                totalAppsCount = totalCount,
+                pulse = pulse,
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AnimatedVisibility(visible = message.isNotEmpty()) {
+                FocusMessageCard(
+                    message = message,
+                    success = focusActive,
+                    colors = colors
                 )
             }
 
-            item {
-                FocusMainCard()
+            if (message.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            uiState.actionMessage?.let { message ->
-                item {
-                    MessageCard(
-                        title = "Done",
-                        message = message,
-                        color = RakizzColors.Success,
-                        onClick = viewModel::clearMessage
-                    )
-                }
-            }
+            DurationCard(
+                selectedDuration = selectedDuration,
+                colors = colors,
+                onDurationSelected = { selectedDuration = it }
+            )
 
-            uiState.errorMessage?.let { message ->
-                item {
-                    MessageCard(
-                        title = "Error",
-                        message = message,
-                        color = RakizzColors.Error,
-                        onClick = viewModel::clearMessage
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            item {
-                SyncAppsCard(
-                    isLoading = uiState.isLoading,
-                    onSyncAppsClick = viewModel::syncInstalledApps
-                )
-            }
+            FocusControlCard(
+                focusActive = focusActive,
+                colors = colors,
+                onStartClick = { startFocusSession() },
+                onStopClick = { stopFocusSession() },
+                onUnlockQuizClick = { openUnlockQuiz("TikTok") }
+            )
 
-            item {
-                AccessibilitySettingsCard(
-                    onOpenSettingsClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                        )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            QuickNavigationCard(
+                colors = colors,
+                onViewProgressClick = onViewProgressClick,
+                onGoToMaterialsClick = onGoToMaterialsClick
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            BlockedAppsCard(
+                apps = blockedApps,
+                colors = colors,
+                onManageAppsClick = {
+                    onManageAppsClick()
+                    onBlockedAppsClick()
+                    onOpenBlockedAppsClick()
+                },
+                onToggleApp = { app ->
+                    val index = blockedApps.indexOfFirst { it.id == app.id }
+                    if (index != -1) {
+                        blockedApps[index] = app.copy(isBlocked = !app.isBlocked)
                     }
-                )
-            }
-
-            item {
-                QuizUnlockInfoCard()
-            }
-
-            item {
-                SectionTitle(
-                    title = "Parent focus rules",
-                    subtitle = if (uiState.policies.isEmpty()) {
-                        "No active rules loaded yet"
-                    } else {
-                        "${uiState.policies.size} rule(s) from parent account"
-                    }
-                )
-            }
-
-            if (uiState.isLoading) {
-                item {
-                    LoadingCard()
+                },
+                onTryBlockedAppClick = { appName ->
+                    openUnlockQuiz(appName)
                 }
-            } else if (uiState.policies.isEmpty()) {
-                item {
-                    EmptyRulesCard()
-                }
-            } else {
-                items(
-                    items = uiState.policies,
-                    key = { rule -> rule.id }
-                ) { rule ->
-                    FocusRuleCard(
-                        rule = rule,
-                        onTryBlockedAppClick = onTryBlockedAppClick
-                    )
-                }
-            }
+            )
 
-            item {
-                ReviewNoteCard()
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FocusRulesCard(colors = colors)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ParentLinkCard(
+                colors = colors,
+                onClick = {
+                    onParentFocusClick()
+                    onOpenParentFocusClick()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            CheckpointFocusCard(colors = colors)
+
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun TopBar(
+private fun FocusTopBar(
+    colors: FocusScreenColors,
     onBackClick: () -> Unit,
-    onRefreshClick: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilledIconButton(
-            onClick = onBackClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = RakizzColors.Card,
-                contentColor = RakizzColors.Primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
+        CircleIconButton(
+            text = "←",
+            colors = colors,
+            onClick = onBackClick
+        )
 
         Column(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
         ) {
             Text(
-                text = "Focus Mode",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold
+                text = "Focus Shield",
+                color = colors.textPrimary,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black
             )
 
             Text(
-                text = "Blocked apps are unlocked through learning.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
+                text = "Block distractions and protect study time",
+                color = colors.textSecondary,
+                fontSize = 13.sp
             )
         }
 
-        FilledIconButton(
-            onClick = onRefreshClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = RakizzColors.PrimarySoft,
-                contentColor = RakizzColors.Primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Refresh,
-                contentDescription = "Refresh"
-            )
-        }
+        CircleIconButton(
+            text = "⚙",
+            colors = colors,
+            onClick = onSettingsClick
+        )
     }
 }
 
 @Composable
-private fun FocusMainCard() {
-    Surface(
+private fun FocusHeroCard(
+    focusActive: Boolean,
+    selectedDuration: String,
+    selectedAppsCount: Int,
+    totalAppsCount: Int,
+    pulse: Float,
+    colors: FocusScreenColors
+) {
+    val statusColor = if (focusActive) colors.success else colors.warning
+    val statusText = if (focusActive) "Focus mode is active" else "Focus mode is ready"
+
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = RakizzColors.Primary,
-        shadowElevation = 3.dp
+        shape = RoundedCornerShape(34.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Column(
+        Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            RakizzColors.Primary,
-                            RakizzColors.PrimaryDark
+                            colors.primary.copy(alpha = 0.30f),
+                            colors.card,
+                            colors.cardAlt
                         )
                     )
                 )
                 .padding(22.dp)
         ) {
-            Text(
-                text = "Study first, unlock later",
-                color = RakizzColors.White,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "When a parent blocks an app during focus time, the student must pass a mixed AI quiz with at least 70% to unlock it.",
-                color = RakizzColors.White.copy(alpha = 0.88f),
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                WhitePill("Parent rule")
-                WhitePill("AI quiz")
-                WhitePill("70% pass")
-            }
-        }
-    }
-}
-
-@Composable
-private fun SyncAppsCard(
-    isLoading: Boolean,
-    onSyncAppsClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBubble(
-                    icon = Icons.Filled.PhoneAndroid,
-                    color = RakizzColors.Primary
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .graphicsLayer {
+                            scaleX = if (focusActive) pulse else 1f
+                            scaleY = if (focusActive) pulse else 1f
+                        }
+                        .clip(RoundedCornerShape(34.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    statusColor,
+                                    colors.primary
+                                )
+                            )
+                        )
+                        .border(3.dp, colors.glassBorder, RoundedCornerShape(34.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Sync phone apps",
-                        color = RakizzColors.TextMain,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
+                        text = "🛡",
+                        fontSize = 48.sp
                     )
+                }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = statusColor.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.34f))
+                ) {
                     Text(
-                        text = "Send this phone's installed apps to the backend so the parent can choose which apps to block.",
-                        color = RakizzColors.TextSecond,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                        text = "● $statusText",
+                        color = statusColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onSyncAppsClick,
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White,
-                    disabledContainerColor = RakizzColors.Primary.copy(alpha = 0.55f),
-                    disabledContentColor = RakizzColors.White
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = RakizzColors.White,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(22.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-                }
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = if (isLoading) "Syncing..." else "Sync Phone Apps",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AccessibilitySettingsCard(
-    onOpenSettingsClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBubble(
-                    icon = Icons.Filled.Settings,
-                    color = RakizzColors.Warning
+                    text = "Protect your study session from distracting apps.",
+                    color = colors.textPrimary,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 31.sp
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "Enable app blocking",
-                        color = RakizzColors.TextMain,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-
-                    Text(
-                        text = "Turn on Rakizz in Accessibility Settings so the app can detect blocked apps during focus time.",
-                        color = RakizzColors.TextSecond,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onOpenSettingsClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Open Accessibility Settings",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuizUnlockInfoCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
-            Text(
-                text = "How unlocking works",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            StepRow(
-                icon = Icons.Filled.Block,
-                title = "Blocked app detected",
-                subtitle = "Rakizz detects the restricted app during focus time."
-            )
-
-            StepRow(
-                icon = Icons.Filled.AutoAwesome,
-                title = "Mixed AI quiz appears",
-                subtitle = "The quiz is generated from the student's uploaded materials."
-            )
-
-            StepRow(
-                icon = Icons.Filled.CheckCircle,
-                title = "70% required",
-                subtitle = "If the student passes, the app is unlocked for a short time."
-            )
-
-            StepRow(
-                icon = Icons.Filled.LockOpen,
-                title = "Failed quiz keeps app blocked",
-                subtitle = "If the student does not pass, Rakizz asks for another quiz."
-            )
-        }
-    }
-}
-
-@Composable
-private fun FocusRuleCard(
-    rule: FocusPolicy,
-    onTryBlockedAppClick: (String) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBubble(
-                    icon = Icons.Filled.Timer,
-                    color = RakizzColors.Warning
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = rule.title,
-                        color = RakizzColors.TextMain,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-
-                    Text(
-                        text = rule.timeText,
-                        color = RakizzColors.Primary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            InfoBox(
-                label = "Blocked apps",
-                value = rule.appsText
-            )
-
-            rule.note?.takeIf { it.isNotBlank() }?.let { note ->
                 Spacer(modifier = Modifier.height(10.dp))
 
-                InfoBox(
-                    label = "Note",
-                    value = note
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    // Safe demo button from inside the app.
-                    onTryBlockedAppClick(rule.packageName)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
                 Text(
-                    text = "Open Unlock Quiz",
-                    fontWeight = FontWeight.ExtraBold
+                    text = "Selected duration: $selectedDuration • $selectedAppsCount of $totalAppsCount apps protected",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 19.sp
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Open the blocked app from the phone launcher to start the unlock flow.",
-                color = RakizzColors.TextMuted,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
 
 @Composable
-private fun InfoBox(
-    label: String,
-    value: String
+private fun FocusMessageCard(
+    message: String,
+    success: Boolean,
+    colors: FocusScreenColors
 ) {
+    val messageColor = if (success) colors.success else colors.warning
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = RakizzColors.CardSoft,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        color = messageColor.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, messageColor.copy(alpha = 0.32f))
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
-        ) {
-            Text(
-                text = label.uppercase(),
-                color = RakizzColors.TextMuted,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = value,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-            )
-        }
-    }
-}
-
-@Composable
-private fun StepRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
-    ) {
-        IconBubble(
-            icon = icon,
-            color = RakizzColors.Primary
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(3.dp))
-
-            Text(
-                text = subtitle,
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(
-    title: String,
-    subtitle: String
-) {
-    Column {
         Text(
-            text = title,
-            color = RakizzColors.TextMain,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = subtitle,
-            color = RakizzColors.TextSecond,
-            style = MaterialTheme.typography.bodyMedium
+            text = message,
+            color = messageColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(14.dp),
+            textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
-private fun MessageCard(
-    title: String,
-    message: String,
-    color: Color,
-    onClick: () -> Unit
+private fun DurationCard(
+    selectedDuration: String,
+    colors: FocusScreenColors,
+    onDurationSelected: (String) -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(22.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = title,
-                color = color,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
+    val durations = listOf("25 min", "45 min", "60 min", "90 min")
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = message,
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun LoadingCard() {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircularProgressIndicator(
-                color = RakizzColors.Primary,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(30.dp)
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Text(
-                text = "Loading focus rules...",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyRulesCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            IconBubble(
-                icon = Icons.Filled.Block,
-                color = RakizzColors.TextMuted
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Session Duration",
+                subtitle = "Choose how long the focus protection should run",
+                colors = colors
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Text(
-                text = "No parent rules yet",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                durations.forEach { duration ->
+                    DurationChip(
+                        text = duration,
+                        selected = selectedDuration == duration,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onDurationSelected(duration) }
+                    )
+                }
+            }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+@Composable
+private fun DurationChip(
+    text: String,
+    selected: Boolean,
+    colors: FocusScreenColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) colors.primary.copy(alpha = 0.18f) else colors.cardAlt,
+        border = BorderStroke(
+            1.dp,
+            if (selected) colors.primary.copy(alpha = 0.45f) else colors.border
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
             Text(
-                text = "Ask the parent account to link this student and create a focus rule.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
+                text = text,
+                color = if (selected) colors.primary else colors.textPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center
             )
         }
@@ -786,76 +530,630 @@ private fun EmptyRulesCard() {
 }
 
 @Composable
-private fun ReviewNoteCard() {
-    Surface(
+private fun FocusControlCard(
+    focusActive: Boolean,
+    colors: FocusScreenColors,
+    onStartClick: () -> Unit,
+    onStopClick: () -> Unit,
+    onUnlockQuizClick: () -> Unit
+) {
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.AccentSoft,
-        shadowElevation = 1.dp,
-        border = BorderStroke(1.dp, RakizzColors.CardBorder)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "How this works",
-                color = RakizzColors.PrimaryDark,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Focus Controls",
+                subtitle = "Start protection or test the quiz unlock flow",
+                colors = colors
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            Text(
-                text = "Parent focus rules define blocked apps and focus time.\nDuring an active rule, opening a blocked app sends the student to an AI quiz unlock flow.\nPassing score is 70%.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+            if (focusActive) {
+                MainGradientButton(
+                    text = "Stop Focus Mode",
+                    colors = colors,
+                    danger = true,
+                    onClick = onStopClick
+                )
+            } else {
+                MainGradientButton(
+                    text = "Start Focus Mode",
+                    colors = colors,
+                    danger = false,
+                    onClick = onStartClick
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SecondaryFocusButton(
+                text = "Open Unlock Quiz Demo",
+                subtitle = "Simulate what happens when a blocked app is opened",
+                iconText = "🧩",
+                colors = colors,
+                onClick = onUnlockQuizClick
             )
         }
     }
 }
 
 @Composable
-private fun IconBubble(
-    icon: ImageVector,
-    color: Color
+private fun QuickNavigationCard(
+    colors: FocusScreenColors,
+    onViewProgressClick: () -> Unit,
+    onGoToMaterialsClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.size(42.dp),
-        shape = CircleShape,
-        color = color.copy(alpha = 0.13f)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Box(
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(22.dp)
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Quick Actions",
+                subtitle = "Move between focus, progress, and learning materials",
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            SecondaryFocusButton(
+                text = "View Progress",
+                subtitle = "Open student progress and focus performance",
+                iconText = "📊",
+                colors = colors,
+                onClick = onViewProgressClick
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SecondaryFocusButton(
+                text = "Go To Materials",
+                subtitle = "Open study materials used for quiz unlock",
+                iconText = "📚",
+                colors = colors,
+                onClick = onGoToMaterialsClick
             )
         }
     }
 }
 
 @Composable
-private fun WhitePill(
-    text: String
+private fun MainGradientButton(
+    text: String,
+    colors: FocusScreenColors,
+    danger: Boolean,
+    onClick: () -> Unit
 ) {
+    val firstColor = if (danger) colors.danger else colors.primary
+    val secondColor = if (danger) Color(0xFFFF6B6B) else colors.accent
+
     Box(
         modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clip(RoundedCornerShape(20.dp))
             .background(
-                color = RakizzColors.White.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(11.dp)
+                Brush.linearGradient(
+                    listOf(
+                        firstColor,
+                        secondColor
+                    )
+                )
             )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = RakizzColors.White,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.ExtraBold
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black
         )
     }
 }
+
+@Composable
+private fun SecondaryFocusButton(
+    text: String,
+    subtitle: String,
+    iconText: String,
+    colors: FocusScreenColors,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardAlt,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(colors.primary.copy(alpha = 0.14f))
+                    .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = iconText, fontSize = 20.sp)
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(
+                    text = text,
+                    color = colors.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Text(
+                    text = subtitle,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Text(
+                text = "›",
+                color = colors.textSecondary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+@Composable
+private fun BlockedAppsCard(
+    apps: List<FocusAppItem>,
+    colors: FocusScreenColors,
+    onManageAppsClick: () -> Unit,
+    onToggleApp: (FocusAppItem) -> Unit,
+    onTryBlockedAppClick: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                SectionTitle(
+                    title = "Protected Apps",
+                    subtitle = "Choose apps that should be blocked during focus mode",
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = colors.primary.copy(alpha = 0.13f),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.28f)),
+                    modifier = Modifier.clickable(onClick = onManageAppsClick)
+                ) {
+                    Text(
+                        text = "Manage",
+                        color = colors.primary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            apps.forEachIndexed { index, app ->
+                FocusAppRow(
+                    app = app,
+                    colors = colors,
+                    onToggleClick = { onToggleApp(app) },
+                    onTryBlockedAppClick = { onTryBlockedAppClick(app.name) }
+                )
+
+                if (index != apps.lastIndex) {
+                    HorizontalDivider(
+                        color = colors.border,
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusAppRow(
+    app: FocusAppItem,
+    colors: FocusScreenColors,
+    onToggleClick: () -> Unit,
+    onTryBlockedAppClick: () -> Unit
+) {
+    val statusColor = if (app.isBlocked) colors.danger else colors.success
+    val statusText = if (app.isBlocked) "Blocked" else "Allowed"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(statusColor.copy(alpha = 0.13f))
+                .border(1.dp, statusColor.copy(alpha = 0.30f), RoundedCornerShape(17.dp))
+                .clickable(onClick = onToggleClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = app.iconText,
+                fontSize = 22.sp
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 13.dp)
+        ) {
+            Text(
+                text = app.name,
+                color = colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = app.description,
+                color = colors.textSecondary,
+                fontSize = 12.sp
+            )
+        }
+
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = statusColor.copy(alpha = 0.13f),
+            border = BorderStroke(1.dp, statusColor.copy(alpha = 0.28f)),
+            modifier = Modifier.clickable(onClick = onTryBlockedAppClick)
+        ) {
+            Text(
+                text = statusText,
+                color = statusColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusRulesCard(colors: FocusScreenColors) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "How Focus Unlock Works",
+                subtitle = "The core Rakizz flow explained simply",
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            FocusRuleStep(
+                number = "1",
+                title = "Parent selects distracting apps",
+                subtitle = "Apps like TikTok, Instagram, YouTube, and games can be protected.",
+                colors = colors
+            )
+
+            RuleDivider(colors)
+
+            FocusRuleStep(
+                number = "2",
+                title = "Student tries to open blocked app",
+                subtitle = "Rakizz checks if focus mode or parent rules are active.",
+                colors = colors
+            )
+
+            RuleDivider(colors)
+
+            FocusRuleStep(
+                number = "3",
+                title = "Quiz unlock is required",
+                subtitle = "The student must pass a quiz generated from study materials to unlock temporary access.",
+                colors = colors
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusRuleStep(
+    number: String,
+    title: String,
+    subtitle: String,
+    colors: FocusScreenColors
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(colors.primary.copy(alpha = 0.16f))
+                .border(1.dp, colors.primary.copy(alpha = 0.34f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = number,
+                color = colors.primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = title,
+                color = colors.textPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = subtitle,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun RuleDivider(colors: FocusScreenColors) {
+    HorizontalDivider(
+        color = colors.border,
+        thickness = 1.dp,
+        modifier = Modifier.padding(start = 17.dp, top = 12.dp, bottom = 12.dp)
+    )
+}
+
+@Composable
+private fun ParentLinkCard(
+    colors: FocusScreenColors,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.primary.copy(alpha = 0.11f),
+        border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.28f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "👨‍👩‍👧",
+                fontSize = 27.sp
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(
+                    text = "Parent Focus Control",
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Text(
+                    text = "Parent can configure schedules, blocked apps, and progress visibility.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+            }
+
+            Text(
+                text = "›",
+                color = colors.primary,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+@Composable
+private fun CheckpointFocusCard(colors: FocusScreenColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.success.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "✓",
+                color = colors.success,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(
+                    text = "Checkpoint explanation",
+                    color = colors.success,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "This screen demonstrates Rakizz's main focus-control idea: selected apps are blocked during study time, and quiz unlock can give temporary access.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    subtitle: String,
+    colors: FocusScreenColors,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = title,
+            color = colors.textPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = subtitle,
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+    }
+}
+
+@Composable
+private fun CircleIconButton(
+    text: String,
+    colors: FocusScreenColors,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(colors.card)
+            .border(1.dp, colors.border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = colors.textPrimary,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+
+@Composable
+private fun focusScreenColors(): FocusScreenColors {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    return if (isDark) {
+        FocusScreenColors(
+            backgroundTop = Color(0xFF020617),
+            backgroundMiddle = Color(0xFF07111F),
+            backgroundBottom = Color(0xFF000000),
+            card = Color(0xE60B1220),
+            cardAlt = Color(0xCC111A2E),
+            border = Color(0x334D9DFF),
+            primary = Color(0xFF2F80FF),
+            accent = Color(0xFF00D4FF),
+            success = Color(0xFF22C55E),
+            warning = Color(0xFFF59E0B),
+            danger = Color(0xFFEF4444),
+            textPrimary = Color.White,
+            textSecondary = Color(0xFF94A3B8),
+            glassBorder = Color(0x66FFFFFF)
+        )
+    } else {
+        FocusScreenColors(
+            backgroundTop = Color(0xFFF8FBFF),
+            backgroundMiddle = Color(0xFFEAF4FF),
+            backgroundBottom = Color(0xFFFFFFFF),
+            card = Color(0xFFFFFFFF),
+            cardAlt = Color(0xFFF1F7FF),
+            border = Color(0x263B82F6),
+            primary = Color(0xFF2563EB),
+            accent = Color(0xFF06B6D4),
+            success = Color(0xFF16A34A),
+            warning = Color(0xFFD97706),
+            danger = Color(0xFFDC2626),
+            textPrimary = Color(0xFF0F172A),
+            textSecondary = Color(0xFF64748B),
+            glassBorder = Color(0xFFFFFFFF)
+        )
+    }
+}
+
+private data class FocusAppItem(
+    val id: String,
+    val name: String,
+    val description: String,
+    val iconText: String,
+    val isBlocked: Boolean
+)
+
+private data class FocusScreenColors(
+    val backgroundTop: Color,
+    val backgroundMiddle: Color,
+    val backgroundBottom: Color,
+    val card: Color,
+    val cardAlt: Color,
+    val border: Color,
+    val primary: Color,
+    val accent: Color,
+    val success: Color,
+    val warning: Color,
+    val danger: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val glassBorder: Color
+)

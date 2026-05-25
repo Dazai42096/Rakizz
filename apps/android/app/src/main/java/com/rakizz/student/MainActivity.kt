@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import com.rakizz.student.presentation.navigation.RakizzNavHost
 import com.rakizz.student.presentation.theme.RakizzColors
 import com.rakizz.student.presentation.theme.RakizzTheme
+import com.rakizz.student.presentation.theme.RakizzThemeController
+import com.rakizz.student.presentation.theme.RakizzThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -32,7 +34,14 @@ class MainActivity : ComponentActivity() {
         readUnlockIntent(intent)
 
         setContent {
-            RakizzTheme {
+            // This line is important:
+            // reading the mode here makes the whole app recompose when the button changes theme.
+            val currentThemeMode = RakizzThemeController.mode
+            val isDarkTheme = currentThemeMode == RakizzThemeMode.DARK
+
+            RakizzTheme(
+                darkTheme = isDarkTheme
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = RakizzColors.Background

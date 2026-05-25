@@ -1,762 +1,1138 @@
 ﻿package com.rakizz.student.presentation.quizzes.list
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.rakizz.student.domain.model.Quiz
-import com.rakizz.student.presentation.common.UiState
-import com.rakizz.student.presentation.theme.RakizzColors
+import androidx.navigation.NavController
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun QuizzesScreen(
-    onNavigateToDetail: (String) -> Unit,
+    navController: NavController? = null,
+    viewModel: Any? = null,
+    onBackClick: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
+    onNavigateToDetail: (String) -> Unit = {},
+    onQuizClick: (String) -> Unit = {},
+    onQuizSelected: (String) -> Unit = {},
+    onOpenQuizClick: (String) -> Unit = {},
+    onOpenQuizDetailClick: (String) -> Unit = {},
+    onStartQuizClick: (String) -> Unit = {},
+    onNavigateToQuizDetail: (String) -> Unit = {},
+    onGenerateQuizClick: () -> Unit = {},
+    onCreateQuizClick: () -> Unit = {},
+    onNewQuizClick: () -> Unit = {},
+    onOpenQuizSetupClick: () -> Unit = {},
+    onNavigateToQuizSetup: () -> Unit = {},
+    onMaterialsClick: () -> Unit = {},
+    onGoToMaterialsClick: () -> Unit = {},
+    onOpenMaterialsClick: () -> Unit = {},
     onOpenHome: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenFocus: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
-    viewModel: QuizzesViewModel = hiltViewModel()
+    onRefreshClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val colors = quizzesScreenColors()
 
-    Scaffold(
-        containerColor = RakizzColors.Background,
-        bottomBar = {
-            QuizzesBottomBar(
+    var selectedFilter by remember { mutableStateOf(QuizFilter.ALL) }
+    var message by remember { mutableStateOf("") }
+
+    val quizzes = remember {
+        mutableStateListOf(
+            QuizItem(
+                id = "quiz-1",
+                title = "AI Generated Quiz",
+                materialTitle = "Software Engineering Notes",
+                questionCount = 15,
+                accuracy = 91,
+                difficulty = QuizDifficulty.MEDIUM,
+                status = QuizStatus.READY,
+                lastActivity = "Today"
+            ),
+            QuizItem(
+                id = "quiz-2",
+                title = "Database Practice Quiz",
+                materialTitle = "PostgreSQL and SQLAlchemy",
+                questionCount = 12,
+                accuracy = 86,
+                difficulty = QuizDifficulty.HARD,
+                status = QuizStatus.IN_PROGRESS,
+                lastActivity = "Yesterday"
+            ),
+            QuizItem(
+                id = "quiz-3",
+                title = "Focus Unlock Training",
+                materialTitle = "Graduation Project Documentation",
+                questionCount = 10,
+                accuracy = 100,
+                difficulty = QuizDifficulty.EASY,
+                status = QuizStatus.COMPLETED,
+                lastActivity = "May 24"
+            ),
+            QuizItem(
+                id = "quiz-4",
+                title = "Android Compose Review",
+                materialTitle = "Kotlin UI Materials",
+                questionCount = 20,
+                accuracy = 78,
+                difficulty = QuizDifficulty.MEDIUM,
+                status = QuizStatus.READY,
+                lastActivity = "May 23"
+            )
+        )
+    }
+
+    val filteredQuizzes = when (selectedFilter) {
+        QuizFilter.ALL -> quizzes
+        QuizFilter.READY -> quizzes.filter { it.status == QuizStatus.READY }
+        QuizFilter.IN_PROGRESS -> quizzes.filter { it.status == QuizStatus.IN_PROGRESS }
+        QuizFilter.COMPLETED -> quizzes.filter { it.status == QuizStatus.COMPLETED }
+    }
+
+    val completedCount = quizzes.count { it.status == QuizStatus.COMPLETED }
+    val readyCount = quizzes.count { it.status == QuizStatus.READY }
+    val averageAccuracy = if (quizzes.isNotEmpty()) {
+        quizzes.sumOf { it.accuracy } / quizzes.size
+    } else {
+        0
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "quizzes_animation")
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "quizzes_glow"
+    )
+
+    fun goBack() {
+        if (navController != null) {
+            navController.popBackStack()
+        } else {
+            onBackClick()
+            onNavigateBack()
+        }
+    }
+
+    fun openQuiz(quizId: String) {
+        onQuizClick(quizId)
+        onQuizSelected(quizId)
+        onOpenQuizClick(quizId)
+        onOpenQuizDetailClick(quizId)
+        onStartQuizClick(quizId)
+        onNavigateToQuizDetail(quizId)
+        onNavigateToDetail(quizId)
+    }
+
+    fun openQuizSetup() {
+        onGenerateQuizClick()
+        onCreateQuizClick()
+        onNewQuizClick()
+        onOpenQuizSetupClick()
+        onNavigateToQuizSetup()
+    }
+
+    fun openMaterials() {
+        onMaterialsClick()
+        onGoToMaterialsClick()
+        onOpenMaterialsClick()
+        onOpenLibrary()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        colors.backgroundTop,
+                        colors.backgroundMiddle,
+                        colors.backgroundBottom
+                    )
+                )
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 90.dp, y = (-120).dp)
+                .graphicsLayer {
+                    scaleX = glowScale
+                    scaleY = glowScale
+                    alpha = 0.85f
+                }
+                .background(
+                    brush = Brush.radialGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.42f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(WindowInsets.statusBars.asPaddingValues())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(modifier = Modifier.height(18.dp))
+
+            QuizzesTopBar(
+                colors = colors,
+                onBackClick = { goBack() },
+                onRefreshClick = {
+                    message = "Quizzes refreshed for demo."
+                    onRefreshClick()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            QuizHeroCard(
+                averageAccuracy = averageAccuracy,
+                totalQuizzes = quizzes.size,
+                readyCount = readyCount,
+                completedCount = completedCount,
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AnimatedVisibility(visible = message.isNotEmpty()) {
+                QuizMessageCard(
+                    message = message,
+                    colors = colors
+                )
+            }
+
+            if (message.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                QuizSummaryCard(
+                    title = "Ready",
+                    value = readyCount.toString(),
+                    subtitle = "to solve",
+                    iconText = "🧩",
+                    mainColor = colors.primary,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+
+                QuizSummaryCard(
+                    title = "Accuracy",
+                    value = "$averageAccuracy%",
+                    subtitle = "average",
+                    iconText = "🎯",
+                    mainColor = colors.success,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+
+                QuizSummaryCard(
+                    title = "Done",
+                    value = completedCount.toString(),
+                    subtitle = "completed",
+                    iconText = "✓",
+                    mainColor = colors.accent,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            QuizActionCard(
+                colors = colors,
+                onGenerateQuizClick = { openQuizSetup() },
+                onMaterialsClick = { openMaterials() }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FilterCard(
+                selectedFilter = selectedFilter,
+                colors = colors,
+                onFilterSelected = { selectedFilter = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            QuizzesSection(
+                title = "Quiz Library",
+                subtitle = "Generated quizzes from uploaded materials",
+                quizzes = filteredQuizzes,
+                colors = colors,
+                emptyText = "No quizzes found for this filter.",
+                onQuizClick = { quiz -> openQuiz(quiz.id) }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            QuizNavigationCard(
+                colors = colors,
                 onOpenHome = onOpenHome,
-                onOpenLibrary = onOpenLibrary,
+                onOpenLibrary = { openMaterials() },
                 onOpenFocus = onOpenFocus,
                 onOpenProfile = onOpenProfile
             )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            RakizzColors.Background,
-                            RakizzColors.BackgroundSoft
-                        )
-                    )
-                )
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .statusBarsPadding(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 14.dp,
-                bottom = 110.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                QuizzesHeader()
-            }
 
-            item {
-                AiQuizInfoCard()
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            when (val state = uiState) {
-                is UiState.Loading -> {
-                    item {
-                        SectionTitle(
-                            title = "Generated quizzes",
-                            subtitle = "Loading your saved AI quizzes..."
-                        )
-                    }
+            QuizFlowExplanationCard(colors = colors)
 
-                    items(4) {
-                        LoadingQuizCard()
-                    }
-                }
-
-                is UiState.Empty -> {
-                    item {
-                        SectionTitle(
-                            title = "Generated quizzes",
-                            subtitle = "No quizzes generated yet"
-                        )
-                    }
-
-                    item {
-                        EmptyQuizzesCard(
-                            onOpenLibrary = onOpenLibrary
-                        )
-                    }
-                }
-
-                is UiState.Error -> {
-                    item {
-                        SectionTitle(
-                            title = "Generated quizzes",
-                            subtitle = "Something went wrong"
-                        )
-                    }
-
-                    item {
-                        ErrorCard(
-                            message = state.message,
-                            onRetryClick = {
-                                viewModel.loadQuizzes()
-                            }
-                        )
-                    }
-                }
-
-                is UiState.Success -> {
-                    item {
-                        QuizSummaryCard(
-                            quizzes = state.data
-                        )
-                    }
-
-                    item {
-                        SectionTitle(
-                            title = "Generated quizzes",
-                            subtitle = "${state.data.size} saved quiz item(s)"
-                        )
-                    }
-
-                    if (state.data.isEmpty()) {
-                        item {
-                            EmptyQuizzesCard(
-                                onOpenLibrary = onOpenLibrary
-                            )
-                        }
-                    } else {
-                        items(
-                            items = state.data,
-                            key = { quiz -> quiz.id }
-                        ) { quiz ->
-                            QuizListCard(
-                                quiz = quiz,
-                                onClick = {
-                                    onNavigateToDetail(quiz.id)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun QuizzesHeader() {
-    Column {
-        Text(
-            text = "AI Quizzes",
-            color = RakizzColors.TextMain,
-            fontSize = 29.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = "Review quizzes generated from uploaded study materials.",
-            color = RakizzColors.TextSecond,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun AiQuizInfoCard() {
-    Surface(
+private fun QuizzesTopBar(
+    colors: QuizzesScreenColors,
+    onBackClick: () -> Unit,
+    onRefreshClick: () -> Unit
+) {
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Primary,
-        shadowElevation = 3.dp
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        CircleIconButton("←", colors, onBackClick)
+
         Column(
             modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        ) {
+            Text(
+                text = "AI Quizzes",
+                color = colors.textPrimary,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = "Practice from your uploaded study materials",
+                color = colors.textSecondary,
+                fontSize = 13.sp
+            )
+        }
+
+        CircleIconButton("↻", colors, onRefreshClick)
+    }
+}
+
+@Composable
+private fun QuizHeroCard(
+    averageAccuracy: Int,
+    totalQuizzes: Int,
+    readyCount: Int,
+    completedCount: Int,
+    colors: QuizzesScreenColors
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(34.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            RakizzColors.Primary,
-                            RakizzColors.PrimaryDark
+                            colors.primary.copy(alpha = 0.30f),
+                            colors.card,
+                            colors.cardAlt
                         )
                     )
                 )
-                .padding(20.dp)
+                .padding(22.dp)
         ) {
-            Text(
-                text = "Mixed AI quiz generation",
-                color = RakizzColors.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Column {
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = colors.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
+                ) {
+                    Text(
+                        text = "● AI Quiz Engine",
+                        color = colors.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Rakizz reads uploaded materials and generates a mixed quiz with easy, medium, and hard questions together.",
-                color = RakizzColors.White.copy(alpha = 0.88f),
-                fontSize = 14.sp,
-                lineHeight = 21.sp
-            )
+                Text(
+                    text = "Turn materials into smart practice sessions.",
+                    color = colors.textPrimary,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 31.sp
+                )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                LightPill("Source based")
-                LightPill("20 questions")
-                LightPill("70% pass")
+                Text(
+                    text = "$totalQuizzes quizzes available • $readyCount ready • $completedCount completed • $averageAccuracy% average accuracy",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                AccuracyProgressBar(averageAccuracy, colors)
             }
         }
     }
 }
 
 @Composable
-private fun LightPill(
-    text: String
+private fun AccuracyProgressBar(
+    progress: Int,
+    colors: QuizzesScreenColors
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(11.dp))
-            .background(com.rakizz.student.presentation.theme.RakizzColors.White.copy(alpha = 0.15f))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Learning accuracy",
+                color = colors.textPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$progress%",
+                color = colors.success,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(100.dp))
+                .background(colors.track)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(colors.success, colors.accent)
+                        )
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuizMessageCard(
+    message: String,
+    colors: QuizzesScreenColors
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.success.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
     ) {
         Text(
-            text = text,
-            color = RakizzColors.White,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold
+            text = message,
+            color = colors.success,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(14.dp),
+            textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
 private fun QuizSummaryCard(
-    quizzes: List<Quiz>
+    title: String,
+    value: String,
+    subtitle: String,
+    iconText: String,
+    mainColor: Color,
+    colors: QuizzesScreenColors,
+    modifier: Modifier = Modifier
 ) {
-    val totalQuestions = quizzes.sumOf { it.totalQuestions }
-    val attempted = quizzes.count { it.score != null }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.cardAlt),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Row(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.CardBorder,
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = quizzes.size.toString(),
-                label = "Quizzes"
-            )
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(mainColor.copy(alpha = 0.16f))
+                    .border(1.dp, mainColor.copy(alpha = 0.30f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = iconText, fontSize = 18.sp)
+            }
 
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = totalQuestions.toString(),
-                label = "Questions"
-            )
+            Spacer(modifier = Modifier.height(10.dp))
 
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = attempted.toString(),
-                label = "Attempted"
+            Text(text = value, color = mainColor, fontSize = 21.sp, fontWeight = FontWeight.Black)
+            Text(text = title, color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = subtitle, color = colors.textSecondary, fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
+private fun QuizActionCard(
+    colors: QuizzesScreenColors,
+    onGenerateQuizClick: () -> Unit,
+    onMaterialsClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle("Quick Quiz Actions", "Generate a quiz or open materials first", colors)
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            MainGradientButton("Generate New Quiz", colors, onGenerateQuizClick)
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SecondaryQuizButton(
+                text = "Open Materials Library",
+                subtitle = "Choose a material before generating a quiz",
+                iconText = "📚",
+                colors = colors,
+                onClick = onMaterialsClick
             )
         }
     }
 }
 
 @Composable
-private fun SummaryItem(
-    modifier: Modifier,
-    value: String,
-    label: String
+private fun FilterCard(
+    selectedFilter: QuizFilter,
+    colors: QuizzesScreenColors,
+    onFilterSelected: (QuizFilter) -> Unit
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle("Filter Quizzes", "Show quizzes by learning status", colors)
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                QuizFilter.entries.forEach { filter ->
+                    FilterChip(
+                        filter = filter,
+                        selected = selectedFilter == filter,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onFilterSelected(filter) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(
+    filter: QuizFilter,
+    selected: Boolean,
+    colors: QuizzesScreenColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) colors.primary.copy(alpha = 0.18f) else colors.cardAlt,
+        border = BorderStroke(
+            1.dp,
+            if (selected) colors.primary.copy(alpha = 0.45f) else colors.border
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = filter.label,
+                color = if (selected) colors.primary else colors.textPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuizzesSection(
+    title: String,
+    subtitle: String,
+    quizzes: List<QuizItem>,
+    colors: QuizzesScreenColors,
+    emptyText: String,
+    onQuizClick: (QuizItem) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(title, subtitle, colors)
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (quizzes.isEmpty()) {
+                EmptyQuizBox(emptyText, colors)
+            } else {
+                quizzes.forEachIndexed { index, quiz ->
+                    QuizCard(
+                        quiz = quiz,
+                        colors = colors,
+                        onClick = { onQuizClick(quiz) }
+                    )
+
+                    if (index != quizzes.lastIndex) {
+                        HorizontalDivider(
+                            color = colors.border,
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuizCard(
+    quiz: QuizItem,
+    colors: QuizzesScreenColors,
+    onClick: () -> Unit
+) {
+    val statusColor = when (quiz.status) {
+        QuizStatus.READY -> colors.primary
+        QuizStatus.IN_PROGRESS -> colors.warning
+        QuizStatus.COMPLETED -> colors.success
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(statusColor.copy(alpha = 0.15f))
+                .border(1.dp, statusColor.copy(alpha = 0.32f), RoundedCornerShape(18.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "🧠", fontSize = 23.sp)
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 13.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = quiz.materialTitle,
+                    color = statusColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f)
+                )
+
+                StatusPill(quiz.status.label, statusColor)
+            }
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = quiz.title,
+                color = colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "${quiz.questionCount} questions • ${quiz.difficulty.label} • ${quiz.lastActivity}",
+                color = colors.textSecondary,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            MiniAccuracyBar(quiz.accuracy, statusColor, colors)
+        }
+    }
+}
+
+@Composable
+private fun QuizNavigationCard(
+    colors: QuizzesScreenColors,
+    onOpenHome: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenFocus: () -> Unit,
+    onOpenProfile: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle("Quick Navigation", "Move to other important Rakizz screens", colors)
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            SecondaryQuizButton("Home Dashboard", "Return to the main student dashboard", "⌂", colors, onOpenHome)
+            Spacer(modifier = Modifier.height(10.dp))
+            SecondaryQuizButton("Materials Library", "Open uploaded materials used by AI quizzes", "📚", colors, onOpenLibrary)
+            Spacer(modifier = Modifier.height(10.dp))
+            SecondaryQuizButton("Focus Shield", "Open focus mode and quiz unlock flow", "🛡", colors, onOpenFocus)
+            Spacer(modifier = Modifier.height(10.dp))
+            SecondaryQuizButton("Student Profile", "Open account and pair code settings", "👤", colors, onOpenProfile)
+        }
+    }
+}
+
+@Composable
+private fun MiniAccuracyBar(
+    progress: Int,
+    color: Color,
+    colors: QuizzesScreenColors
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(100.dp))
+            .background(colors.track)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
+                .height(8.dp)
+                .clip(RoundedCornerShape(100.dp))
+                .background(color)
+        )
+    }
+}
+
+@Composable
+private fun StatusPill(
+    text: String,
+    color: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(100.dp),
+        color = color.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.28f))
     ) {
         Text(
-            text = value,
-            color = RakizzColors.Primary,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold
+            text = text,
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(3.dp))
-
+@Composable
+private fun EmptyQuizBox(
+    text: String,
+    colors: QuizzesScreenColors
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardAlt,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
         Text(
-            text = label,
-            color = RakizzColors.TextSecond,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
+            text = text,
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(18.dp)
         )
+    }
+}
+
+@Composable
+private fun QuizFlowExplanationCard(colors: QuizzesScreenColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.success.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "✓",
+                color = colors.success,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(
+                    text = "Checkpoint explanation",
+                    color = colors.success,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "This screen shows the quiz repository. Quizzes are generated from uploaded materials and can be used for practice or focus unlock.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainGradientButton(
+    text: String,
+    colors: QuizzesScreenColors,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(colors.primary, colors.accent)
+                )
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+
+@Composable
+private fun SecondaryQuizButton(
+    text: String,
+    subtitle: String,
+    iconText: String,
+    colors: QuizzesScreenColors,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardAlt,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(colors.primary.copy(alpha = 0.14f))
+                    .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = iconText, fontSize = 20.sp)
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(
+                    text = text,
+                    color = colors.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                Text(
+                    text = subtitle,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Text(
+                text = "›",
+                color = colors.textSecondary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
     }
 }
 
 @Composable
 private fun SectionTitle(
     title: String,
-    subtitle: String
+    subtitle: String,
+    colors: QuizzesScreenColors
 ) {
     Column {
         Text(
             text = title,
-            color = RakizzColors.TextMain,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold
+            color = colors.textPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Text(
             text = subtitle,
-            color = RakizzColors.TextSecond,
-            fontSize = 14.sp
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp
         )
     }
 }
 
 @Composable
-private fun QuizListCard(
-    quiz: Quiz,
-    onClick: () -> Unit
-) {
-    val label = quizLabel(quiz.totalQuestions)
-    val accent = quizAccent(quiz.totalQuestions)
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.CardBorder,
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.13f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "AI",
-                        color = accent,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = label,
-                        color = RakizzColors.TextMain,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Generated from uploaded material",
-                        color = RakizzColors.TextSecond,
-                        fontSize = 13.sp
-                    )
-                }
-
-                Text(
-                    text = "Open",
-                    color = RakizzColors.Primary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SmallPill(
-                    text = "${quiz.totalQuestions} questions",
-                    color = accent
-                )
-
-                SmallPill(
-                    text = scoreText(quiz),
-                    color = if (quiz.score != null) {
-                        RakizzColors.Success
-                    } else {
-                        RakizzColors.TextSecond
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SmallPill(
+private fun CircleIconButton(
     text: String,
-    color: Color
+    colors: QuizzesScreenColors,
+    onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 9.dp, vertical = 5.dp)
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(colors.card)
+            .border(1.dp, colors.border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = color,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold
+            color = colors.textPrimary,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Black
         )
     }
 }
 
 @Composable
-private fun EmptyQuizzesCard(
-    onOpenLibrary: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.CardBorder,
-                    shape = RoundedCornerShape(26.dp)
-                )
-                .padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "No quizzes yet",
-                color = RakizzColors.TextMain,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+private fun quizzesScreenColors(): QuizzesScreenColors {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Open a material from the Library and generate your first mixed AI quiz.",
-                color = RakizzColors.TextSecond,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onOpenLibrary,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Go to Library",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ErrorCard(
-    message: String,
-    onRetryClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.Error.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(18.dp)
-        ) {
-            Text(
-                text = "Could not load quizzes",
-                color = RakizzColors.Error,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = message,
-                color = RakizzColors.TextSecond,
-                fontSize = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Button(
-                onClick = onRetryClick,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Try Again",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingQuizCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = RakizzColors.CardBorder,
-                    shape = RoundedCornerShape(22.dp)
-                )
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircularProgressIndicator(
-                color = RakizzColors.Primary,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(30.dp)
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Text(
-                text = "Loading quizzes...",
-                color = RakizzColors.TextSecond,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuizzesBottomBar(
-    onOpenHome: () -> Unit,
-    onOpenLibrary: () -> Unit,
-    onOpenFocus: () -> Unit,
-    onOpenProfile: () -> Unit
-) {
-    Surface(
-        color = RakizzColors.Card,
-        shadowElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .border(1.dp, RakizzColors.CardBorder)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                label = "Home",
-                selected = false,
-                onClick = onOpenHome
-            )
-
-            BottomNavItem(
-                label = "Library",
-                selected = false,
-                onClick = onOpenLibrary
-            )
-
-            BottomNavItem(
-                label = "Quizzes",
-                selected = true,
-                onClick = {}
-            )
-
-            BottomNavItem(
-                label = "Focus",
-                selected = false,
-                onClick = onOpenFocus
-            )
-
-            BottomNavItem(
-                label = "Profile",
-                selected = false,
-                onClick = onOpenProfile
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val textColor = if (selected) {
-        RakizzColors.Primary
+    return if (isDark) {
+        QuizzesScreenColors(
+            backgroundTop = Color(0xFF020617),
+            backgroundMiddle = Color(0xFF07111F),
+            backgroundBottom = Color(0xFF000000),
+            card = Color(0xE60B1220),
+            cardAlt = Color(0xCC111A2E),
+            track = Color(0x6623344F),
+            border = Color(0x334D9DFF),
+            primary = Color(0xFF2F80FF),
+            accent = Color(0xFF00D4FF),
+            success = Color(0xFF22C55E),
+            warning = Color(0xFFF59E0B),
+            textPrimary = Color.White,
+            textSecondary = Color(0xFF94A3B8)
+        )
     } else {
-        RakizzColors.TextMuted
-    }
-
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable {
-                onClick()
-            }
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(if (selected) 8.dp else 6.dp)
-                .clip(CircleShape)
-                .background(textColor)
-        )
-
-        Spacer(modifier = Modifier.height(5.dp))
-
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 11.sp,
-            fontWeight = if (selected) {
-                FontWeight.ExtraBold
-            } else {
-                FontWeight.Bold
-            }
+        QuizzesScreenColors(
+            backgroundTop = Color(0xFFF8FBFF),
+            backgroundMiddle = Color(0xFFEAF4FF),
+            backgroundBottom = Color(0xFFFFFFFF),
+            card = Color(0xFFFFFFFF),
+            cardAlt = Color(0xFFF1F7FF),
+            track = Color(0xFFE2E8F0),
+            border = Color(0x263B82F6),
+            primary = Color(0xFF2563EB),
+            accent = Color(0xFF06B6D4),
+            success = Color(0xFF16A34A),
+            warning = Color(0xFFD97706),
+            textPrimary = Color(0xFF0F172A),
+            textSecondary = Color(0xFF64748B)
         )
     }
 }
 
-private fun quizLabel(
-    count: Int
-): String {
-    return when {
-        count >= 20 -> "Mixed AI Quiz"
-        count >= 10 -> "AI Quiz"
-        else -> "Saved Quiz"
-    }
+private enum class QuizFilter(val label: String) {
+    ALL("All"),
+    READY("Ready"),
+    IN_PROGRESS("Active"),
+    COMPLETED("Done")
 }
 
-private fun quizAccent(
-    count: Int
-): Color {
-    return when {
-        count >= 20 -> RakizzColors.Primary
-        count >= 10 -> RakizzColors.Warning
-        else -> RakizzColors.TextSecond
-    }
+private enum class QuizDifficulty(val label: String) {
+    EASY("Easy"),
+    MEDIUM("Medium"),
+    HARD("Hard")
 }
 
-private fun scoreText(
-    quiz: Quiz
-): String {
-    val score = quiz.score
-
-    return if (score == null) {
-        "Not attempted"
-    } else {
-        "Score $score%"
-    }
+private enum class QuizStatus(val label: String) {
+    READY("Ready"),
+    IN_PROGRESS("Active"),
+    COMPLETED("Done")
 }
+
+private data class QuizItem(
+    val id: String,
+    val title: String,
+    val materialTitle: String,
+    val questionCount: Int,
+    val accuracy: Int,
+    val difficulty: QuizDifficulty,
+    val status: QuizStatus,
+    val lastActivity: String
+)
+
+private data class QuizzesScreenColors(
+    val backgroundTop: Color,
+    val backgroundMiddle: Color,
+    val backgroundBottom: Color,
+    val card: Color,
+    val cardAlt: Color,
+    val track: Color,
+    val border: Color,
+    val primary: Color,
+    val accent: Color,
+    val success: Color,
+    val warning: Color,
+    val textPrimary: Color,
+    val textSecondary: Color
+)

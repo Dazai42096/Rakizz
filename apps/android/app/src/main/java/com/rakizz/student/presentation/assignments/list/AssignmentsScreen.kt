@@ -1,567 +1,861 @@
 package com.rakizz.student.presentation.assignments.list
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.HourglassBottom
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import com.rakizz.student.domain.model.Assignment
-import com.rakizz.student.presentation.navigation.NavRoutes
-import com.rakizz.student.presentation.theme.RakizzColors
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 
 @Composable
 fun AssignmentsScreen(
-    navController: NavController,
-    viewModel: AssignmentsViewModel = hiltViewModel()
+    navController: NavController? = null,
+    onBackClick: () -> Unit = {},
+    onAddAssignmentClick: () -> Unit = {},
+    onAddClick: () -> Unit = {},
+    onAssignmentClick: (String) -> Unit = {},
+    onOpenAssignmentClick: (String) -> Unit = {},
+    onRefreshClick: () -> Unit = {}
 ) {
-    val snackbarHostState = remember {
-        SnackbarHostState()
+    val colors = assignmentsScreenColors()
+
+    // Static demo data for checkpoint.
+    // Later this can be replaced with ViewModel/API data.
+    val assignments = remember {
+        mutableStateListOf(
+            AssignmentUiItem(
+                id = "1",
+                title = "AI Quiz Generation Report",
+                subject = "Graduation Project",
+                description = "Prepare a short explanation about how materials are converted into MCQ quizzes.",
+                dueLabel = "Today",
+                status = AssignmentStatus.DUE_SOON,
+                progress = 78
+            ),
+            AssignmentUiItem(
+                id = "2",
+                title = "Database Mapping Review",
+                subject = "Backend",
+                description = "Check users, materials, quizzes, assignments, and parent-student links.",
+                dueLabel = "Tomorrow",
+                status = AssignmentStatus.IN_PROGRESS,
+                progress = 55
+            ),
+            AssignmentUiItem(
+                id = "3",
+                title = "Functional Test Cases",
+                subject = "Documentation",
+                description = "Review passed test cases for the main Rakizz functional requirements.",
+                dueLabel = "May 28",
+                status = AssignmentStatus.IN_PROGRESS,
+                progress = 40
+            ),
+            AssignmentUiItem(
+                id = "4",
+                title = "Quiz Unlock Flow Demo",
+                subject = "Focus Mode",
+                description = "Practice explaining how a blocked app can be unlocked after passing a quiz.",
+                dueLabel = "Completed",
+                status = AssignmentStatus.COMPLETED,
+                progress = 100
+            ),
+            AssignmentUiItem(
+                id = "5",
+                title = "Material Upload Demo",
+                subject = "Android",
+                description = "Show the upload and material preview flow in the mobile app.",
+                dueLabel = "Completed",
+                status = AssignmentStatus.COMPLETED,
+                progress = 100
+            )
+        )
     }
 
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val savedStateHandle = currentBackStackEntry?.savedStateHandle
+    val completedCount = assignments.count { it.status == AssignmentStatus.COMPLETED }
+    val dueSoonCount = assignments.count { it.status == AssignmentStatus.DUE_SOON }
+    val activeCount = assignments.count { it.status == AssignmentStatus.IN_PROGRESS }
 
-    val assignmentCreatedFlow = savedStateHandle?.getStateFlow(
-        key = "assignment_created",
-        initialValue = false
-    )
-
-    val assignmentCreated = assignmentCreatedFlow
-        ?.collectAsState()
-        ?.value ?: false
-
-    val assignmentSaveMessageFlow = savedStateHandle?.getStateFlow<String?>(
-        key = "assignment_save_message",
-        initialValue = null
-    )
-
-    val assignmentSaveMessage = assignmentSaveMessageFlow
-        ?.collectAsState()
-        ?.value
-
-    LaunchedEffect(assignmentCreated) {
-        if (assignmentCreated) {
-            // reload after adding a new assignment
-            viewModel.loadAssignments(showBlockingLoader = false)
-            savedStateHandle?.set("assignment_created", false)
-        }
+    val overallProgress = if (assignments.isNotEmpty()) {
+        assignments.sumOf { it.progress } / assignments.size
+    } else {
+        0
     }
 
-    LaunchedEffect(assignmentSaveMessage) {
-        val message = assignmentSaveMessage?.trim().orEmpty()
-
-        if (message.isNotEmpty()) {
-            snackbarHostState.showSnackbar(message)
-            savedStateHandle?.set("assignment_save_message", null)
-        }
-    }
-
-    AssignmentsScreenContent(
-        navController = navController,
-        snackbarHostState = snackbarHostState,
-        viewModel = viewModel
+    val infiniteTransition = rememberInfiniteTransition(label = "assignments_animation")
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "assignments_glow"
     )
-}
 
-@Composable
-private fun AssignmentsScreenContent(
-    navController: NavController,
-    snackbarHostState: SnackbarHostState,
-    viewModel: AssignmentsViewModel
-) {
-    val uiState by viewModel.uiState.collectAsState()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        colors.backgroundTop,
+                        colors.backgroundMiddle,
+                        colors.backgroundBottom
+                    )
+                )
+            )
+    ) {
+        // Soft animated background glow.
+        Box(
+            modifier = Modifier
+                .size(260.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 90.dp, y = (-110).dp)
+                .graphicsLayer {
+                    scaleX = glowScale
+                    scaleY = glowScale
+                    alpha = 0.85f
+                }
+                .background(
+                    brush = Brush.radialGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.38f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
 
-    Scaffold(
-        containerColor = RakizzColors.Background,
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    navController.navigate(NavRoutes.AddAssignment.route)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(WindowInsets.statusBars.asPaddingValues())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(modifier = Modifier.height(18.dp))
+
+            AssignmentsTopBar(
+                colors = colors,
+                onBackClick = {
+                    if (navController != null) {
+                        navController.popBackStack()
+                    } else {
+                        onBackClick()
+                    }
                 },
-                containerColor = RakizzColors.Primary,
-                contentColor = RakizzColors.White,
-                shape = RoundedCornerShape(20.dp)
+                onRefreshClick = onRefreshClick
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            AssignmentsHeroCard(
+                overallProgress = overallProgress,
+                completedCount = completedCount,
+                totalCount = assignments.size,
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "Add assignment"
+                AssignmentSummaryCard(
+                    title = "Due Soon",
+                    value = dueSoonCount.toString(),
+                    subtitle = "needs attention",
+                    iconText = "⚠",
+                    mainColor = colors.warning,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+
+                AssignmentSummaryCard(
+                    title = "Active",
+                    value = activeCount.toString(),
+                    subtitle = "in progress",
+                    iconText = "⏳",
+                    mainColor = colors.primary,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
+                )
+
+                AssignmentSummaryCard(
+                    title = "Done",
+                    value = completedCount.toString(),
+                    subtitle = "completed",
+                    iconText = "✓",
+                    mainColor = colors.success,
+                    colors = colors,
+                    modifier = Modifier.weight(1f)
                 )
             }
-        },
-        bottomBar = {
-            AssignmentsBottomBar(
-                onOpenHome = {
-                    navController.navigate(NavRoutes.Home.route) {
-                        launchSingleTop = true
-                    }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AddAssignmentButton(
+                colors = colors,
+                onClick = {
+                    onAddAssignmentClick()
+                    onAddClick()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AssignmentsSection(
+                title = "Needs Attention",
+                subtitle = "Assignments with close deadlines",
+                assignments = assignments.filter { it.status == AssignmentStatus.DUE_SOON },
+                emptyText = "No urgent assignments right now.",
+                colors = colors,
+                onAssignmentClick = {
+                    onAssignmentClick(it.id)
+                    onOpenAssignmentClick(it.id)
                 },
-                onOpenLibrary = {
-                    navController.navigate(NavRoutes.MaterialsList.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenQuizzes = {
-                    navController.navigate(NavRoutes.QuizzesList.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenFocus = {
-                    navController.navigate(NavRoutes.Focus.route) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenProfile = {
-                    navController.navigate(NavRoutes.Profile.route) {
-                        launchSingleTop = true
+                onToggleComplete = { selected ->
+                    val index = assignments.indexOfFirst { it.id == selected.id }
+                    if (index != -1) {
+                        assignments[index] = selected.copy(
+                            status = AssignmentStatus.COMPLETED,
+                            dueLabel = "Completed",
+                            progress = 100
+                        )
                     }
                 }
             )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            RakizzColors.Background,
-                            RakizzColors.BackgroundSoft
-                        )
-                    )
-                )
-                .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .statusBarsPadding(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 14.dp,
-                bottom = 110.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                TopBar(
-                    onRefreshClick = {
-                        viewModel.loadAssignments()
-                    }
-                )
-            }
 
-            item {
-                AssignmentsMainCard(
-                    onAddClick = {
-                        navController.navigate(NavRoutes.AddAssignment.route)
-                    }
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            item {
-                AssignmentSummaryCard(
-                    assignments = uiState.assignments
-                )
-            }
-
-            item {
-                SectionTitle(
-                    title = "Homework list",
-                    subtitle = if (uiState.assignments.isEmpty()) {
-                        "No assignments saved yet"
-                    } else {
-                        "${uiState.assignments.size} assignment(s) saved"
-                    }
-                )
-            }
-
-            when {
-                uiState.isLoading && uiState.assignments.isEmpty() -> {
-                    items(4) {
-                        LoadingAssignmentCard()
-                    }
-                }
-
-                uiState.errorMessage != null && uiState.assignments.isEmpty() -> {
-                    item {
-                        ErrorCard(
-                            message = uiState.errorMessage,
-                            onRetry = {
-                                viewModel.loadAssignments()
-                            }
+            AssignmentsSection(
+                title = "In Progress",
+                subtitle = "Current study tasks and homework",
+                assignments = assignments.filter { it.status == AssignmentStatus.IN_PROGRESS },
+                emptyText = "No active assignments.",
+                colors = colors,
+                onAssignmentClick = {
+                    onAssignmentClick(it.id)
+                    onOpenAssignmentClick(it.id)
+                },
+                onToggleComplete = { selected ->
+                    val index = assignments.indexOfFirst { it.id == selected.id }
+                    if (index != -1) {
+                        assignments[index] = selected.copy(
+                            status = AssignmentStatus.COMPLETED,
+                            dueLabel = "Completed",
+                            progress = 100
                         )
                     }
                 }
+            )
 
-                uiState.assignments.isEmpty() -> {
-                    item {
-                        EmptyAssignmentsCard(
-                            onAddClick = {
-                                navController.navigate(NavRoutes.AddAssignment.route)
-                            }
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.height(16.dp))
 
-                else -> {
-                    if (uiState.errorMessage != null) {
-                        item {
-                            MessageCard(
-                                title = "Warning",
-                                message = uiState.errorMessage,
-                                color = RakizzColors.Warning
-                            )
-                        }
-                    }
+            AssignmentsSection(
+                title = "Completed",
+                subtitle = "Finished tasks for progress tracking",
+                assignments = assignments.filter { it.status == AssignmentStatus.COMPLETED },
+                emptyText = "Completed assignments will appear here.",
+                colors = colors,
+                onAssignmentClick = {
+                    onAssignmentClick(it.id)
+                    onOpenAssignmentClick(it.id)
+                },
+                onToggleComplete = {}
+            )
 
-                    items(
-                        items = uiState.assignments,
-                        key = { assignment -> assignment.id }
-                    ) { assignment ->
-                        AssignmentCard(
-                            assignment = assignment
-                        )
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            item {
-                reviewNoteCard()
-            }
+            CheckpointInfoCard(colors = colors)
+
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun TopBar(
+fun AssignmentsListScreen(
+    navController: NavController? = null,
+    onBackClick: () -> Unit = {},
+    onAddAssignmentClick: () -> Unit = {},
+    onAddClick: () -> Unit = {},
+    onAssignmentClick: (String) -> Unit = {},
+    onOpenAssignmentClick: (String) -> Unit = {},
+    onRefreshClick: () -> Unit = {}
+) {
+    AssignmentsScreen(
+        navController = navController,
+        onBackClick = onBackClick,
+        onAddAssignmentClick = onAddAssignmentClick,
+        onAddClick = onAddClick,
+        onAssignmentClick = onAssignmentClick,
+        onOpenAssignmentClick = onOpenAssignmentClick,
+        onRefreshClick = onRefreshClick
+    )
+}
+
+@Composable
+private fun AssignmentsTopBar(
+    colors: AssignmentsScreenColors,
+    onBackClick: () -> Unit,
     onRefreshClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        CircleIconButton(
+            text = "←",
+            colors = colors,
+            onClick = onBackClick
+        )
+
         Column(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
         ) {
             Text(
                 text = "Assignments",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold
+                color = colors.textPrimary,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black
             )
 
             Text(
-                text = "Homework, due dates, and reminders.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
+                text = "Track homework, deadlines, and reminders",
+                color = colors.textSecondary,
+                fontSize = 13.sp
             )
         }
 
-        FilledIconButton(
-            onClick = onRefreshClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = RakizzColors.PrimarySoft,
-                contentColor = RakizzColors.Primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Refresh,
-                contentDescription = "Refresh"
-            )
-        }
+        CircleIconButton(
+            text = "↻",
+            colors = colors,
+            onClick = onRefreshClick
+        )
     }
 }
 
 @Composable
-private fun AssignmentsMainCard(
-    onAddClick: () -> Unit
+private fun AssignmentsHeroCard(
+    overallProgress: Int,
+    completedCount: Int,
+    totalCount: Int,
+    colors: AssignmentsScreenColors
 ) {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = RakizzColors.Primary,
-        shadowElevation = 3.dp
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Column(
+        Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            RakizzColors.Primary,
-                            RakizzColors.PrimaryDark
+                            colors.primary.copy(alpha = 0.28f),
+                            colors.card,
+                            colors.cardAlt
                         )
                     )
                 )
                 .padding(22.dp)
         ) {
-            Text(
-                text = "Stay ahead of deadlines",
-                color = RakizzColors.White,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Column {
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = colors.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
+                ) {
+                    Text(
+                        text = "● Smart task tracker",
+                        color = colors.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Rakizz stores assignments with due date, due time, and local reminder support.",
-                color = RakizzColors.White.copy(alpha = 0.88f),
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onAddClick,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.White,
-                    contentColor = RakizzColors.PrimaryDark
-                )
-            ) {
                 Text(
-                    text = "Add Assignment",
-                    fontWeight = FontWeight.ExtraBold
+                    text = "Stay ahead of every assignment.",
+                    color = colors.textPrimary,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 31.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Rakizz helps students organize homework, follow deadlines, and keep parents informed about progress.",
+                    color = colors.textSecondary,
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                AssignmentProgressBar(
+                    progress = overallProgress,
+                    colors = colors
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "$completedCount of $totalCount assignments completed",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AssignmentProgressBar(
+    progress: Int,
+    colors: AssignmentsScreenColors
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Overall progress",
+                color = colors.textPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = "$progress%",
+                color = colors.primary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(100.dp))
+                .background(colors.track)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                colors.primary,
+                                colors.accent
+                            )
+                        )
+                    )
+            )
         }
     }
 }
 
 @Composable
 private fun AssignmentSummaryCard(
-    assignments: List<Assignment>
+    title: String,
+    value: String,
+    subtitle: String,
+    iconText: String,
+    mainColor: Color,
+    colors: AssignmentsScreenColors,
+    modifier: Modifier = Modifier
 ) {
-    val pendingCount = assignments.count { assignment ->
-        !assignment.isCompleted
-    }
-
-    val completedCount = assignments.count { assignment ->
-        assignment.isCompleted
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.cardAlt),
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = assignments.size.toString(),
-                label = "Total"
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(mainColor.copy(alpha = 0.16f))
+                    .border(1.dp, mainColor.copy(alpha = 0.30f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = iconText,
+                    color = mainColor,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = value,
+                color = mainColor,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black
             )
 
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = pendingCount.toString(),
-                label = "Pending"
+            Text(
+                text = title,
+                color = colors.textPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
 
-            SummaryItem(
-                modifier = Modifier.weight(1f),
-                value = completedCount.toString(),
-                label = "Done"
+            Text(
+                text = subtitle,
+                color = colors.textSecondary,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
 @Composable
-private fun SummaryItem(
-    modifier: Modifier,
-    value: String,
-    label: String
+private fun AddAssignmentButton(
+    colors: AssignmentsScreenColors,
+    onClick: () -> Unit
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        colors.primary,
+                        colors.accent
+                    )
+                )
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = value,
-            color = RakizzColors.Primary,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold
+            text = "+ Add New Assignment",
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(3.dp))
+@Composable
+private fun AssignmentsSection(
+    title: String,
+    subtitle: String,
+    assignments: List<AssignmentUiItem>,
+    emptyText: String,
+    colors: AssignmentsScreenColors,
+    onAssignmentClick: (AssignmentUiItem) -> Unit,
+    onToggleComplete: (AssignmentUiItem) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = title,
+                subtitle = subtitle,
+                colors = colors
+            )
 
-        Text(
-            text = label,
-            color = RakizzColors.TextSecond,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold
-        )
+            Spacer(modifier = Modifier.height(14.dp))
+
+            AnimatedVisibility(visible = assignments.isEmpty()) {
+                EmptyAssignmentsBox(
+                    text = emptyText,
+                    colors = colors
+                )
+            }
+
+            assignments.forEachIndexed { index, assignment ->
+                AssignmentCard(
+                    assignment = assignment,
+                    colors = colors,
+                    onClick = { onAssignmentClick(assignment) },
+                    onToggleComplete = { onToggleComplete(assignment) }
+                )
+
+                if (index != assignments.lastIndex) {
+                    HorizontalDivider(
+                        color = colors.border,
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun AssignmentCard(
-    assignment: Assignment
+    assignment: AssignmentUiItem,
+    colors: AssignmentsScreenColors,
+    onClick: () -> Unit,
+    onToggleComplete: () -> Unit
 ) {
-    val statusColor = if (assignment.isCompleted) {
-        RakizzColors.Success
-    } else {
-        RakizzColors.Warning
+    val statusColor = when (assignment.status) {
+        AssignmentStatus.DUE_SOON -> colors.warning
+        AssignmentStatus.IN_PROGRESS -> colors.primary
+        AssignmentStatus.COMPLETED -> colors.success
+        AssignmentStatus.OVERDUE -> colors.danger
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(statusColor.copy(alpha = 0.15f))
+                .border(1.dp, statusColor.copy(alpha = 0.32f), RoundedCornerShape(17.dp))
+                .clickable(onClick = onToggleComplete),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBubble(
-                    icon = if (assignment.isCompleted) {
-                        Icons.Filled.CheckCircle
-                    } else {
-                        Icons.Filled.HourglassBottom
-                    },
+            Text(
+                text = if (assignment.status == AssignmentStatus.COMPLETED) "✓" else "○",
+                color = statusColor,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 13.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = assignment.subject,
+                    color = statusColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f)
+                )
+
+                StatusPill(
+                    text = assignment.dueLabel,
                     color = statusColor
                 )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = assignment.title,
-                        color = RakizzColors.TextMain,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Text(
-                        text = if (assignment.isCompleted) {
-                            "Completed"
-                        } else {
-                            "Pending"
-                        },
-                        color = statusColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
 
-            if (assignment.description.isNotBlank()) {
-                InfoBox(
-                    label = "Description",
-                    value = assignment.description
-                )
-            }
+            Spacer(modifier = Modifier.height(5.dp))
 
-            InfoBox(
-                label = "Due date",
-                value = assignment.dueAtDisplay
+            Text(
+                text = assignment.title,
+                color = colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = assignment.description,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            MiniProgressBar(
+                progress = assignment.progress,
+                color = statusColor,
+                colors = colors
             )
         }
     }
 }
 
 @Composable
-private fun InfoBox(
-    label: String,
-    value: String
+private fun StatusPill(
+    text: String,
+    color: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(100.dp),
+        color = color.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.28f))
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun MiniProgressBar(
+    progress: Int,
+    color: Color,
+    colors: AssignmentsScreenColors
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(100.dp))
+            .background(colors.track)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
+                .height(8.dp)
+                .clip(RoundedCornerShape(100.dp))
+                .background(color)
+        )
+    }
+}
+
+@Composable
+private fun EmptyAssignmentsBox(
+    text: String,
+    colors: AssignmentsScreenColors
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = RakizzColors.CardSoft,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
+        shape = RoundedCornerShape(20.dp),
+        color = colors.cardAlt,
+        border = BorderStroke(1.dp, colors.border)
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
+        Text(
+            text = text,
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(18.dp)
+        )
+    }
+}
+
+@Composable
+private fun CheckpointInfoCard(colors: AssignmentsScreenColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.success.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
         ) {
             Text(
-                text = label.uppercase(),
-                color = RakizzColors.TextMuted,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.ExtraBold
+                text = "✓",
+                color = colors.success,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
             )
 
-            Spacer(modifier = Modifier.height(5.dp))
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(
+                    text = "Checkpoint explanation",
+                    color = colors.success,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
 
-            Text(
-                text = value,
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "This screen supports the requirement for tracking, organizing, and reminding students about homework and deadlines.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
         }
     }
 }
@@ -569,318 +863,122 @@ private fun InfoBox(
 @Composable
 private fun SectionTitle(
     title: String,
-    subtitle: String
+    subtitle: String,
+    colors: AssignmentsScreenColors
 ) {
     Column {
         Text(
             text = title,
-            color = RakizzColors.TextMain,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold
+            color = colors.textPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Text(
             text = subtitle,
-            color = RakizzColors.TextSecond,
-            style = MaterialTheme.typography.bodyMedium
+            color = colors.textSecondary,
+            fontSize = 12.sp
         )
     }
 }
 
 @Composable
-private fun EmptyAssignmentsCard(
-    onAddClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            IconBubble(
-                icon = Icons.Filled.Assignment,
-                color = RakizzColors.Primary
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = "No assignments yet",
-                color = RakizzColors.TextMain,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Add your homework with a due date and Rakizz will save it for later.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onAddClick,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Add Assignment",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingAssignmentCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircularProgressIndicator(
-                color = RakizzColors.Primary,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(30.dp)
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Text(
-                text = "Loading assignments...",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun ErrorCard(
-    message: String?,
-    onRetry: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.Error.copy(alpha = 0.35f))
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Could not load assignments",
-                color = RakizzColors.Error,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = message ?: "Try again.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onRetry,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RakizzColors.Primary,
-                    contentColor = RakizzColors.White
-                )
-            ) {
-                Text(
-                    text = "Retry",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MessageCard(
-    title: String,
-    message: String?,
-    color: Color
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = RakizzColors.Card,
-        shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.35f))
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = title,
-                color = color,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = message ?: "",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun reviewNoteCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = RakizzColors.PrimarySoft,
-        shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RakizzColors.CardBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "How this works",
-                color = RakizzColors.PrimaryDark,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "This screen proves that Rakizz tracks homework and deadlines. When an assignment is saved, it persists in the backend and can also trigger a local reminder on the device.",
-                color = RakizzColors.TextSecond,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-            )
-        }
-    }
-}
-
-@Composable
-private fun IconBubble(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color
-) {
-    Surface(
-        modifier = Modifier.size(42.dp),
-        shape = CircleShape,
-        color = color.copy(alpha = 0.13f)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun AssignmentsBottomBar(
-    onOpenHome: () -> Unit,
-    onOpenLibrary: () -> Unit,
-    onOpenQuizzes: () -> Unit,
-    onOpenFocus: () -> Unit,
-    onOpenProfile: () -> Unit
-) {
-    Surface(
-        color = RakizzColors.Card,
-        shadowElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .border(1.dp, RakizzColors.CardBorder)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomItem("Home", false, onOpenHome)
-            BottomItem("Library", false, onOpenLibrary)
-            BottomItem("Quizzes", false, onOpenQuizzes)
-            BottomItem("Focus", false, onOpenFocus)
-            BottomItem("Profile", false, onOpenProfile)
-        }
-    }
-}
-
-@Composable
-private fun BottomItem(
-    label: String,
-    selected: Boolean,
+private fun CircleIconButton(
+    text: String,
+    colors: AssignmentsScreenColors,
     onClick: () -> Unit
 ) {
-    val textColor = if (selected) {
-        RakizzColors.Primary
-    } else {
-        RakizzColors.TextMuted
-    }
-
-    Column(
+    Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable {
-                onClick()
-            }
-            .padding(horizontal = 9.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(colors.card)
+            .border(1.dp, colors.border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(if (selected) 8.dp else 6.dp)
-                .clip(CircleShape)
-                .background(textColor)
-        )
-
-        Spacer(modifier = Modifier.height(5.dp))
-
         Text(
-            text = label,
-            color = textColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold
+            text = text,
+            color = colors.textPrimary,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Black
         )
     }
 }
+
+@Composable
+private fun assignmentsScreenColors(): AssignmentsScreenColors {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    return if (isDark) {
+        AssignmentsScreenColors(
+            backgroundTop = Color(0xFF020617),
+            backgroundMiddle = Color(0xFF07111F),
+            backgroundBottom = Color(0xFF000000),
+            card = Color(0xE60B1220),
+            cardAlt = Color(0xCC111A2E),
+            track = Color(0x6623344F),
+            border = Color(0x334D9DFF),
+            primary = Color(0xFF2F80FF),
+            accent = Color(0xFF00D4FF),
+            success = Color(0xFF22C55E),
+            warning = Color(0xFFF59E0B),
+            danger = Color(0xFFEF4444),
+            textPrimary = Color.White,
+            textSecondary = Color(0xFF94A3B8)
+        )
+    } else {
+        AssignmentsScreenColors(
+            backgroundTop = Color(0xFFF8FBFF),
+            backgroundMiddle = Color(0xFFEAF4FF),
+            backgroundBottom = Color(0xFFFFFFFF),
+            card = Color(0xFFFFFFFF),
+            cardAlt = Color(0xFFF1F7FF),
+            track = Color(0xFFE2E8F0),
+            border = Color(0x263B82F6),
+            primary = Color(0xFF2563EB),
+            accent = Color(0xFF06B6D4),
+            success = Color(0xFF16A34A),
+            warning = Color(0xFFD97706),
+            danger = Color(0xFFDC2626),
+            textPrimary = Color(0xFF0F172A),
+            textSecondary = Color(0xFF64748B)
+        )
+    }
+}
+
+private enum class AssignmentStatus {
+    DUE_SOON,
+    IN_PROGRESS,
+    COMPLETED,
+    OVERDUE
+}
+
+private data class AssignmentUiItem(
+    val id: String,
+    val title: String,
+    val subject: String,
+    val description: String,
+    val dueLabel: String,
+    val status: AssignmentStatus,
+    val progress: Int
+)
+
+private data class AssignmentsScreenColors(
+    val backgroundTop: Color,
+    val backgroundMiddle: Color,
+    val backgroundBottom: Color,
+    val card: Color,
+    val cardAlt: Color,
+    val track: Color,
+    val border: Color,
+    val primary: Color,
+    val accent: Color,
+    val success: Color,
+    val warning: Color,
+    val danger: Color,
+    val textPrimary: Color,
+    val textSecondary: Color
+)
