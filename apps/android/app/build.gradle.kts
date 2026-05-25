@@ -25,7 +25,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"https://rakizz.onrender.com/\"")
         }
         release {
             isMinifyEnabled = true
@@ -33,7 +33,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"https://api.rakizz.com/\"")
+            buildConfigField("String", "BASE_URL", "\"https://rakizz.onrender.com/\"")
         }
     }
 
@@ -97,3 +97,4 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
+
