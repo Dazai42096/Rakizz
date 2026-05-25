@@ -1,4 +1,4 @@
-package com.rakizz.student.presentation.auth
+﻿package com.rakizz.student.presentation.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -246,23 +246,11 @@ fun LoginScreen(
             SecondaryLoginButton(
                 text = "Create New Account",
                 subtitle = "Student or parent registration",
-                iconText = "＋",
+                iconText = "ï¼‹",
                 colors = colors,
                 onClick = { openSignUpFlow() }
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            SecondaryLoginButton(
-                text = "Browse as Guest",
-                subtitle = "Explore limited app features without syncing data",
-                iconText = "▶",
-                colors = colors,
-                onClick = {
-                    onContinueAsGuestClick()
-                    goHomeAfterLogin("student")
-                }
-            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -353,7 +341,7 @@ private fun LoginHeroCard(colors: LoginScreenColors) {
                     border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
                 ) {
                     Text(
-                        text = "● Secure learning access",
+                        text = "â— Secure learning access",
                         color = colors.success,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -557,7 +545,7 @@ private fun RememberMeChip(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (selected) "✓" else "○",
+                text = if (selected) "âœ“" else "â—‹",
                 color = mainColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black
@@ -689,7 +677,7 @@ private fun SecondaryLoginButton(
             }
 
             Text(
-                text = "›",
+                text = "â€º",
                 color = colors.textSecondary,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black
