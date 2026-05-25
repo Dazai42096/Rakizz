@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.rakizz.student.presentation.common.UiState
 import kotlinx.coroutines.delay
 
 @Suppress("UNUSED_PARAMETER")
@@ -83,6 +86,8 @@ fun LoginScreen(
     onBackClick: () -> Unit = {}
 ) {
     val colors = loginScreenColors()
+    val loginViewModel = viewModel ?: hiltViewModel<LoginViewModel>()
+    val uiState by loginViewModel.uiState.collectAsState()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -120,6 +125,22 @@ fun LoginScreen(
         onOpenHome()
     }
 
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is UiState.Success -> {
+                isError = false
+                message = "Login successful."
+                goHomeAfterLogin(state.data.role)
+            }
+            is UiState.Error -> {
+                isError = true
+                message = state.message
+                loginViewModel.clearError()
+            }
+            else -> Unit
+        }
+    }
+
     fun openSignUpFlow() {
         onSignUpClick()
         onNavigateToSignUp()
@@ -142,11 +163,8 @@ fun LoginScreen(
         }
 
         isError = false
-        message = "Login successful."
-
-        // Default role is student until role-based login is connected.
-        // Later this can be connected to LoginViewModel response role.
-        goHomeAfterLogin("student")
+        message = ""
+        loginViewModel.login(email, password)
     }
 
     Box(
@@ -236,9 +254,9 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             MainLoginButton(
-                text = "Login to Rakizz",
+                text = if (uiState == UiState.Loading) "Logging in..." else "Login to Rakizz",
                 colors = colors,
-                onClick = { submitLogin() }
+                onClick = { if (uiState != UiState.Loading) submitLogin() }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
