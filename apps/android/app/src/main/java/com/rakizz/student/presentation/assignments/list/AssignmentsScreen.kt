@@ -66,14 +66,14 @@ fun AssignmentsScreen(
 ) {
     val colors = assignmentsScreenColors()
 
-    // Static demo data for checkpoint.
+    // Default assignment data.
     // Later this can be replaced with ViewModel/API data.
     val assignments = remember {
         mutableStateListOf(
             AssignmentUiItem(
                 id = "1",
                 title = "AI Quiz Generation Report",
-                subject = "Graduation Project",
+                subject = "Project Work",
                 description = "Prepare a short explanation about how materials are converted into MCQ quizzes.",
                 dueLabel = "Today",
                 status = AssignmentStatus.DUE_SOON,
@@ -99,7 +99,7 @@ fun AssignmentsScreen(
             ),
             AssignmentUiItem(
                 id = "4",
-                title = "Quiz Unlock Flow Demo",
+                title = "Quiz Unlock Flow",
                 subject = "Focus Mode",
                 description = "Practice explaining how a blocked app can be unlocked after passing a quiz.",
                 dueLabel = "Completed",
@@ -108,7 +108,7 @@ fun AssignmentsScreen(
             ),
             AssignmentUiItem(
                 id = "5",
-                title = "Material Upload Demo",
+                title = "Material Upload",
                 subject = "Android",
                 description = "Show the upload and material preview flow in the mobile app.",
                 dueLabel = "Completed",
@@ -317,7 +317,7 @@ fun AssignmentsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            CheckpointInfoCard(colors = colors)
+            InfoCard(colors = colors)
 
             Spacer(modifier = Modifier.height(28.dp))
         }
@@ -821,7 +821,7 @@ private fun EmptyAssignmentsBox(
 }
 
 @Composable
-private fun CheckpointInfoCard(colors: AssignmentsScreenColors) {
+private fun InfoCard(colors: AssignmentsScreenColors) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -841,7 +841,7 @@ private fun CheckpointInfoCard(colors: AssignmentsScreenColors) {
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black

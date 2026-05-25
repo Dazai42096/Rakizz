@@ -1,4 +1,4 @@
-﻿package com.rakizz.student.presentation.quizzes.list
+package com.rakizz.student.presentation.quizzes.list
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -113,7 +113,7 @@ fun QuizzesScreen(
             QuizItem(
                 id = "quiz-3",
                 title = "Focus Unlock Training",
-                materialTitle = "Graduation Project Documentation",
+                materialTitle = "Study Material",
                 questionCount = 10,
                 accuracy = 100,
                 difficulty = QuizDifficulty.EASY,
@@ -241,7 +241,7 @@ fun QuizzesScreen(
                 colors = colors,
                 onBackClick = { goBack() },
                 onRefreshClick = {
-                    message = "Quizzes refreshed for demo."
+                    message = "Quizzes refreshed."
                     onRefreshClick()
                 }
             )
@@ -894,7 +894,7 @@ private fun QuizFlowExplanationCard(colors: QuizzesScreenColors) {
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black

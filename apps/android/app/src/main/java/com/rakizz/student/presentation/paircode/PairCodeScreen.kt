@@ -129,7 +129,7 @@ fun PairCodeScreen(
 
     fun copyCode() {
         isError = false
-        message = "Pair code copied for demo."
+        message = "Pair code copied."
 
         onCopyCodeClick(pairCode)
         onCopyClick(pairCode)
@@ -839,7 +839,7 @@ private fun PairCodeExplanationCard(
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black

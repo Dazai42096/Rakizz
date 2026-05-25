@@ -110,7 +110,7 @@ fun ParentFocusScreen(
             ),
             ParentStudentItem(
                 id = "student-002",
-                name = "Demo Student",
+                name = "Linked Student",
                 grade = "Grade 10",
                 status = "Pending Review",
                 focusScore = 64
@@ -186,14 +186,14 @@ fun ParentFocusScreen(
     }
 
     fun saveRules() {
-        message = "Parent focus rules saved for demo."
+        message = "Parent focus rules saved."
 
         onSaveRulesClick(selectedStudent.id)
         onSavePolicyClick(selectedStudent.id)
     }
 
     fun createSchedule() {
-        message = "Focus schedule created for demo."
+        message = "Focus schedule created."
 
         onCreateScheduleClick(selectedStudent.id)
         onScheduleClick(selectedStudent.id)
@@ -844,7 +844,7 @@ private fun ScheduleCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Focus Schedule",
-                subtitle = "Demo schedule for parent-defined focus periods",
+                subtitle = "Schedule for parent-defined focus periods",
                 colors = colors
             )
 
@@ -1054,7 +1054,7 @@ private fun ParentFocusExplanationCard(colors: ParentFocusColors) {
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black

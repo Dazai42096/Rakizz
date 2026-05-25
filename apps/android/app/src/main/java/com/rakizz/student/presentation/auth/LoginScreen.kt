@@ -144,7 +144,7 @@ fun LoginScreen(
         isError = false
         message = "Login successful."
 
-        // For checkpoint demo, we login as student.
+        // Default role is student until role-based login is connected.
         // Later this can be connected to LoginViewModel response role.
         goHomeAfterLogin("student")
     }
@@ -254,8 +254,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             SecondaryLoginButton(
-                text = "Continue Demo Mode",
-                subtitle = "Open the app quickly for checkpoint presentation",
+                text = "Browse as Guest",
+                subtitle = "Explore limited app features without syncing data",
                 iconText = "▶",
                 colors = colors,
                 onClick = {
@@ -415,7 +415,7 @@ private fun LoginFormCard(
             AuthTextField(
                 label = "Email",
                 value = email,
-                placeholder = "student@rakizz.com",
+                placeholder = "student@email.com",
                 keyboardType = KeyboardType.Email,
                 colors = colors,
                 onValueChange = onEmailChange
@@ -708,7 +708,7 @@ private fun AuthInfoCard(colors: LoginScreenColors) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How Rakizz works",
                 color = colors.primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black
@@ -730,7 +730,7 @@ private fun AuthInfoCard(colors: LoginScreenColors) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "For the checkpoint demo, the Continue Demo Mode button can quickly open the app without waiting for backend authentication.",
+                text = "Sign in to sync your materials, quizzes, assignments, and focus settings securely.",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 18.sp

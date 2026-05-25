@@ -129,7 +129,7 @@ fun FocusScreen(
 
     fun stopFocusSession() {
         focusActive = false
-        message = "Focus mode stopped for demo."
+        message = "Focus mode stopped."
         onStopFocusClick()
         onStopFocus()
     }
@@ -282,7 +282,7 @@ fun FocusScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            CheckpointFocusCard(colors = colors)
+            FocusInfoCard(colors = colors)
 
             Spacer(modifier = Modifier.height(28.dp))
         }
@@ -571,7 +571,7 @@ private fun FocusControlCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             SecondaryFocusButton(
-                text = "Open Unlock Quiz Demo",
+                text = "Open Unlock Quiz",
                 subtitle = "Simulate what happens when a blocked app is opened",
                 iconText = "🧩",
                 colors = colors,
@@ -1003,7 +1003,7 @@ private fun ParentLinkCard(
 }
 
 @Composable
-private fun CheckpointFocusCard(colors: FocusScreenColors) {
+private fun FocusInfoCard(colors: FocusScreenColors) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -1023,7 +1023,7 @@ private fun CheckpointFocusCard(colors: FocusScreenColors) {
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black
@@ -1032,7 +1032,7 @@ private fun CheckpointFocusCard(colors: FocusScreenColors) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "This screen demonstrates Rakizz's main focus-control idea: selected apps are blocked during study time, and quiz unlock can give temporary access.",
+                    text = "Rakizz focus control helps students stay on track: selected apps are blocked during study time, and quiz unlock can give temporary access.",
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                     lineHeight = 18.sp

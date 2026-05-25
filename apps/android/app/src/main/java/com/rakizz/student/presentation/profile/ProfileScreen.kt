@@ -101,7 +101,7 @@ fun ProfileScreen(
     val colors = profileColors()
 
     var fullName by remember { mutableStateOf("Azmi Student") }
-    var email by remember { mutableStateOf("student@rakizz.com") }
+    var email by remember { mutableStateOf("student@email.com") }
     var role by remember { mutableStateOf("Student") }
     var school by remember { mutableStateOf("University of Petra") }
     var level by remember { mutableStateOf("Computer Science") }
@@ -152,7 +152,7 @@ fun ProfileScreen(
         }
 
         isError = false
-        message = "Profile saved for demo."
+        message = "Profile saved."
         editMode = false
 
         onSaveProfileClick()
@@ -231,7 +231,7 @@ fun ProfileScreen(
                 onBackClick = { goBack() },
                 onRefreshClick = {
                     isError = false
-                    message = "Profile refreshed for demo."
+                    message = "Profile refreshed."
                     onRefreshClick()
                 }
             )
@@ -847,7 +847,7 @@ private fun PairCodeCard(
 
             SecondaryProfileButton(
                 text = "Generate New Code",
-                subtitle = "Create a new demo pair code",
+                subtitle = "Create a new pair code",
                 iconText = "↻",
                 colors = colors,
                 onClick = onGeneratePairCodeClick
@@ -1057,7 +1057,7 @@ private fun ProfileExplanationCard(colors: ProfileColors) {
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black

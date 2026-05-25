@@ -577,7 +577,7 @@ private fun RoleExplanationCard(colors: ChooseRoleColors) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How Rakizz works",
                 color = colors.primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black

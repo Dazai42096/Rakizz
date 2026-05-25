@@ -164,7 +164,7 @@ fun StudentSignUpScreen(
         }
 
         isError = false
-        message = "Student account created for demo."
+        message = "Student account created."
 
         // Keep all common callbacks supported for your NavHost.
         onCreateAccountClick()
@@ -526,7 +526,7 @@ private fun StudentAccountFormCard(
             SignUpTextField(
                 label = "Full name",
                 value = fullName,
-                placeholder = "Example: Azmi Ahmad",
+                placeholder = "Full name",
                 keyboardType = KeyboardType.Text,
                 colors = colors,
                 onValueChange = onFullNameChange
@@ -537,7 +537,7 @@ private fun StudentAccountFormCard(
             SignUpTextField(
                 label = "Email",
                 value = email,
-                placeholder = "student@rakizz.com",
+                placeholder = "student@email.com",
                 keyboardType = KeyboardType.Email,
                 colors = colors,
                 onValueChange = onEmailChange
@@ -952,7 +952,7 @@ private fun StudentSignUpExplanationCard(colors: StudentSignUpColors) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How Rakizz works",
                 color = colors.primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black

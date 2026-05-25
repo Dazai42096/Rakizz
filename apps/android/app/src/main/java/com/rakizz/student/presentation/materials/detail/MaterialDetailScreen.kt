@@ -85,7 +85,7 @@ fun MaterialDetailScreen(
     onOpenProfile: () -> Unit = {}
 ) {
     val colors = detailColors()
-    val finalId = materialId ?: id ?: "material-demo-001"
+    val finalId = materialId ?: id ?: "material-preview-001"
 
     var message by remember { mutableStateOf("") }
 
@@ -164,7 +164,7 @@ fun MaterialDetailScreen(
                 }
 
                 CircleButton("↻", colors) {
-                    message = "Material refreshed for demo."
+                    message = "Material refreshed."
                     onRefreshClick()
                 }
             }
@@ -193,12 +193,12 @@ fun MaterialDetailScreen(
                     openQuizSetup()
                 },
                 onPreview = {
-                    message = "Preview opened for demo."
+                    message = "Preview opened."
                     onPreviewClick()
                     onOpenPreviewClick()
                 },
                 onDownload = {
-                    message = "Download clicked for demo."
+                    message = "Download clicked."
                     onDownloadClick()
                 }
             )
@@ -227,7 +227,7 @@ fun MaterialDetailScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             DangerButton(colors = colors) {
-                message = "Delete clicked for demo."
+                message = "Delete clicked."
                 onDeleteClick()
             }
 
@@ -400,7 +400,7 @@ private fun InfoCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Material Information",
-                subtitle = "Simple metadata for checkpoint demo",
+                subtitle = "Simple metadata for app overview",
                 colors = colors
             )
 

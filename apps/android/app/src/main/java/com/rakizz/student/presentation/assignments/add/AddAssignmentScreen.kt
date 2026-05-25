@@ -127,7 +127,7 @@ fun AddAssignmentScreen(
         }
 
         isError = false
-        message = "Assignment saved for demo."
+        message = "Assignment saved."
 
         // These callbacks keep the screen compatible with navigation code.
         onSaveClick()
@@ -439,7 +439,7 @@ private fun AssignmentFormCard(
             FormTextField(
                 label = "Assignment title",
                 value = title,
-                placeholder = "Example: Math worksheet",
+                placeholder = "Math worksheet",
                 colors = colors,
                 onValueChange = onTitleChange
             )
@@ -449,7 +449,7 @@ private fun AssignmentFormCard(
             FormTextField(
                 label = "Subject",
                 value = subject,
-                placeholder = "Example: Mathematics",
+                placeholder = "Mathematics",
                 colors = colors,
                 onValueChange = onSubjectChange
             )

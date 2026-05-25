@@ -170,7 +170,7 @@ fun ParentSignUpScreen(
         }
 
         isError = false
-        message = "Parent account created for demo."
+        message = "Parent account created."
 
         // Keep all common callbacks supported for your NavHost.
         onCreateAccountClick()
@@ -546,7 +546,7 @@ private fun ParentAccountFormCard(
             SignUpTextField(
                 label = "Full name",
                 value = fullName,
-                placeholder = "Example: Parent name",
+                placeholder = "Parent name",
                 keyboardType = KeyboardType.Text,
                 colors = colors,
                 onValueChange = onFullNameChange
@@ -557,7 +557,7 @@ private fun ParentAccountFormCard(
             SignUpTextField(
                 label = "Email",
                 value = email,
-                placeholder = "parent@rakizz.com",
+                placeholder = "parent@email.com",
                 keyboardType = KeyboardType.Email,
                 colors = colors,
                 onValueChange = onEmailChange
@@ -593,7 +593,7 @@ private fun ParentAccountFormCard(
                 SignUpTextField(
                     label = "Pair code",
                     value = pairCode,
-                    placeholder = "RKZ-123-456",
+                    placeholder = "RKZ-XXX-XXX",
                     keyboardType = KeyboardType.Text,
                     colors = colors,
                     modifier = Modifier.weight(1f),
@@ -1004,7 +1004,7 @@ private fun ParentSignUpExplanationCard(colors: ParentSignUpColors) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Checkpoint explanation",
+                text = "How Rakizz works",
                 color = colors.primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black

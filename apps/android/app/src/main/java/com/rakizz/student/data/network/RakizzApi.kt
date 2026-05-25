@@ -142,14 +142,14 @@ interface RakizzApi {
         @Body request: PolicyCreateRequestDto
     ): PolicyDto
 
-    // checkpoint unlock flow:
+    // Unlock flow:
     // checks if the app is blocked now
     @POST("api/v1/unlock/check")
     suspend fun checkBlockedApp(
         @Body request: UnlockCheckRequestDto
     ): UnlockCheckResponseDto
 
-    // checkpoint unlock flow:
+    // Unlock flow:
     // unlocks app after passing quiz
     @POST("api/v1/unlock/grant")
     suspend fun grantUnlock(

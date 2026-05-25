@@ -1,4 +1,4 @@
-﻿package com.rakizz.student.presentation.materials.list
+package com.rakizz.student.presentation.materials.list
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -173,7 +173,7 @@ fun MaterialsScreen(
     }
 
     fun uploadMaterial() {
-        message = "Add material clicked for demo."
+        message = "Add material clicked."
 
         onAddMaterial()
         onAddMaterialClick()
@@ -182,17 +182,17 @@ fun MaterialsScreen(
     }
 
     fun openCameraUpload() {
-        message = "Take photo clicked for demo."
+        message = "Take photo clicked."
         onTakePhoto()
     }
 
     fun openTextNotes() {
-        message = "Write text notes clicked for demo."
+        message = "Write text notes clicked."
         onWriteTextNotes()
     }
 
     fun openAddLink() {
-        message = "Add link clicked for demo."
+        message = "Add link clicked."
         onAddLink()
     }
 
@@ -250,7 +250,7 @@ fun MaterialsScreen(
                 colors = colors,
                 onBackClick = { goBack() },
                 onRefreshClick = {
-                    message = "Materials refreshed for demo."
+                    message = "Materials refreshed."
                     onRefreshClick()
                 }
             )
@@ -716,7 +716,7 @@ private fun MaterialsExplanationCard(colors: MaterialsColors) {
         border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
     ) {
         Text(
-            text = "✓ Checkpoint explanation\nMaterials are the source for AI quiz generation. The flow is: Material → Detail → Quiz Setup → Quiz Detail.",
+            text = "✓ How Rakizz works\nMaterials are the source for AI quiz generation. The flow is: Material → Detail → Quiz Setup → Quiz Detail.",
             color = colors.textSecondary,
             fontSize = 12.sp,
             lineHeight = 18.sp,

@@ -214,7 +214,7 @@ fun StudentProgressScreen(
                 colors = colors,
                 onBackClick = { goBack() },
                 onRefreshClick = {
-                    message = "Progress refreshed for demo."
+                    message = "Progress refreshed."
                     onRefreshClick()
                 }
             )
@@ -730,7 +730,7 @@ private fun OverviewProgressCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Overview",
-                subtitle = "Main progress signals for checkpoint demo",
+                subtitle = "Main progress signals for app overview",
                 colors = colors
             )
 
@@ -1146,7 +1146,7 @@ private fun ProgressExplanationCard(
 
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Checkpoint explanation",
+                    text = "How Rakizz works",
                     color = colors.success,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black
