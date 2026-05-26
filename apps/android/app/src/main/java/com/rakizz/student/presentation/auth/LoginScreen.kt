@@ -1,5 +1,6 @@
 ﻿package com.rakizz.student.presentation.auth
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +53,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,8 +63,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.rakizz.student.presentation.common.UiState
 import kotlinx.coroutines.delay
 
@@ -68,11 +73,7 @@ import kotlinx.coroutines.delay
 fun LoginScreen(
     navController: NavController? = null,
     viewModel: LoginViewModel? = null,
-
-    // NavHost expects a String role here.
-    // Example values: "student" or "parent".
     onLoginSuccess: (String) -> Unit = {},
-
     onLoginClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
     onOpenHome: () -> Unit = {},
@@ -82,9 +83,21 @@ fun LoginScreen(
     onChooseRoleClick: () -> Unit = {},
     onNavigateToChooseRole: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
-    onContinueAsGuestClick: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val prefs = remember {
+        context.getSharedPreferences("rakizz_login_prefs", Context.MODE_PRIVATE)
+    }
+
+    val logoResId = remember {
+        context.resources.getIdentifier(
+            "rakizz_logo",
+            "drawable",
+            context.packageName
+        )
+    }
+
     val colors = loginScreenColors()
     val loginViewModel = viewModel ?: hiltViewModel<LoginViewModel>()
     val uiState by loginViewModel.uiState.collectAsState()
@@ -96,10 +109,18 @@ fun LoginScreen(
     var message by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        val savedEmail = prefs.getString("saved_email", "").orEmpty()
+        if (savedEmail.isNotBlank()) {
+            email = savedEmail
+            rememberMe = true
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "login_animation")
     val glowScale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
+        initialValue = 0.94f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -115,14 +136,7 @@ fun LoginScreen(
     }
 
     fun goHomeAfterLogin(role: String = "student") {
-        onLoginClick()
-
-        // Send role back to RakizzNavHost.
-        // This fixes the ignoreCase error from the build.
         onLoginSuccess(role)
-
-        onNavigateToHome()
-        onOpenHome()
     }
 
     LaunchedEffect(uiState) {
@@ -132,25 +146,25 @@ fun LoginScreen(
                 message = "Login successful."
                 goHomeAfterLogin(state.data.role)
             }
+
             is UiState.Error -> {
                 isError = true
-                message = state.message
+                message = cleanLoginMessage(state.message)
                 loginViewModel.clearError()
             }
+
             else -> Unit
         }
     }
 
     fun openSignUpFlow() {
-        onSignUpClick()
-        onNavigateToSignUp()
         onCreateAccountClick()
-        onChooseRoleClick()
-        onNavigateToChooseRole()
     }
 
     fun submitLogin() {
-        if (email.isBlank()) {
+        val cleanEmail = email.trim().lowercase()
+
+        if (cleanEmail.isBlank()) {
             isError = true
             message = "Please enter your email."
             return
@@ -162,9 +176,19 @@ fun LoginScreen(
             return
         }
 
+        if (rememberMe) {
+            prefs.edit()
+                .putString("saved_email", cleanEmail)
+                .apply()
+        } else {
+            prefs.edit()
+                .remove("saved_email")
+                .apply()
+        }
+
         isError = false
         message = ""
-        loginViewModel.login(email, password)
+        loginViewModel.login(cleanEmail, password)
     }
 
     Box(
@@ -180,7 +204,6 @@ fun LoginScreen(
                 )
             )
     ) {
-        // Animated glass glow.
         Box(
             modifier = Modifier
                 .size(300.dp)
@@ -189,12 +212,12 @@ fun LoginScreen(
                 .graphicsLayer {
                     scaleX = glowScale
                     scaleY = glowScale
-                    alpha = 0.9f
+                    alpha = 0.7f
                 }
                 .background(
                     brush = Brush.radialGradient(
                         listOf(
-                            colors.primary.copy(alpha = 0.42f),
+                            colors.primary.copy(alpha = 0.34f),
                             Color.Transparent
                         )
                     ),
@@ -215,7 +238,7 @@ fun LoginScreen(
 
             LoginLogoSection(
                 colors = colors,
-                glowScale = glowScale
+                logoResId = logoResId
             )
 
             Spacer(modifier = Modifier.height(26.dp))
@@ -256,7 +279,12 @@ fun LoginScreen(
             MainLoginButton(
                 text = if (uiState == UiState.Loading) "Logging in..." else "Login to Rakizz",
                 colors = colors,
-                onClick = { if (uiState != UiState.Loading) submitLogin() }
+                enabled = uiState != UiState.Loading,
+                onClick = {
+                    if (uiState != UiState.Loading) {
+                        submitLogin()
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -264,11 +292,10 @@ fun LoginScreen(
             SecondaryLoginButton(
                 text = "Create New Account",
                 subtitle = "Student or parent registration",
-                iconText = "ï¼‹",
+                actionText = "Open",
                 colors = colors,
                 onClick = { openSignUpFlow() }
             )
-
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -282,34 +309,35 @@ fun LoginScreen(
 @Composable
 private fun LoginLogoSection(
     colors: LoginScreenColors,
-    glowScale: Float
+    logoResId: Int
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(112.dp)
-                .graphicsLayer {
-                    scaleX = glowScale
-                    scaleY = glowScale
-                }
                 .clip(RoundedCornerShape(34.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colors.primary,
-                            colors.accent
-                        )
-                    )
-                )
-                .border(3.dp, colors.glassBorder, RoundedCornerShape(34.dp)),
+                .background(colors.logoBackground)
+                .border(2.dp, colors.glassBorder, RoundedCornerShape(34.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "R",
-                color = Color.White,
-                fontSize = 54.sp,
-                fontWeight = FontWeight.Black
-            )
+            if (logoResId != 0) {
+                Image(
+                    painter = painterResource(id = logoResId),
+                    contentDescription = "Rakizz logo",
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(RoundedCornerShape(24.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Text(
+                    text = "Rakizz",
+                    color = colors.textPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -344,7 +372,7 @@ private fun LoginHeroCard(colors: LoginScreenColors) {
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            colors.primary.copy(alpha = 0.25f),
+                            colors.primary.copy(alpha = 0.20f),
                             colors.card,
                             colors.cardAlt
                         )
@@ -359,7 +387,7 @@ private fun LoginHeroCard(colors: LoginScreenColors) {
                     border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
                 ) {
                     Text(
-                        text = "â— Secure learning access",
+                        text = "Secure learning access",
                         color = colors.success,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -555,21 +583,24 @@ private fun RememberMeChip(
     Surface(
         shape = RoundedCornerShape(100.dp),
         color = mainColor.copy(alpha = 0.13f),
-        border = BorderStroke(1.dp, mainColor.copy(alpha = 0.28f)),
+        border = BorderStroke(1.dp, mainColor.copy(alpha = 0.30f)),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (selected) "âœ“" else "â—‹",
-                color = mainColor,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Black
+            Box(
+                modifier = Modifier
+                    .size(15.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .border(1.dp, mainColor, RoundedCornerShape(5.dp))
+                    .background(
+                        if (selected) mainColor else Color.Transparent
+                    )
             )
 
-            Spacer(modifier = Modifier.size(6.dp))
+            Spacer(modifier = Modifier.size(7.dp))
 
             Text(
                 text = "Remember me",
@@ -610,13 +641,17 @@ private fun LoginMessageCard(
 private fun MainLoginButton(
     text: String,
     colors: LoginScreenColors,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val alpha = if (enabled) 1f else 0.65f
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
             .clip(RoundedCornerShape(20.dp))
+            .graphicsLayer { this.alpha = alpha }
             .background(
                 Brush.linearGradient(
                     listOf(
@@ -625,7 +660,7 @@ private fun MainLoginButton(
                     )
                 )
             )
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -641,7 +676,7 @@ private fun MainLoginButton(
 private fun SecondaryLoginButton(
     text: String,
     subtitle: String,
-    iconText: String,
+    actionText: String,
     colors: LoginScreenColors,
     onClick: () -> Unit
 ) {
@@ -667,9 +702,9 @@ private fun SecondaryLoginButton(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = iconText,
+                    text = "New",
                     color = colors.primary,
-                    fontSize = 20.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Black
                 )
             }
@@ -695,9 +730,9 @@ private fun SecondaryLoginButton(
             }
 
             Text(
-                text = "â€º",
-                color = colors.textSecondary,
-                fontSize = 28.sp,
+                text = actionText,
+                color = colors.primary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -723,7 +758,7 @@ private fun AuthInfoCard(colors: LoginScreenColors) {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "This login screen is the entry point for Rakizz. After login, the student can access materials, AI quizzes, assignments, profile, and focus mode.",
+                text = "After login, students can access materials, AI quizzes, assignments, profile, and focus mode.",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 18.sp
@@ -736,7 +771,7 @@ private fun AuthInfoCard(colors: LoginScreenColors) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Sign in to sync your materials, quizzes, assignments, and focus settings securely.",
+                text = "Sign in to sync your learning content and focus settings securely.",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 18.sp
@@ -770,6 +805,38 @@ private fun SectionTitle(
     }
 }
 
+private fun cleanLoginMessage(message: String): String {
+    val clean = message.lowercase()
+
+    return when {
+        "invalid" in clean ||
+            "incorrect" in clean ||
+            "unauthorized" in clean ||
+            "401" in clean ||
+            "403" in clean -> {
+            "Invalid email or password."
+        }
+
+        "network" in clean ||
+            "timeout" in clean ||
+            "failed to connect" in clean ||
+            "unable to resolve host" in clean -> {
+            "Unable to reach Rakizz server. Check your connection and try again."
+        }
+
+        "500" in clean ||
+            "502" in clean ||
+            "503" in clean ||
+            "504" in clean -> {
+            "Rakizz server is temporarily unavailable. Please try again."
+        }
+
+        else -> {
+            "Login failed. Please check your email and password."
+        }
+    }
+}
+
 @Composable
 private fun loginScreenColors(): LoginScreenColors {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -781,6 +848,7 @@ private fun loginScreenColors(): LoginScreenColors {
             backgroundBottom = Color(0xFF000000),
             card = Color(0xE60B1220),
             cardAlt = Color(0xCC111A2E),
+            logoBackground = Color(0xFF07111F),
             border = Color(0x334D9DFF),
             primary = Color(0xFF2F80FF),
             accent = Color(0xFF00D4FF),
@@ -788,7 +856,7 @@ private fun loginScreenColors(): LoginScreenColors {
             danger = Color(0xFFEF4444),
             textPrimary = Color.White,
             textSecondary = Color(0xFF94A3B8),
-            glassBorder = Color(0x66FFFFFF)
+            glassBorder = Color(0x664D9DFF)
         )
     } else {
         LoginScreenColors(
@@ -797,6 +865,7 @@ private fun loginScreenColors(): LoginScreenColors {
             backgroundBottom = Color(0xFFFFFFFF),
             card = Color(0xFFFFFFFF),
             cardAlt = Color(0xFFF1F7FF),
+            logoBackground = Color(0xFFFFFFFF),
             border = Color(0x263B82F6),
             primary = Color(0xFF2563EB),
             accent = Color(0xFF06B6D4),
@@ -804,7 +873,7 @@ private fun loginScreenColors(): LoginScreenColors {
             danger = Color(0xFFDC2626),
             textPrimary = Color(0xFF0F172A),
             textSecondary = Color(0xFF64748B),
-            glassBorder = Color(0xFFFFFFFF)
+            glassBorder = Color(0x663B82F6)
         )
     }
 }
@@ -815,6 +884,7 @@ private data class LoginScreenColors(
     val backgroundBottom: Color,
     val card: Color,
     val cardAlt: Color,
+    val logoBackground: Color,
     val border: Color,
     val primary: Color,
     val accent: Color,

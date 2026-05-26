@@ -1,5 +1,6 @@
 package com.rakizz.student.presentation.quizzes.list
 
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -37,8 +38,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,13 +55,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rakizz.student.domain.model.Quiz
+import com.rakizz.student.presentation.common.UiState
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun QuizzesScreen(
     navController: NavController? = null,
-    viewModel: Any? = null,
+    viewModel: QuizzesViewModel? = null,
     onBackClick: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     onNavigateToDetail: (String) -> Unit = {},
@@ -84,68 +91,46 @@ fun QuizzesScreen(
     onRefreshClick: () -> Unit = {}
 ) {
     val colors = quizzesScreenColors()
+    val quizzesViewModel = viewModel ?: hiltViewModel()
+    val uiState by quizzesViewModel.uiState.collectAsState()
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     var selectedFilter by remember { mutableStateOf(QuizFilter.ALL) }
     var message by remember { mutableStateOf("") }
 
-    val quizzes = remember {
-        mutableStateListOf(
-            QuizItem(
-                id = "quiz-1",
-                title = "AI Generated Quiz",
-                materialTitle = "Software Engineering Notes",
-                questionCount = 15,
-                accuracy = 91,
-                difficulty = QuizDifficulty.MEDIUM,
-                status = QuizStatus.READY,
-                lastActivity = "Today"
-            ),
-            QuizItem(
-                id = "quiz-2",
-                title = "Database Practice Quiz",
-                materialTitle = "PostgreSQL and SQLAlchemy",
-                questionCount = 12,
-                accuracy = 86,
-                difficulty = QuizDifficulty.HARD,
-                status = QuizStatus.IN_PROGRESS,
-                lastActivity = "Yesterday"
-            ),
-            QuizItem(
-                id = "quiz-3",
-                title = "Focus Unlock Training",
-                materialTitle = "Study Material",
-                questionCount = 10,
-                accuracy = 100,
-                difficulty = QuizDifficulty.EASY,
-                status = QuizStatus.COMPLETED,
-                lastActivity = "May 24"
-            ),
-            QuizItem(
-                id = "quiz-4",
-                title = "Android Compose Review",
-                materialTitle = "Kotlin UI Materials",
-                questionCount = 20,
-                accuracy = 78,
-                difficulty = QuizDifficulty.MEDIUM,
-                status = QuizStatus.READY,
-                lastActivity = "May 23"
-            )
-        )
+    LaunchedEffect(message) {
+        if (message.isNotBlank()) {
+            delay(2200)
+            message = ""
+        }
+    }
+
+    val quizzes = when (val state = uiState) {
+        is UiState.Success -> state.data
+        else -> emptyList()
+    }
+
+    val completedQuizzes = quizzes.filter { it.score != null }
+    val readyQuizzes = quizzes.filter { it.score == null }
+
+    val completedCount = completedQuizzes.size
+    val readyCount = readyQuizzes.size
+    val totalQuizzes = quizzes.size
+
+    val averageAccuracy = if (completedQuizzes.isNotEmpty()) {
+        completedQuizzes
+            .mapNotNull { it.score }
+            .average()
+            .roundToInt()
+            .coerceIn(0, 100)
+    } else {
+        0
     }
 
     val filteredQuizzes = when (selectedFilter) {
         QuizFilter.ALL -> quizzes
-        QuizFilter.READY -> quizzes.filter { it.status == QuizStatus.READY }
-        QuizFilter.IN_PROGRESS -> quizzes.filter { it.status == QuizStatus.IN_PROGRESS }
-        QuizFilter.COMPLETED -> quizzes.filter { it.status == QuizStatus.COMPLETED }
-    }
-
-    val completedCount = quizzes.count { it.status == QuizStatus.COMPLETED }
-    val readyCount = quizzes.count { it.status == QuizStatus.READY }
-    val averageAccuracy = if (quizzes.isNotEmpty()) {
-        quizzes.sumOf { it.accuracy } / quizzes.size
-    } else {
-        0
+        QuizFilter.READY -> readyQuizzes
+        QuizFilter.COMPLETED -> completedQuizzes
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "quizzes_animation")
@@ -161,10 +146,14 @@ fun QuizzesScreen(
 
     fun goBack() {
         if (navController != null) {
-            navController.popBackStack()
+            val popped = navController.popBackStack()
+            if (!popped) {
+                onOpenHome()
+            }
         } else {
             onBackClick()
             onNavigateBack()
+            backDispatcher?.onBackPressed()
         }
     }
 
@@ -178,7 +167,12 @@ fun QuizzesScreen(
         onNavigateToDetail(quizId)
     }
 
-    fun openQuizSetup() {
+    fun openMaterialsForQuizGeneration() {
+        message = "Choose a material before generating a quiz."
+        onMaterialsClick()
+        onGoToMaterialsClick()
+        onOpenMaterialsClick()
+        onOpenLibrary()
         onGenerateQuizClick()
         onCreateQuizClick()
         onNewQuizClick()
@@ -191,6 +185,12 @@ fun QuizzesScreen(
         onGoToMaterialsClick()
         onOpenMaterialsClick()
         onOpenLibrary()
+    }
+
+    fun refreshQuizzes() {
+        message = "Refreshing quizzes..."
+        quizzesViewModel.loadQuizzes()
+        onRefreshClick()
     }
 
     Box(
@@ -240,17 +240,14 @@ fun QuizzesScreen(
             QuizzesTopBar(
                 colors = colors,
                 onBackClick = { goBack() },
-                onRefreshClick = {
-                    message = "Quizzes refreshed."
-                    onRefreshClick()
-                }
+                onRefreshClick = { refreshQuizzes() }
             )
 
             Spacer(modifier = Modifier.height(22.dp))
 
             QuizHeroCard(
                 averageAccuracy = averageAccuracy,
-                totalQuizzes = quizzes.size,
+                totalQuizzes = totalQuizzes,
                 readyCount = readyCount,
                 completedCount = completedCount,
                 colors = colors
@@ -276,8 +273,8 @@ fun QuizzesScreen(
                 QuizSummaryCard(
                     title = "Ready",
                     value = readyCount.toString(),
-                    subtitle = "to solve",
-                    iconText = "🧩",
+                    subtitle = "not solved",
+                    iconText = "Q",
                     mainColor = colors.primary,
                     colors = colors,
                     modifier = Modifier.weight(1f)
@@ -286,8 +283,8 @@ fun QuizzesScreen(
                 QuizSummaryCard(
                     title = "Accuracy",
                     value = "$averageAccuracy%",
-                    subtitle = "average",
-                    iconText = "🎯",
+                    subtitle = "completed only",
+                    iconText = "%",
                     mainColor = colors.success,
                     colors = colors,
                     modifier = Modifier.weight(1f)
@@ -296,8 +293,8 @@ fun QuizzesScreen(
                 QuizSummaryCard(
                     title = "Done",
                     value = completedCount.toString(),
-                    subtitle = "completed",
-                    iconText = "✓",
+                    subtitle = "scored",
+                    iconText = "D",
                     mainColor = colors.accent,
                     colors = colors,
                     modifier = Modifier.weight(1f)
@@ -308,7 +305,7 @@ fun QuizzesScreen(
 
             QuizActionCard(
                 colors = colors,
-                onGenerateQuizClick = { openQuizSetup() },
+                onGenerateQuizClick = { openMaterialsForQuizGeneration() },
                 onMaterialsClick = { openMaterials() }
             )
 
@@ -322,14 +319,41 @@ fun QuizzesScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            QuizzesSection(
-                title = "Quiz Library",
-                subtitle = "Generated quizzes from uploaded materials",
-                quizzes = filteredQuizzes,
-                colors = colors,
-                emptyText = "No quizzes found for this filter.",
-                onQuizClick = { quiz -> openQuiz(quiz.id) }
-            )
+            when (val state = uiState) {
+                UiState.Loading -> {
+                    LoadingQuizCard(colors = colors)
+                }
+
+                UiState.Empty -> {
+                    QuizzesSection(
+                        title = "Quiz Library",
+                        subtitle = "Generated quizzes from uploaded materials",
+                        quizzes = emptyList(),
+                        colors = colors,
+                        emptyText = "No quizzes found yet. Open Materials and generate a quiz first.",
+                        onQuizClick = { quiz -> openQuiz(quiz.id) }
+                    )
+                }
+
+                is UiState.Error -> {
+                    ErrorQuizCard(
+                        message = cleanQuizError(state.message),
+                        colors = colors,
+                        onRetryClick = { quizzesViewModel.loadQuizzes() }
+                    )
+                }
+
+                is UiState.Success -> {
+                    QuizzesSection(
+                        title = "Quiz Library",
+                        subtitle = "Generated quizzes from uploaded materials",
+                        quizzes = filteredQuizzes,
+                        colors = colors,
+                        emptyText = "No quizzes found for this filter.",
+                        onQuizClick = { quiz -> openQuiz(quiz.id) }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -360,7 +384,11 @@ private fun QuizzesTopBar(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircleIconButton("←", colors, onBackClick)
+        CircleIconButton(
+            text = "<",
+            colors = colors,
+            onClick = onBackClick
+        )
 
         Column(
             modifier = Modifier
@@ -377,11 +405,16 @@ private fun QuizzesTopBar(
             Text(
                 text = "Practice from your uploaded study materials",
                 color = colors.textSecondary,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
         }
 
-        CircleIconButton("↻", colors, onRefreshClick)
+        CircleIconButton(
+            text = "R",
+            colors = colors,
+            onClick = onRefreshClick
+        )
     }
 }
 
@@ -420,7 +453,7 @@ private fun QuizHeroCard(
                     border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
                 ) {
                     Text(
-                        text = "● AI Quiz Engine",
+                        text = "AI Quiz Engine",
                         color = colors.primary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -441,7 +474,7 @@ private fun QuizHeroCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "$totalQuizzes quizzes available • $readyCount ready • $completedCount completed • $averageAccuracy% average accuracy",
+                    text = "$totalQuizzes quizzes available - $readyCount ready - $completedCount completed - $averageAccuracy% average accuracy",
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -552,14 +585,36 @@ private fun QuizSummaryCard(
                     .border(1.dp, mainColor.copy(alpha = 0.30f), RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = iconText, fontSize = 18.sp)
+                Text(
+                    text = iconText,
+                    color = mainColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text(text = value, color = mainColor, fontSize = 21.sp, fontWeight = FontWeight.Black)
-            Text(text = title, color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, color = colors.textSecondary, fontSize = 10.sp)
+            Text(
+                text = value,
+                color = mainColor,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Text(
+                text = title,
+                color = colors.textPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = subtitle,
+                color = colors.textSecondary,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -577,18 +632,26 @@ private fun QuizActionCard(
         border = BorderStroke(1.dp, colors.border)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            SectionTitle("Quick Quiz Actions", "Generate a quiz or open materials first", colors)
+            SectionTitle(
+                title = "Quick Quiz Actions",
+                subtitle = "Choose a material before generating a new quiz",
+                colors = colors
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            MainGradientButton("Generate New Quiz", colors, onGenerateQuizClick)
+            MainGradientButton(
+                text = "Generate New Quiz",
+                colors = colors,
+                onClick = onGenerateQuizClick
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             SecondaryQuizButton(
                 text = "Open Materials Library",
-                subtitle = "Choose a material before generating a quiz",
-                iconText = "📚",
+                subtitle = "Select a material and generate a quiz from it",
+                iconText = "M",
                 colors = colors,
                 onClick = onMaterialsClick
             )
@@ -609,7 +672,11 @@ private fun FilterCard(
         border = BorderStroke(1.dp, colors.border)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            SectionTitle("Filter Quizzes", "Show quizzes by learning status", colors)
+            SectionTitle(
+                title = "Filter Quizzes",
+                subtitle = "Show quizzes by real completion status",
+                colors = colors
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -617,7 +684,7 @@ private fun FilterCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                QuizFilter.entries.forEach { filter ->
+                QuizFilter.values().forEach { filter ->
                     FilterChip(
                         filter = filter,
                         selected = selectedFilter == filter,
@@ -667,10 +734,10 @@ private fun FilterChip(
 private fun QuizzesSection(
     title: String,
     subtitle: String,
-    quizzes: List<QuizItem>,
+    quizzes: List<Quiz>,
     colors: QuizzesScreenColors,
     emptyText: String,
-    onQuizClick: (QuizItem) -> Unit
+    onQuizClick: (Quiz) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -708,14 +775,18 @@ private fun QuizzesSection(
 
 @Composable
 private fun QuizCard(
-    quiz: QuizItem,
+    quiz: Quiz,
     colors: QuizzesScreenColors,
     onClick: () -> Unit
 ) {
-    val statusColor = when (quiz.status) {
-        QuizStatus.READY -> colors.primary
-        QuizStatus.IN_PROGRESS -> colors.warning
-        QuizStatus.COMPLETED -> colors.success
+    val isCompleted = quiz.score != null
+    val statusColor = if (isCompleted) colors.success else colors.primary
+    val statusText = if (isCompleted) "Done" else "Ready"
+    val scoreText = if (isCompleted) "${quiz.score?.coerceIn(0, 100)}%" else "Not solved"
+    val questionText = if (quiz.totalQuestions == 1) {
+        "1 question"
+    } else {
+        "${quiz.totalQuestions} questions"
     }
 
     Row(
@@ -734,7 +805,12 @@ private fun QuizCard(
                 .border(1.dp, statusColor.copy(alpha = 0.32f), RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "🧠", fontSize = 23.sp)
+            Text(
+                text = if (isCompleted) "D" else "Q",
+                color = statusColor,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Black
+            )
         }
 
         Column(
@@ -744,14 +820,14 @@ private fun QuizCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = quiz.materialTitle,
+                    text = materialLabel(quiz.materialId),
                     color = statusColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.weight(1f)
                 )
 
-                StatusPill(quiz.status.label, statusColor)
+                StatusPill(statusText, statusColor)
             }
 
             Spacer(modifier = Modifier.height(5.dp))
@@ -767,14 +843,81 @@ private fun QuizCard(
             Spacer(modifier = Modifier.height(5.dp))
 
             Text(
-                text = "${quiz.questionCount} questions • ${quiz.difficulty.label} • ${quiz.lastActivity}",
+                text = "$questionText - $scoreText",
                 color = colors.textSecondary,
                 fontSize = 12.sp
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            MiniAccuracyBar(quiz.accuracy, statusColor, colors)
+            MiniAccuracyBar(
+                progress = quiz.score ?: 0,
+                color = statusColor,
+                colors = colors
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingQuizCard(colors: QuizzesScreenColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Text(
+            text = "Loading quizzes...",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun ErrorQuizCard(
+    message: String,
+    colors: QuizzesScreenColors,
+    onRetryClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.error.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Could not load quizzes",
+                color = colors.error,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = message,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            MainGradientButton(
+                text = "Try Again",
+                colors = colors,
+                onClick = onRetryClick
+            )
         }
     }
 }
@@ -794,17 +937,51 @@ private fun QuizNavigationCard(
         border = BorderStroke(1.dp, colors.border)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            SectionTitle("Quick Navigation", "Move to other important Rakizz screens", colors)
+            SectionTitle(
+                title = "Quick Navigation",
+                subtitle = "Move to other important Rakizz screens",
+                colors = colors
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            SecondaryQuizButton("Home Dashboard", "Return to the main student dashboard", "⌂", colors, onOpenHome)
+            SecondaryQuizButton(
+                text = "Home Dashboard",
+                subtitle = "Return to the main student dashboard",
+                iconText = "H",
+                colors = colors,
+                onClick = onOpenHome
+            )
+
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryQuizButton("Materials Library", "Open uploaded materials used by AI quizzes", "📚", colors, onOpenLibrary)
+
+            SecondaryQuizButton(
+                text = "Materials Library",
+                subtitle = "Open uploaded materials used by AI quizzes",
+                iconText = "M",
+                colors = colors,
+                onClick = onOpenLibrary
+            )
+
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryQuizButton("Focus Shield", "Open focus mode and quiz unlock flow", "🛡", colors, onOpenFocus)
+
+            SecondaryQuizButton(
+                text = "Focus Mode",
+                subtitle = "Open focus mode and quiz unlock flow",
+                iconText = "F",
+                colors = colors,
+                onClick = onOpenFocus
+            )
+
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryQuizButton("Student Profile", "Open account and pair code settings", "👤", colors, onOpenProfile)
+
+            SecondaryQuizButton(
+                text = "Student Profile",
+                subtitle = "Open account and pair code settings",
+                iconText = "P",
+                colors = colors,
+                onClick = onOpenProfile
+            )
         }
     }
 }
@@ -886,9 +1063,9 @@ private fun QuizFlowExplanationCard(colors: QuizzesScreenColors) {
             verticalAlignment = Alignment.Top
         ) {
             Text(
-                text = "✓",
+                text = "OK",
                 color = colors.success,
-                fontSize = 24.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Black
             )
 
@@ -903,7 +1080,7 @@ private fun QuizFlowExplanationCard(colors: QuizzesScreenColors) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "This screen shows the quiz repository. Quizzes are generated from uploaded materials and can be used for practice or focus unlock.",
+                    text = "This screen shows real stored quizzes from the backend. Ready means not submitted yet. Done means a real score exists.",
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
@@ -970,7 +1147,12 @@ private fun SecondaryQuizButton(
                     .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = iconText, fontSize = 20.sp)
+                Text(
+                    text = iconText,
+                    color = colors.primary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black
+                )
             }
 
             Column(
@@ -994,9 +1176,9 @@ private fun SecondaryQuizButton(
             }
 
             Text(
-                text = "›",
-                color = colors.textSecondary,
-                fontSize = 28.sp,
+                text = "Open",
+                color = colors.primary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -1046,9 +1228,45 @@ private fun CircleIconButton(
         Text(
             text = text,
             color = colors.textPrimary,
-            fontSize = 21.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Black
         )
+    }
+}
+
+private fun materialLabel(materialId: String): String {
+    return if (materialId.isBlank()) {
+        "Uploaded material"
+    } else {
+        "Material ${materialId.take(8)}"
+    }
+}
+
+private fun cleanQuizError(message: String): String {
+    val clean = message.lowercase()
+
+    return when {
+        "401" in clean || "403" in clean || "unauthorized" in clean -> {
+            "Your login session may have expired. Please login again."
+        }
+
+        "network" in clean ||
+            "timeout" in clean ||
+            "failed to connect" in clean ||
+            "unable to resolve host" in clean -> {
+            "Unable to reach Rakizz server. Check your connection and try again."
+        }
+
+        "500" in clean ||
+            "502" in clean ||
+            "503" in clean ||
+            "504" in clean -> {
+            "Rakizz server is temporarily unavailable. Please try again."
+        }
+
+        else -> {
+            "Failed to load quizzes. Please try again."
+        }
     }
 }
 
@@ -1069,6 +1287,7 @@ private fun quizzesScreenColors(): QuizzesScreenColors {
             accent = Color(0xFF00D4FF),
             success = Color(0xFF22C55E),
             warning = Color(0xFFF59E0B),
+            error = Color(0xFFEF4444),
             textPrimary = Color.White,
             textSecondary = Color(0xFF94A3B8)
         )
@@ -1085,6 +1304,7 @@ private fun quizzesScreenColors(): QuizzesScreenColors {
             accent = Color(0xFF06B6D4),
             success = Color(0xFF16A34A),
             warning = Color(0xFFD97706),
+            error = Color(0xFFDC2626),
             textPrimary = Color(0xFF0F172A),
             textSecondary = Color(0xFF64748B)
         )
@@ -1094,32 +1314,8 @@ private fun quizzesScreenColors(): QuizzesScreenColors {
 private enum class QuizFilter(val label: String) {
     ALL("All"),
     READY("Ready"),
-    IN_PROGRESS("Active"),
     COMPLETED("Done")
 }
-
-private enum class QuizDifficulty(val label: String) {
-    EASY("Easy"),
-    MEDIUM("Medium"),
-    HARD("Hard")
-}
-
-private enum class QuizStatus(val label: String) {
-    READY("Ready"),
-    IN_PROGRESS("Active"),
-    COMPLETED("Done")
-}
-
-private data class QuizItem(
-    val id: String,
-    val title: String,
-    val materialTitle: String,
-    val questionCount: Int,
-    val accuracy: Int,
-    val difficulty: QuizDifficulty,
-    val status: QuizStatus,
-    val lastActivity: String
-)
 
 private data class QuizzesScreenColors(
     val backgroundTop: Color,
@@ -1133,6 +1329,7 @@ private data class QuizzesScreenColors(
     val accent: Color,
     val success: Color,
     val warning: Color,
+    val error: Color,
     val textPrimary: Color,
     val textSecondary: Color
 )

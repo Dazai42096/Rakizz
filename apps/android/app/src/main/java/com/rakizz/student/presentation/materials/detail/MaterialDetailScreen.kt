@@ -1,5 +1,10 @@
 package com.rakizz.student.presentation.materials.detail
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,37 +44,39 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rakizz.student.domain.model.Material
+import com.rakizz.student.domain.model.MaterialDownload
+import com.rakizz.student.presentation.common.UiState
+import java.io.File
 import kotlinx.coroutines.delay
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun MaterialDetailScreen(
     navController: NavController? = null,
-    viewModel: Any? = null,
+    viewModel: MaterialDetailViewModel? = null,
 
-    // Material id from navigation
     materialId: String? = null,
     id: String? = null,
 
-    // Back callbacks
     onBackClick: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
 
-    // This fixes RakizzNavHost.kt onDownloadClick
     onDownloadClick: () -> Unit = {},
 
-    // Other material actions
     onPreviewClick: () -> Unit = {},
     onOpenPreviewClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     onRefreshClick: () -> Unit = {},
 
-    // Quiz callbacks
     onGenerateQuizClick: (String) -> Unit = {},
     onCreateQuizClick: () -> Unit = {},
     onStartQuizClick: () -> Unit = {},
@@ -76,7 +84,6 @@ fun MaterialDetailScreen(
     onNavigateToQuizSetup: () -> Unit = {},
     onNavigateToQuizSetupClick: () -> Unit = {},
 
-    // Navigation callbacks
     onOpenMaterials: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenHome: () -> Unit = {},
@@ -85,28 +92,103 @@ fun MaterialDetailScreen(
     onOpenProfile: () -> Unit = {}
 ) {
     val colors = detailColors()
-    val finalId = materialId ?: id ?: "material-preview-001"
+    val context = LocalContext.current
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    val materialDetailViewModel = viewModel ?: hiltViewModel()
+
+    val finalId = materialId ?: id ?: ""
+    val uiState by materialDetailViewModel.uiState.collectAsState()
+    val isWorking by materialDetailViewModel.isWorking.collectAsState()
+    val actionMessage by materialDetailViewModel.actionMessage.collectAsState()
+    val openFileEvent by materialDetailViewModel.openFileEvent.collectAsState()
 
     var message by remember { mutableStateOf("") }
+    var previewText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(finalId) {
+        if (finalId.isNotBlank()) {
+            materialDetailViewModel.loadMaterial(finalId)
+        } else {
+            message = "Material ID is missing."
+        }
+    }
+
+    LaunchedEffect(actionMessage) {
+        val newMessage = actionMessage
+        if (!newMessage.isNullOrBlank()) {
+            message = cleanDetailMessage(newMessage)
+            materialDetailViewModel.clearActionMessage()
+        }
+    }
+
+    LaunchedEffect(openFileEvent) {
+        val download = openFileEvent ?: return@LaunchedEffect
+        val file = File(download.filePath)
+
+        if (!file.exists()) {
+            message = "Downloaded file was not found."
+            materialDetailViewModel.clearOpenFileEvent()
+            return@LaunchedEffect
+        }
+
+        val shouldPreviewInsideApp = download.mimeType.startsWith("text/") ||
+            download.displayName.endsWith(".txt", ignoreCase = true)
+
+        if (shouldPreviewInsideApp) {
+            previewText = file.readTextSafe()
+            message = "Preview loaded."
+        } else {
+            val opened = openDownloadedFile(
+                context = context,
+                download = download
+            )
+
+            message = if (opened) {
+                "Preview opened."
+            } else {
+                "No app found to open this file type."
+            }
+        }
+
+        materialDetailViewModel.clearOpenFileEvent()
+    }
 
     LaunchedEffect(message) {
         if (message.isNotEmpty()) {
-            delay(2200)
+            delay(2600)
             message = ""
         }
     }
 
+    fun currentMaterial(): Material? {
+        return (uiState as? UiState.Success)?.data
+    }
+
     fun goBack() {
         if (navController != null) {
-            navController.popBackStack()
+            val popped = navController.popBackStack()
+            if (!popped) {
+                onOpenMaterials()
+                onOpenLibrary()
+            }
         } else {
             onBackClick()
             onNavigateBack()
+
+            if (backDispatcher != null) {
+                backDispatcher.onBackPressed()
+            } else {
+                onOpenMaterials()
+                onOpenLibrary()
+            }
         }
     }
 
     fun openQuizSetup() {
-        message = "Opening AI Quiz Studio."
+        if (finalId.isBlank()) {
+            message = "Material ID is missing."
+            return
+        }
 
         onGenerateQuizClick(finalId)
         onCreateQuizClick()
@@ -114,6 +196,18 @@ fun MaterialDetailScreen(
         onOpenQuizSetupClick()
         onNavigateToQuizSetup()
         onNavigateToQuizSetupClick()
+    }
+
+    fun previewMaterial() {
+        previewText = null
+        onPreviewClick()
+        onOpenPreviewClick()
+        materialDetailViewModel.previewMaterial()
+    }
+
+    fun downloadMaterial() {
+        onDownloadClick()
+        materialDetailViewModel.downloadMaterial()
     }
 
     Box(
@@ -140,7 +234,7 @@ fun MaterialDetailScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircleButton("←", colors) {
+                CircleButton("<", colors) {
                     goBack()
                 }
 
@@ -159,76 +253,125 @@ fun MaterialDetailScreen(
                     Text(
                         text = "Preview, download, and generate quizzes",
                         color = colors.textSecondary,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
                 }
 
-                CircleButton("↻", colors) {
-                    message = "Material refreshed."
+                CircleButton("R", colors) {
+                    if (finalId.isNotBlank()) {
+                        message = "Refreshing material..."
+                        materialDetailViewModel.loadMaterial(finalId)
+                    }
                     onRefreshClick()
                 }
             }
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            MaterialHeroCard(
-                materialId = finalId,
-                colors = colors
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (message.isNotEmpty()) {
-                MessageCard(
-                    message = message,
-                    colors = colors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            ActionCard(
-                colors = colors,
-                onGenerateQuiz = {
-                    openQuizSetup()
-                },
-                onPreview = {
-                    message = "Preview opened."
-                    onPreviewClick()
-                    onOpenPreviewClick()
-                },
-                onDownload = {
-                    message = "Download clicked."
-                    onDownloadClick()
+            when (val state = uiState) {
+                UiState.Loading -> {
+                    LoadingCard(colors = colors)
                 }
-            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                UiState.Empty -> {
+                    ErrorCard(
+                        title = "Material not found",
+                        message = "This material could not be loaded.",
+                        colors = colors,
+                        onRetryClick = {
+                            if (finalId.isNotBlank()) {
+                                materialDetailViewModel.loadMaterial(finalId)
+                            }
+                        }
+                    )
+                }
 
-            InfoCard(
-                finalId = finalId,
-                colors = colors
-            )
+                is UiState.Error -> {
+                    ErrorCard(
+                        title = "Could not load material",
+                        message = cleanDetailMessage(state.message),
+                        colors = colors,
+                        onRetryClick = {
+                            if (finalId.isNotBlank()) {
+                                materialDetailViewModel.loadMaterial(finalId)
+                            }
+                        }
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                is UiState.Success -> {
+                    MaterialHeroCard(
+                        material = state.data,
+                        colors = colors
+                    )
 
-            NavigationCard(
-                colors = colors,
-                onOpenHome = onOpenHome,
-                onOpenMaterials = {
-                    onOpenMaterials()
-                    onOpenLibrary()
-                },
-                onOpenQuizzes = onOpenQuizzes,
-                onOpenFocus = onOpenFocus,
-                onOpenProfile = onOpenProfile
-            )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    AnimatedVisibility(visible = message.isNotEmpty()) {
+                        MessageCard(
+                            message = message,
+                            colors = colors,
+                            isError = isErrorMessage(message)
+                        )
+                    }
 
-            DangerButton(colors = colors) {
-                message = "Delete clicked."
-                onDeleteClick()
+                    if (message.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    ActionCard(
+                        colors = colors,
+                        isWorking = isWorking,
+                        onGenerateQuiz = {
+                            openQuizSetup()
+                        },
+                        onPreview = {
+                            previewMaterial()
+                        },
+                        onDownload = {
+                            downloadMaterial()
+                        }
+                    )
+
+                    if (!previewText.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        PreviewTextCard(
+                            title = currentMaterial()?.title ?: "Material Preview",
+                            text = previewText.orEmpty(),
+                            colors = colors
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    InfoCard(
+                        material = state.data,
+                        colors = colors
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    NavigationCard(
+                        colors = colors,
+                        onOpenHome = onOpenHome,
+                        onOpenMaterials = {
+                            onOpenMaterials()
+                            onOpenLibrary()
+                        },
+                        onOpenQuizzes = onOpenQuizzes,
+                        onOpenFocus = onOpenFocus,
+                        onOpenProfile = onOpenProfile
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    DangerButton(colors = colors) {
+                        message = "Delete is not connected yet."
+                        onDeleteClick()
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -237,8 +380,73 @@ fun MaterialDetailScreen(
 }
 
 @Composable
+private fun LoadingCard(colors: DetailColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Text(
+            text = "Loading material...",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    title: String,
+    message: String,
+    colors: DetailColors,
+    onRetryClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.danger.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                color = colors.danger,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = message,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            MainButton(
+                text = "Try Again",
+                colors = colors,
+                enabled = true,
+                onClick = onRetryClick
+            )
+        }
+    }
+}
+
+@Composable
 private fun MaterialHeroCard(
-    materialId: String,
+    material: Material,
     colors: DetailColors
 ) {
     Card(
@@ -276,25 +484,28 @@ private fun MaterialHeroCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "📘",
-                    fontSize = 44.sp
+                    text = "M",
+                    color = Color.White,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Study Material",
+                text = material.title.ifBlank { "Study Material" },
                 color = colors.textPrimary,
                 fontSize = 27.sp,
                 fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 32.sp
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "ID: $materialId",
+                text = "ID: ${material.id}",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center
@@ -303,7 +514,9 @@ private fun MaterialHeroCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "This material can be previewed, downloaded, and converted into an AI-generated quiz.",
+                text = material.description.ifBlank {
+                    "This material can be previewed, downloaded, and converted into an AI-generated quiz."
+                },
                 color = colors.textSecondary,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -316,17 +529,20 @@ private fun MaterialHeroCard(
 @Composable
 private fun MessageCard(
     message: String,
-    colors: DetailColors
+    colors: DetailColors,
+    isError: Boolean
 ) {
+    val messageColor = if (isError) colors.danger else colors.success
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = colors.success.copy(alpha = 0.13f),
-        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+        color = messageColor.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, messageColor.copy(alpha = 0.32f))
     ) {
         Text(
             text = message,
-            color = colors.success,
+            color = messageColor,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(14.dp),
@@ -338,6 +554,7 @@ private fun MessageCard(
 @Composable
 private fun ActionCard(
     colors: DetailColors,
+    isWorking: Boolean,
     onGenerateQuiz: () -> Unit,
     onPreview: () -> Unit,
     onDownload: () -> Unit
@@ -360,26 +577,29 @@ private fun ActionCard(
             MainButton(
                 text = "Generate AI Quiz",
                 colors = colors,
+                enabled = !isWorking,
                 onClick = onGenerateQuiz
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             SecondaryButton(
-                text = "Preview Material",
-                subtitle = "Open the file inside the app",
-                icon = "👁",
+                text = if (isWorking) "Preparing Preview..." else "Preview Material",
+                subtitle = "Download and preview this material",
+                icon = "P",
                 colors = colors,
+                enabled = !isWorking,
                 onClick = onPreview
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             SecondaryButton(
-                text = "Download Material",
-                subtitle = "Save or open the material source",
-                icon = "⬇",
+                text = if (isWorking) "Downloading..." else "Download Material",
+                subtitle = "Save this material inside Rakizz",
+                icon = "D",
                 colors = colors,
+                enabled = !isWorking,
                 onClick = onDownload
             )
         }
@@ -387,8 +607,48 @@ private fun ActionCard(
 }
 
 @Composable
+private fun PreviewTextCard(
+    title: String,
+    text: String,
+    colors: DetailColors
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionTitle(
+                title = "Preview",
+                subtitle = title,
+                colors = colors
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = text.take(3000),
+                color = colors.textPrimary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+
+            if (text.length > 3000) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Preview shortened for display.",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun InfoCard(
-    finalId: String,
+    material: Material,
     colors: DetailColors
 ) {
     Card(
@@ -400,16 +660,17 @@ private fun InfoCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Material Information",
-                subtitle = "Simple metadata for app overview",
+                subtitle = "Metadata loaded from backend",
                 colors = colors
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            InfoLine("🆔", "Material ID", finalId, colors)
-            InfoLine("📄", "Type", "Uploaded study file", colors)
-            InfoLine("🧠", "AI Usage", "Can generate MCQ quizzes", colors)
-            InfoLine("🔗", "Flow", "Material → Quiz Setup → Quiz Detail", colors)
+            InfoLine("ID", "Material ID", material.id, colors)
+            InfoLine("Title", "Name", material.title.ifBlank { "Untitled Material" }, colors)
+            InfoLine("Source", "File source", material.url.ifBlank { "Stored in Rakizz backend" }, colors)
+            InfoLine("AI", "AI Usage", "Can generate MCQ quizzes", colors)
+            InfoLine("Flow", "Quiz Flow", "Material -> Quiz Setup -> Quiz Detail", colors)
         }
     }
 }
@@ -423,15 +684,25 @@ private fun InfoLine(
 ) {
     Row(
         modifier = Modifier.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
-        Text(
-            text = icon,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(end = 12.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(colors.primary.copy(alpha = 0.14f))
+                .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = icon,
+                color = colors.primary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
 
-        Column {
+        Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(
                 text = title,
                 color = colors.textSecondary,
@@ -443,7 +714,8 @@ private fun InfoLine(
                 text = value,
                 color = colors.textPrimary,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                lineHeight = 19.sp
             )
         }
     }
@@ -473,15 +745,15 @@ private fun NavigationCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            SecondaryButton("Home Dashboard", "Return to dashboard", "⌂", colors, onOpenHome)
+            SecondaryButton("Home Dashboard", "Return to dashboard", "H", colors, true, onOpenHome)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Materials Library", "Back to all materials", "📚", colors, onOpenMaterials)
+            SecondaryButton("Materials Library", "Back to all materials", "M", colors, true, onOpenMaterials)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("AI Quizzes", "Open quiz list", "🧠", colors, onOpenQuizzes)
+            SecondaryButton("AI Quizzes", "Open quiz list", "Q", colors, true, onOpenQuizzes)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Focus Shield", "Open focus mode", "🛡", colors, onOpenFocus)
+            SecondaryButton("Focus Mode", "Open focus mode", "F", colors, true, onOpenFocus)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Profile", "Open account screen", "👤", colors, onOpenProfile)
+            SecondaryButton("Profile", "Open account screen", "P", colors, true, onOpenProfile)
         }
     }
 }
@@ -501,7 +773,7 @@ private fun DangerButton(
         border = BorderStroke(1.dp, colors.danger.copy(alpha = 0.32f))
     ) {
         Text(
-            text = "🗑  Delete Material",
+            text = "Delete Material",
             color = colors.danger,
             fontSize = 15.sp,
             fontWeight = FontWeight.Black,
@@ -515,8 +787,11 @@ private fun DangerButton(
 private fun MainButton(
     text: String,
     colors: DetailColors,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val alpha = if (enabled) 1f else 0.55f
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -525,12 +800,12 @@ private fun MainButton(
             .background(
                 Brush.linearGradient(
                     listOf(
-                        colors.primary,
-                        colors.accent
+                        colors.primary.copy(alpha = alpha),
+                        colors.accent.copy(alpha = alpha)
                     )
                 )
             )
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -548,28 +823,45 @@ private fun SecondaryButton(
     subtitle: String,
     icon: String,
     colors: DetailColors,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val alpha = if (enabled) 1f else 0.55f
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        color = colors.cardAlt,
+        color = colors.cardAlt.copy(alpha = alpha),
         border = BorderStroke(1.dp, colors.border)
     ) {
         Row(
             modifier = Modifier.padding(15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = icon,
-                fontSize = 22.sp,
-                modifier = Modifier.padding(end = 12.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(colors.primary.copy(alpha = 0.14f))
+                    .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = icon,
+                    color = colors.primary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
                 Text(
                     text = text,
                     color = colors.textPrimary,
@@ -586,9 +878,9 @@ private fun SecondaryButton(
             }
 
             Text(
-                text = "›",
-                color = colors.textSecondary,
-                fontSize = 28.sp,
+                text = "Open",
+                color = colors.primary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -638,10 +930,94 @@ private fun CircleButton(
         Text(
             text = text,
             color = colors.textPrimary,
-            fontSize = 21.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Black
         )
     }
+}
+
+private fun openDownloadedFile(
+    context: android.content.Context,
+    download: MaterialDownload
+): Boolean {
+    return try {
+        val file = File(download.filePath)
+
+        if (!file.exists()) {
+            return false
+        }
+
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, download.mimeType.ifBlank { "application/octet-stream" })
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        context.startActivity(
+            Intent.createChooser(intent, "Open material")
+        )
+
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: Exception) {
+        false
+    }
+}
+
+private fun File.readTextSafe(): String {
+    return try {
+        readText()
+    } catch (_: Exception) {
+        "Could not read text preview for this file."
+    }
+}
+
+private fun cleanDetailMessage(message: String): String {
+    val clean = message.lowercase()
+
+    return when {
+        "401" in clean || "403" in clean || "unauthorized" in clean -> {
+            "Your login session may have expired. Please login again."
+        }
+
+        "network" in clean ||
+            "timeout" in clean ||
+            "failed to connect" in clean ||
+            "unable to resolve host" in clean -> {
+            "Unable to reach Rakizz server. Check your connection and try again."
+        }
+
+        "500" in clean ||
+            "502" in clean ||
+            "503" in clean ||
+            "504" in clean -> {
+            "Rakizz server is temporarily unavailable. Please try again."
+        }
+
+        else -> {
+            message.ifBlank { "Something went wrong. Please try again." }
+        }
+    }
+}
+
+private fun isErrorMessage(message: String): Boolean {
+    val clean = message.lowercase()
+
+    return "failed" in clean ||
+        "missing" in clean ||
+        "expired" in clean ||
+        "not found" in clean ||
+        "unable" in clean ||
+        "could not" in clean ||
+        "no app" in clean ||
+        "error" in clean
 }
 
 @Composable

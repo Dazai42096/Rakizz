@@ -1,5 +1,13 @@
-package com.rakizz.student.presentation.materials.list
+﻿package com.rakizz.student.presentation.materials.list
 
+import android.content.Context
+import android.content.Intent
+import android.database.Cursor
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -11,7 +19,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,35 +57,35 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rakizz.student.domain.model.Material
+import com.rakizz.student.presentation.common.UiState
 import kotlinx.coroutines.delay
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun MaterialsScreen(
     navController: NavController? = null,
-    viewModel: Any? = null,
+    viewModel: MaterialsViewModel? = null,
 
-    // Back callbacks
     onBackClick: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
 
-    // Add material callbacks used by RakizzNavHost.kt
     onAddMaterial: () -> Unit = {},
     onTakePhoto: () -> Unit = {},
     onWriteTextNotes: () -> Unit = {},
     onAddLink: () -> Unit = {},
 
-    // Extra add callbacks for compatibility
     onAddMaterialClick: () -> Unit = {},
     onUploadMaterialClick: () -> Unit = {},
     onCreateMaterialClick: () -> Unit = {},
 
-    // Important: these accept a material id from NavHost
     onNavigateToDetail: (String) -> Unit = {},
     onNavigateToMaterialDetail: (String) -> Unit = {},
     onMaterialClick: (String) -> Unit = {},
@@ -88,10 +96,8 @@ fun MaterialsScreen(
     onOpenDetailClick: (String) -> Unit = {},
     onGenerateQuizClick: (String) -> Unit = {},
 
-    // Other callbacks
     onRefreshClick: () -> Unit = {},
 
-    // Navigation callbacks
     onOpenHome: () -> Unit = {},
     onOpenQuizzes: () -> Unit = {},
     onOpenAssignments: () -> Unit = {},
@@ -99,40 +105,59 @@ fun MaterialsScreen(
     onOpenProfile: () -> Unit = {}
 ) {
     val colors = materialsColors()
+    val context = LocalContext.current
+    val materialsViewModel = viewModel ?: hiltViewModel()
+    val uiState by materialsViewModel.uiState.collectAsState()
+    val actionMessage by materialsViewModel.actionMessage.collectAsState()
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
-    val materials = remember {
-        listOf(
-            MaterialItem(
-                id = "material-001",
-                title = "Software Engineering Notes",
-                subtitle = "Requirements, architecture, implementation, and testing",
-                type = "PDF",
-                size = "2.4 MB",
-                status = "Ready for Quiz",
-                progress = 92
-            ),
-            MaterialItem(
-                id = "material-002",
-                title = "Database Mapping",
-                subtitle = "PostgreSQL tables, relationships, and backend models",
-                type = "DOCX",
-                size = "1.7 MB",
-                status = "Reviewed",
-                progress = 84
-            ),
-            MaterialItem(
-                id = "material-003",
-                title = "Kotlin Compose Study File",
-                subtitle = "Android UI screens, ViewModels, and navigation",
-                type = "PDF",
-                size = "3.1 MB",
-                status = "Needs Quiz",
-                progress = 68
+    var message by remember { mutableStateOf("") }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) {
+            message = "No file selected."
+            return@rememberLauncherForActivityResult
+        }
+
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
+        } catch (_: SecurityException) {
+            // Some providers do not allow persistable permission. Reading still works.
+        }
+
+        val fileName = getDisplayName(context, uri)
+        val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+        val bytes = readUriBytes(context, uri)
+
+        if (bytes == null || bytes.isEmpty()) {
+            message = "Selected file is empty or could not be read."
+            return@rememberLauncherForActivityResult
+        }
+
+        val title = fileName
+            .substringBeforeLast(".")
+            .replace("_", " ")
+            .replace("-", " ")
+            .trim()
+            .ifBlank { "Uploaded Material" }
+
+        materialsViewModel.uploadMaterialFile(
+            title = title,
+            fileName = fileName,
+            mimeType = mimeType,
+            bytes = bytes
         )
     }
 
-    var message by remember { mutableStateOf("") }
+    val materials = when (val state = uiState) {
+        is UiState.Success -> state.data
+        else -> emptyList()
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "materials_animation")
     val glowScale by infiniteTransition.animateFloat(
@@ -145,19 +170,36 @@ fun MaterialsScreen(
         label = "materials_glow"
     )
 
+    LaunchedEffect(actionMessage) {
+        val newMessage = actionMessage
+        if (!newMessage.isNullOrBlank()) {
+            message = cleanMaterialMessage(newMessage)
+            materialsViewModel.clearActionMessage()
+        }
+    }
+
     LaunchedEffect(message) {
         if (message.isNotEmpty()) {
-            delay(2200)
+            delay(2500)
             message = ""
         }
     }
 
     fun goBack() {
         if (navController != null) {
-            navController.popBackStack()
+            val popped = navController.popBackStack()
+            if (!popped) {
+                onOpenHome()
+            }
         } else {
             onBackClick()
             onNavigateBack()
+
+            if (backDispatcher != null) {
+                backDispatcher.onBackPressed()
+            } else {
+                onOpenHome()
+            }
         }
     }
 
@@ -173,33 +215,52 @@ fun MaterialsScreen(
     }
 
     fun uploadMaterial() {
-        message = "Add material clicked."
-
         onAddMaterial()
         onAddMaterialClick()
         onUploadMaterialClick()
         onCreateMaterialClick()
+
+        filePickerLauncher.launch(
+            arrayOf(
+                "text/plain",
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/octet-stream"
+            )
+        )
     }
 
     fun openCameraUpload() {
-        message = "Take photo clicked."
+        message = "Photo upload is not connected yet. Use Upload New Material for now."
         onTakePhoto()
     }
 
     fun openTextNotes() {
-        message = "Write text notes clicked."
+        message = "Text notes are not connected yet. Use Upload New Material for now."
         onWriteTextNotes()
     }
 
     fun openAddLink() {
-        message = "Add link clicked."
+        message = "Link upload is not connected yet. Use Upload New Material for now."
         onAddLink()
     }
 
     fun generateQuizFromFirstMaterial() {
-        val firstId = materials.firstOrNull()?.id ?: "material-001"
-        message = "Opening AI Quiz Studio."
-        onGenerateQuizClick(firstId)
+        val firstMaterial = materials.firstOrNull()
+
+        if (firstMaterial == null) {
+            message = "Upload a material first, then generate a quiz."
+            return
+        }
+
+        openMaterial(firstMaterial.id)
+    }
+
+    fun refreshMaterials() {
+        message = "Refreshing materials..."
+        materialsViewModel.loadMaterials()
+        onRefreshClick()
     }
 
     Box(
@@ -249,17 +310,14 @@ fun MaterialsScreen(
             MaterialsTopBar(
                 colors = colors,
                 onBackClick = { goBack() },
-                onRefreshClick = {
-                    message = "Materials refreshed."
-                    onRefreshClick()
-                }
+                onRefreshClick = { refreshMaterials() }
             )
 
             Spacer(modifier = Modifier.height(22.dp))
 
             MaterialsHeroCard(
                 total = materials.size,
-                ready = materials.count { it.progress >= 80 },
+                ready = materials.size,
                 colors = colors
             )
 
@@ -287,12 +345,38 @@ fun MaterialsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            MaterialsListCard(
-                materials = materials,
-                colors = colors,
-                onMaterialClick = { item -> openMaterial(item.id) },
-                onGenerateQuizClick = { item -> onGenerateQuizClick(item.id) }
-            )
+            when (val state = uiState) {
+                UiState.Loading -> {
+                    LoadingMaterialsCard(colors = colors)
+                }
+
+                UiState.Empty -> {
+                    EmptyMaterialsCard(
+                        colors = colors,
+                        onUploadClick = { uploadMaterial() }
+                    )
+                }
+
+                is UiState.Error -> {
+                    ErrorMaterialsCard(
+                        message = cleanMaterialMessage(state.message),
+                        colors = colors,
+                        onRetryClick = { materialsViewModel.loadMaterials() }
+                    )
+                }
+
+                is UiState.Success -> {
+                    MaterialsListCard(
+                        materials = state.data,
+                        colors = colors,
+                        onMaterialClick = { item -> openMaterial(item.id) },
+                        onGenerateQuizClick = { item ->
+                            openMaterial(item.id)
+                            onGenerateQuizClick(item.id)
+                        }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -325,7 +409,7 @@ private fun MaterialsTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         CircleIconButton(
-            text = "←",
+            text = "<",
             colors = colors,
             onClick = onBackClick
         )
@@ -345,12 +429,13 @@ private fun MaterialsTopBar(
             Text(
                 text = "Upload, organize, and generate AI quizzes",
                 color = colors.textSecondary,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
         }
 
         CircleIconButton(
-            text = "↻",
+            text = "R",
             colors = colors,
             onClick = onRefreshClick
         )
@@ -390,7 +475,7 @@ private fun MaterialsHeroCard(
                     border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
                 ) {
                     Text(
-                        text = "● Smart learning library",
+                        text = "Smart learning library",
                         color = colors.primary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -411,7 +496,7 @@ private fun MaterialsHeroCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "$total materials uploaded • $ready ready for quiz generation",
+                    text = "$total materials uploaded - $ready ready for quiz generation",
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -477,8 +562,8 @@ private fun MaterialUploadActionsCard(
 
             SecondaryButton(
                 text = "Take Photo",
-                subtitle = "Capture notes or textbook pages",
-                iconText = "📷",
+                subtitle = "Coming later. Use file upload for now.",
+                iconText = "P",
                 colors = colors,
                 onClick = onTakePhoto
             )
@@ -487,8 +572,8 @@ private fun MaterialUploadActionsCard(
 
             SecondaryButton(
                 text = "Write Text Notes",
-                subtitle = "Create a manual study note",
-                iconText = "✍",
+                subtitle = "Coming later. Use file upload for now.",
+                iconText = "T",
                 colors = colors,
                 onClick = onWriteTextNotes
             )
@@ -497,8 +582,8 @@ private fun MaterialUploadActionsCard(
 
             SecondaryButton(
                 text = "Add Link",
-                subtitle = "Save a useful study resource URL",
-                iconText = "🔗",
+                subtitle = "Coming later. Use file upload for now.",
+                iconText = "L",
                 colors = colors,
                 onClick = onAddLink
             )
@@ -507,8 +592,8 @@ private fun MaterialUploadActionsCard(
 
             SecondaryButton(
                 text = "Generate Quiz from Material",
-                subtitle = "Open AI quiz flow using a selected material",
-                iconText = "🧠",
+                subtitle = "Open the first material and start quiz generation",
+                iconText = "Q",
                 colors = colors,
                 onClick = onGenerateQuiz
             )
@@ -517,11 +602,117 @@ private fun MaterialUploadActionsCard(
 }
 
 @Composable
-private fun MaterialsListCard(
-    materials: List<MaterialItem>,
+private fun LoadingMaterialsCard(colors: MaterialsColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Text(
+            text = "Loading materials...",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptyMaterialsCard(
     colors: MaterialsColors,
-    onMaterialClick: (MaterialItem) -> Unit,
-    onGenerateQuizClick: (MaterialItem) -> Unit
+    onUploadClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "No materials yet",
+                color = colors.textPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Upload a study file to generate AI quizzes from it.",
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            MainButton(
+                text = "Upload Material",
+                colors = colors,
+                onClick = onUploadClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorMaterialsCard(
+    message: String,
+    colors: MaterialsColors,
+    onRetryClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.card),
+        border = BorderStroke(1.dp, colors.error.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Could not load materials",
+                color = colors.error,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = message,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            MainButton(
+                text = "Try Again",
+                colors = colors,
+                onClick = onRetryClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun MaterialsListCard(
+    materials: List<Material>,
+    colors: MaterialsColors,
+    onMaterialClick: (Material) -> Unit,
+    onGenerateQuizClick: (Material) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -560,13 +751,11 @@ private fun MaterialsListCard(
 
 @Composable
 private fun MaterialRow(
-    item: MaterialItem,
+    item: Material,
     colors: MaterialsColors,
     onClick: () -> Unit,
     onGenerateQuizClick: () -> Unit
 ) {
-    val statusColor = if (item.progress >= 80) colors.success else colors.warning
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -584,8 +773,10 @@ private fun MaterialRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "📘",
-                    fontSize = 23.sp
+                    text = "M",
+                    color = colors.primary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
 
@@ -596,7 +787,7 @@ private fun MaterialRow(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = item.type,
+                        text = "Uploaded material",
                         color = colors.primary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
@@ -605,12 +796,12 @@ private fun MaterialRow(
 
                     Surface(
                         shape = RoundedCornerShape(100.dp),
-                        color = statusColor.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.28f))
+                        color = colors.success.copy(alpha = 0.13f),
+                        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.28f))
                     ) {
                         Text(
-                            text = item.status,
-                            color = statusColor,
+                            text = "Ready",
+                            color = colors.success,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
@@ -621,7 +812,7 @@ private fun MaterialRow(
                 Spacer(modifier = Modifier.height(5.dp))
 
                 Text(
-                    text = item.title,
+                    text = item.title.ifBlank { "Untitled Material" },
                     color = colors.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black,
@@ -631,7 +822,7 @@ private fun MaterialRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = item.subtitle,
+                    text = item.description.ifBlank { "No description available." },
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
@@ -640,9 +831,10 @@ private fun MaterialRow(
                 Spacer(modifier = Modifier.height(5.dp))
 
                 Text(
-                    text = "${item.size} • Progress ${item.progress}%",
+                    text = item.url.ifBlank { "Stored in Rakizz backend" },
                     color = colors.textSecondary,
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
                 )
             }
         }
@@ -659,7 +851,7 @@ private fun MaterialRow(
             border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.25f))
         ) {
             Text(
-                text = "Generate AI Quiz",
+                text = "Open Material and Generate Quiz",
                 color = colors.primary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Black,
@@ -694,15 +886,15 @@ private fun MaterialsNavigationCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            SecondaryButton("Home Dashboard", "Return to main dashboard", "⌂", colors, onOpenHome)
+            SecondaryButton("Home Dashboard", "Return to main dashboard", "H", colors, onOpenHome)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("AI Quizzes", "Open generated quizzes", "🧠", colors, onOpenQuizzes)
+            SecondaryButton("AI Quizzes", "Open generated quizzes", "Q", colors, onOpenQuizzes)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Assignments", "Open deadlines and tasks", "📝", colors, onOpenAssignments)
+            SecondaryButton("Assignments", "Open deadlines and tasks", "A", colors, onOpenAssignments)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Focus Shield", "Open focus mode", "🛡", colors, onOpenFocus)
+            SecondaryButton("Focus Mode", "Open focus mode", "F", colors, onOpenFocus)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryButton("Profile", "Open account and pair code", "👤", colors, onOpenProfile)
+            SecondaryButton("Profile", "Open account and pair code", "P", colors, onOpenProfile)
         }
     }
 }
@@ -716,7 +908,7 @@ private fun MaterialsExplanationCard(colors: MaterialsColors) {
         border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
     ) {
         Text(
-            text = "✓ How Rakizz works\nMaterials are the source for AI quiz generation. The flow is: Material → Detail → Quiz Setup → Quiz Detail.",
+            text = "How Rakizz works\nMaterials are the source for AI quiz generation. The flow is: Material, Detail, Quiz Setup, Quiz Detail.",
             color = colors.textSecondary,
             fontSize = 12.sp,
             lineHeight = 18.sp,
@@ -777,13 +969,27 @@ private fun SecondaryButton(
             modifier = Modifier.padding(15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = iconText,
-                fontSize = 22.sp,
-                modifier = Modifier.padding(end = 12.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(colors.primary.copy(alpha = 0.14f))
+                    .border(1.dp, colors.primary.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = iconText,
+                    color = colors.primary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
                 Text(
                     text = text,
                     color = colors.textPrimary,
@@ -800,9 +1006,9 @@ private fun SecondaryButton(
             }
 
             Text(
-                text = "›",
-                color = colors.textSecondary,
-                fontSize = 28.sp,
+                text = "Open",
+                color = colors.primary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -852,9 +1058,80 @@ private fun CircleIconButton(
         Text(
             text = text,
             color = colors.textPrimary,
-            fontSize = 21.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Black
         )
+    }
+}
+
+private fun getDisplayName(
+    context: Context,
+    uri: Uri
+): String {
+    var result: String? = null
+
+    val cursor: Cursor? = context.contentResolver.query(
+        uri,
+        null,
+        null,
+        null,
+        null
+    )
+
+    cursor?.use {
+        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (nameIndex >= 0 && it.moveToFirst()) {
+            result = it.getString(nameIndex)
+        }
+    }
+
+    return result
+        ?.takeIf { it.isNotBlank() }
+        ?: "uploaded_material.txt"
+}
+
+private fun readUriBytes(
+    context: Context,
+    uri: Uri
+): ByteArray? {
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            input.readBytes()
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun cleanMaterialMessage(message: String): String {
+    val clean = message.lowercase()
+
+    return when {
+        "401" in clean || "403" in clean || "unauthorized" in clean -> {
+            "Your login session may have expired. Please login again."
+        }
+
+        "network" in clean ||
+            "timeout" in clean ||
+            "failed to connect" in clean ||
+            "unable to resolve host" in clean -> {
+            "Unable to reach Rakizz server. Check your connection and try again."
+        }
+
+        "500" in clean ||
+            "502" in clean ||
+            "503" in clean ||
+            "504" in clean -> {
+            "Rakizz server is temporarily unavailable. Please try again."
+        }
+
+        "success" in clean || "uploaded" in clean || "added" in clean -> {
+            message
+        }
+
+        else -> {
+            message.ifBlank { "Something went wrong. Please try again." }
+        }
     }
 }
 
@@ -874,6 +1151,7 @@ private fun materialsColors(): MaterialsColors {
             accent = Color(0xFF00D4FF),
             success = Color(0xFF22C55E),
             warning = Color(0xFFF59E0B),
+            error = Color(0xFFEF4444),
             textPrimary = Color.White,
             textSecondary = Color(0xFF94A3B8)
         )
@@ -889,21 +1167,12 @@ private fun materialsColors(): MaterialsColors {
             accent = Color(0xFF06B6D4),
             success = Color(0xFF16A34A),
             warning = Color(0xFFD97706),
+            error = Color(0xFFDC2626),
             textPrimary = Color(0xFF0F172A),
             textSecondary = Color(0xFF64748B)
         )
     }
 }
-
-private data class MaterialItem(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val type: String,
-    val size: String,
-    val status: String,
-    val progress: Int
-)
 
 private data class MaterialsColors(
     val backgroundTop: Color,
@@ -916,6 +1185,7 @@ private data class MaterialsColors(
     val accent: Color,
     val success: Color,
     val warning: Color,
+    val error: Color,
     val textPrimary: Color,
     val textSecondary: Color
 )
