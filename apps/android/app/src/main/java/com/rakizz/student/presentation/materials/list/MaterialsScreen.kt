@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,11 +59,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.rakizz.student.domain.model.Material
 import com.rakizz.student.presentation.common.UiState
@@ -106,12 +110,30 @@ fun MaterialsScreen(
 ) {
     val colors = materialsColors()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val materialsViewModel = viewModel ?: hiltViewModel()
     val uiState by materialsViewModel.uiState.collectAsState()
     val actionMessage by materialsViewModel.actionMessage.collectAsState()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     var message by remember { mutableStateOf("") }
+
+    // Important:
+    // Refresh the list every time this screen becomes active again.
+    // This removes deleted materials from the cached list after returning from Material Detail.
+    DisposableEffect(lifecycleOwner, materialsViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                materialsViewModel.loadMaterials()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -127,7 +149,7 @@ fun MaterialsScreen(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
         } catch (_: SecurityException) {
-            // Some providers do not allow persistable permission. Reading still works.
+            // Some file providers do not allow persistable permission.
         }
 
         val fileName = getDisplayName(context, uri)
@@ -155,11 +177,12 @@ fun MaterialsScreen(
     }
 
     val materials = when (val state = uiState) {
-        is UiState.Success -> state.data
+        is UiState.Success -> state.data.sortedByDescending { it.id }
         else -> emptyList()
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "materials_animation")
+
     val glowScale by infiniteTransition.animateFloat(
         initialValue = 0.92f,
         targetValue = 1.08f,
@@ -172,9 +195,18 @@ fun MaterialsScreen(
 
     LaunchedEffect(actionMessage) {
         val newMessage = actionMessage
+
         if (!newMessage.isNullOrBlank()) {
             message = cleanMaterialMessage(newMessage)
             materialsViewModel.clearActionMessage()
+
+            if (
+                newMessage.contains("uploaded", ignoreCase = true) ||
+                newMessage.contains("success", ignoreCase = true) ||
+                newMessage.contains("added", ignoreCase = true)
+            ) {
+                materialsViewModel.loadMaterials()
+            }
         }
     }
 
@@ -188,18 +220,14 @@ fun MaterialsScreen(
     fun goBack() {
         if (navController != null) {
             val popped = navController.popBackStack()
+
             if (!popped) {
                 onOpenHome()
             }
         } else {
             onBackClick()
             onNavigateBack()
-
-            if (backDispatcher != null) {
-                backDispatcher.onBackPressed()
-            } else {
-                onOpenHome()
-            }
+            backDispatcher?.onBackPressed()
         }
     }
 
@@ -302,7 +330,11 @@ fun MaterialsScreen(
                 .fillMaxSize()
                 .padding(WindowInsets.statusBars.asPaddingValues())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(
+                    bottom = WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding()
+                )
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(18.dp))
@@ -369,7 +401,9 @@ fun MaterialsScreen(
                     MaterialsListCard(
                         materials = state.data,
                         colors = colors,
-                        onMaterialClick = { item -> openMaterial(item.id) },
+                        onMaterialClick = { item ->
+                            openMaterial(item.id)
+                        },
                         onGenerateQuizClick = { item ->
                             openMaterial(item.id)
                             onGenerateQuizClick(item.id)
@@ -388,10 +422,6 @@ fun MaterialsScreen(
                 onOpenFocus = onOpenFocus,
                 onOpenProfile = onOpenProfile
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            MaterialsExplanationCard(colors = colors)
 
             Spacer(modifier = Modifier.height(28.dp))
         }
@@ -900,24 +930,6 @@ private fun MaterialsNavigationCard(
 }
 
 @Composable
-private fun MaterialsExplanationCard(colors: MaterialsColors) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = colors.success.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
-    ) {
-        Text(
-            text = "How Rakizz works\nMaterials are the source for AI quiz generation. The flow is: Material, Detail, Quiz Setup, Quiz Detail.",
-            color = colors.textSecondary,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            modifier = Modifier.padding(16.dp)
-        )
-    }
-}
-
-@Composable
 private fun MainButton(
     text: String,
     colors: MaterialsColors,
@@ -1080,6 +1092,7 @@ private fun getDisplayName(
 
     cursor?.use {
         val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+
         if (nameIndex >= 0 && it.moveToFirst()) {
             result = it.getString(nameIndex)
         }
@@ -1150,7 +1163,6 @@ private fun materialsColors(): MaterialsColors {
             primary = Color(0xFF2F80FF),
             accent = Color(0xFF00D4FF),
             success = Color(0xFF22C55E),
-            warning = Color(0xFFF59E0B),
             error = Color(0xFFEF4444),
             textPrimary = Color.White,
             textSecondary = Color(0xFF94A3B8)
@@ -1166,7 +1178,6 @@ private fun materialsColors(): MaterialsColors {
             primary = Color(0xFF2563EB),
             accent = Color(0xFF06B6D4),
             success = Color(0xFF16A34A),
-            warning = Color(0xFFD97706),
             error = Color(0xFFDC2626),
             textPrimary = Color(0xFF0F172A),
             textSecondary = Color(0xFF64748B)
@@ -1184,7 +1195,6 @@ private data class MaterialsColors(
     val primary: Color,
     val accent: Color,
     val success: Color,
-    val warning: Color,
     val error: Color,
     val textPrimary: Color,
     val textSecondary: Color

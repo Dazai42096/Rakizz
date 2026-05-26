@@ -5,6 +5,7 @@ import com.rakizz.student.domain.model.MaterialDownload
 
 interface MaterialRepository {
     suspend fun getMaterials(): Result<List<Material>>
+
     suspend fun getMaterial(id: String): Result<Material>
 
     suspend fun uploadMaterial(
@@ -20,4 +21,6 @@ interface MaterialRepository {
     ): Result<Material>
 
     suspend fun downloadMaterial(id: String): Result<MaterialDownload>
+
+    suspend fun deleteMaterial(id: String): Result<Unit>
 }

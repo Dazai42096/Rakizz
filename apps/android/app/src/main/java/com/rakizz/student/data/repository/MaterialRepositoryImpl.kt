@@ -45,13 +45,19 @@ class MaterialRepositoryImpl @Inject constructor(
         bytes: ByteArray
     ): Result<Material> {
         return try {
-            val safeMimeType = mimeType.ifBlank { "application/octet-stream" }
+            val safeMimeType = mimeType.ifBlank {
+                "application/octet-stream"
+            }
+
             val titlePart = title
                 ?.trim()
                 ?.takeIf { it.isNotBlank() }
                 ?.toRequestBody("text/plain".toMediaType())
 
-            val fileBody = bytes.toRequestBody(safeMimeType.toMediaTypeOrNull())
+            val fileBody = bytes.toRequestBody(
+                safeMimeType.toMediaTypeOrNull()
+            )
+
             val filePart = MultipartBody.Part.createFormData(
                 name = "file",
                 filename = fileName,
@@ -104,13 +110,16 @@ class MaterialRepositoryImpl @Inject constructor(
                 .orEmpty()
                 .ifBlank { "application/octet-stream" }
 
-            val rawFileName = parseFileName(response.headers()["Content-Disposition"])
-                ?: "material_$id"
+            val rawFileName = parseFileName(
+                response.headers()["Content-Disposition"]
+            ) ?: "material_$id"
 
             val safeFileName = sanitizeFileName(rawFileName)
+
             val materialsDir = File(context.filesDir, "materials").apply {
                 mkdirs()
             }
+
             val localFile = File(materialsDir, safeFileName)
 
             body.byteStream().use { input ->
@@ -131,10 +140,30 @@ class MaterialRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun parseFileName(contentDisposition: String?): String? {
-        if (contentDisposition.isNullOrBlank()) return null
+    override suspend fun deleteMaterial(id: String): Result<Unit> {
+        return try {
+            val response = api.deleteMaterial(id)
 
-        val utf8Match = Regex("""filename\*=UTF-8''([^;]+)""").find(contentDisposition)
+            if (!response.isSuccessful) {
+                return Result.failure(
+                    Exception("Failed to delete material. HTTP ${response.code()}")
+                )
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun parseFileName(contentDisposition: String?): String? {
+        if (contentDisposition.isNullOrBlank()) {
+            return null
+        }
+
+        val utf8Match = Regex("""filename\*=UTF-8''([^;]+)""")
+            .find(contentDisposition)
+
         if (utf8Match != null) {
             return URLDecoder.decode(
                 utf8Match.groupValues[1],
@@ -142,12 +171,17 @@ class MaterialRepositoryImpl @Inject constructor(
             )
         }
 
-        val simpleMatch = Regex("""filename="?([^"]+)"?""").find(contentDisposition)
+        val simpleMatch = Regex("""filename="?([^"]+)"?""")
+            .find(contentDisposition)
+
         return simpleMatch?.groupValues?.get(1)
     }
 
     private fun sanitizeFileName(fileName: String): String {
-        return fileName.replace(Regex("""[\\/:*?"<>|]"""), "_")
+        return fileName.replace(
+            Regex("""[\\/:*?"<>|]"""),
+            "_"
+        )
     }
 
     private fun com.rakizz.student.data.remote.dto.MaterialDto.toDomain(): Material {

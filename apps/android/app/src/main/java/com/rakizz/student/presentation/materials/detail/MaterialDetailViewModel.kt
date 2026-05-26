@@ -7,11 +7,11 @@ import com.rakizz.student.domain.model.MaterialDownload
 import com.rakizz.student.domain.repository.MaterialRepository
 import com.rakizz.student.presentation.common.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class MaterialDetailViewModel @Inject constructor(
@@ -30,25 +30,55 @@ class MaterialDetailViewModel @Inject constructor(
     private val _openFileEvent = MutableStateFlow<MaterialDownload?>(null)
     val openFileEvent: StateFlow<MaterialDownload?> = _openFileEvent.asStateFlow()
 
+    private val _deleteCompleted = MutableStateFlow(false)
+    val deleteCompleted: StateFlow<Boolean> = _deleteCompleted.asStateFlow()
+
     fun loadMaterial(id: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
 
             val result = materialRepository.getMaterial(id)
-            result.onSuccess {
-                _uiState.value = UiState.Success(it)
-            }.onFailure {
-                _uiState.value = UiState.Error(it.message ?: "Failed to load material")
+
+            result.onSuccess { material ->
+                _uiState.value = UiState.Success(material)
+            }.onFailure { error ->
+                _uiState.value = UiState.Error(
+                    error.message ?: "Failed to load material"
+                )
             }
         }
     }
 
     fun previewMaterial() {
-        performMaterialDownload(openAfterDownload = true)
+        downloadMaterialFile(openAfterDownload = true)
     }
 
     fun downloadMaterial() {
-        performMaterialDownload(openAfterDownload = false)
+        downloadMaterialFile(openAfterDownload = false)
+    }
+
+    fun deleteMaterial() {
+        val material = (_uiState.value as? UiState.Success)?.data
+
+        if (material == null) {
+            _actionMessage.value = "Material is not ready yet."
+            return
+        }
+
+        viewModelScope.launch {
+            _isWorking.value = true
+
+            val result = materialRepository.deleteMaterial(material.id)
+
+            result.onSuccess {
+                _actionMessage.value = "Material deleted successfully."
+                _deleteCompleted.value = true
+            }.onFailure { error ->
+                _actionMessage.value = error.message ?: "Failed to delete material"
+            }
+
+            _isWorking.value = false
+        }
     }
 
     fun clearActionMessage() {
@@ -59,9 +89,15 @@ class MaterialDetailViewModel @Inject constructor(
         _openFileEvent.value = null
     }
 
-    private fun performMaterialDownload(openAfterDownload: Boolean) {
-        val material = (_uiState.value as? UiState.Success)?.data ?: run {
-            _actionMessage.value = "Material is not ready yet"
+    fun clearDeleteCompleted() {
+        _deleteCompleted.value = false
+    }
+
+    private fun downloadMaterialFile(openAfterDownload: Boolean) {
+        val material = (_uiState.value as? UiState.Success)?.data
+
+        if (material == null) {
+            _actionMessage.value = "Material is not ready yet."
             return
         }
 
@@ -69,12 +105,13 @@ class MaterialDetailViewModel @Inject constructor(
             _isWorking.value = true
 
             val result = materialRepository.downloadMaterial(material.id)
+
             result.onSuccess { downloaded ->
                 if (openAfterDownload) {
                     _openFileEvent.value = downloaded
-                    _actionMessage.value = "Material ready to open"
+                    _actionMessage.value = "Material ready to open."
                 } else {
-                    _actionMessage.value = "Material downloaded successfully"
+                    _actionMessage.value = "Material downloaded successfully."
                 }
             }.onFailure { error ->
                 _actionMessage.value = error.message ?: "Failed to download material"
