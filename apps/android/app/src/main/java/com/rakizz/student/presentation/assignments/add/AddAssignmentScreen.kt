@@ -14,8 +14,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,17 +32,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,10 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddAssignmentScreen(
     navController: NavController? = null,
@@ -67,19 +62,11 @@ fun AddAssignmentScreen(
     onCancelClick: () -> Unit = {},
     onSaveClick: () -> Unit = {},
     onAssignmentCreated: () -> Unit = {},
-    onAssignmentSaved: () -> Unit = {}
+    onAssignmentSaved: () -> Unit = {},
+    viewModel: AddAssignmentViewModel = hiltViewModel()
 ) {
     val colors = addAssignmentScreenColors()
-
-    var title by remember { mutableStateOf("") }
-    var subject by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var dueDate by remember { mutableStateOf("") }
-    var reminderTime by remember { mutableStateOf("") }
-    var selectedPriority by remember { mutableStateOf(AssignmentPriority.MEDIUM) }
-    var selectedType by remember { mutableStateOf(AssignmentType.HOMEWORK) }
-    var message by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "add_assignment_animation")
     val glowScale by infiniteTransition.animateFloat(
@@ -92,13 +79,6 @@ fun AddAssignmentScreen(
         label = "add_assignment_glow"
     )
 
-    LaunchedEffect(message) {
-        if (message.isNotEmpty()) {
-            delay(2300)
-            message = ""
-        }
-    }
-
     fun goBack() {
         if (navController != null) {
             navController.popBackStack()
@@ -107,32 +87,22 @@ fun AddAssignmentScreen(
         }
     }
 
-    fun saveAssignment() {
-        if (title.isBlank()) {
-            isError = true
-            message = "Please enter the assignment title."
-            return
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AddAssignmentEvent.Saved -> {
+                    onSaveClick()
+                    onAssignmentCreated()
+                    onAssignmentSaved()
+
+                    if (navController != null) {
+                        navController.popBackStack()
+                    } else {
+                        onBackClick()
+                    }
+                }
+            }
         }
-
-        if (subject.isBlank()) {
-            isError = true
-            message = "Please enter the subject."
-            return
-        }
-
-        if (dueDate.isBlank()) {
-            isError = true
-            message = "Please enter the due date."
-            return
-        }
-
-        isError = false
-        message = "Assignment saved."
-
-        // These callbacks keep the screen compatible with navigation code.
-        onSaveClick()
-        onAssignmentCreated()
-        onAssignmentSaved()
     }
 
     Box(
@@ -148,7 +118,6 @@ fun AddAssignmentScreen(
                 )
             )
     ) {
-        // Soft animated blue glow.
         Box(
             modifier = Modifier
                 .size(260.dp)
@@ -175,7 +144,11 @@ fun AddAssignmentScreen(
                 .fillMaxSize()
                 .padding(WindowInsets.statusBars.asPaddingValues())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(
+                    bottom = WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding()
+                )
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(18.dp))
@@ -192,72 +165,21 @@ fun AddAssignmentScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             AssignmentFormCard(
-                title = title,
-                subject = subject,
-                description = description,
-                dueDate = dueDate,
-                reminderTime = reminderTime,
-                onTitleChange = { title = it },
-                onSubjectChange = { subject = it },
-                onDescriptionChange = { description = it },
-                onDueDateChange = { dueDate = it },
-                onReminderTimeChange = { reminderTime = it },
-                colors = colors
+                state = uiState,
+                colors = colors,
+                onTitleChange = viewModel::onTitleChanged,
+                onDescriptionChange = viewModel::onDescriptionChanged,
+                onDueDateChange = viewModel::onDueDateChanged,
+                onDueTimeChange = viewModel::onDueTimeChanged
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OptionSectionCard(
-                title = "Assignment Type",
-                subtitle = "Choose what kind of task this is",
-                colors = colors
-            ) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AssignmentType.entries.forEach { type ->
-                        ChoiceChip(
-                            text = type.label,
-                            iconText = type.iconText,
-                            selected = selectedType == type,
-                            colors = colors,
-                            onClick = { selectedType = type }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OptionSectionCard(
-                title = "Priority Level",
-                subtitle = "This helps the student know what to finish first",
-                colors = colors
-            ) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AssignmentPriority.entries.forEach { priority ->
-                        PriorityChip(
-                            priority = priority,
-                            selected = selectedPriority == priority,
-                            colors = colors,
-                            onClick = { selectedPriority = priority }
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            AnimatedVisibility(visible = message.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = uiState.inputError != null || uiState.submitError != null
+            ) {
                 MessageCard(
-                    message = message,
-                    isError = isError,
+                    message = uiState.inputError ?: uiState.submitError.orEmpty(),
                     colors = colors
                 )
             }
@@ -265,14 +187,18 @@ fun AddAssignmentScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             SaveAssignmentButton(
+                isSaving = uiState.isSaving,
                 colors = colors,
-                onClick = { saveAssignment() }
+                onClick = {
+                    viewModel.saveAssignment()
+                }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             CancelAssignmentButton(
                 colors = colors,
+                enabled = !uiState.isSaving,
                 onClick = {
                     onCancelClick()
                     goBack()
@@ -281,16 +207,13 @@ fun AddAssignmentScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            AssignmentPreviewCard(
-                title = title,
-                subject = subject,
-                dueDate = dueDate,
-                priority = selectedPriority,
-                type = selectedType,
-                colors = colors
-            )
+            BackendFormatInfoCard(colors = colors)
 
             Spacer(modifier = Modifier.height(28.dp))
+        }
+
+        if (uiState.isSaving) {
+            SavingOverlay(colors = colors)
         }
     }
 }
@@ -305,7 +228,7 @@ private fun AddAssignmentTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         CircleIconButton(
-            text = "←",
+            text = "<",
             colors = colors,
             onClick = onBackClick
         )
@@ -323,9 +246,10 @@ private fun AddAssignmentTopBar(
             )
 
             Text(
-                text = "Create homework, deadlines, and reminders",
+                text = "Save a real assignment to the backend",
                 color = colors.textSecondary,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
         }
 
@@ -355,9 +279,8 @@ private fun AddAssignmentHeroCard(colors: AddAssignmentScreenColors) {
         colors = CardDefaults.cardColors(containerColor = colors.card),
         border = BorderStroke(1.dp, colors.border)
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -369,57 +292,50 @@ private fun AddAssignmentHeroCard(colors: AddAssignmentScreenColors) {
                 )
                 .padding(22.dp)
         ) {
-            Column {
-                Surface(
-                    shape = RoundedCornerShape(100.dp),
-                    color = colors.primary.copy(alpha = 0.14f),
-                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.32f))
-                ) {
-                    Text(
-                        text = "● Assignment builder",
-                        color = colors.primary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
+            Surface(
+                shape = RoundedCornerShape(100.dp),
+                color = colors.success.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+            ) {
                 Text(
-                    text = "Turn deadlines into clear study tasks.",
-                    color = colors.textPrimary,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Black,
-                    lineHeight = 31.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "This form helps students organize homework and gives parents a clearer view of upcoming school tasks.",
-                    color = colors.textSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp
+                    text = "Backend assignment create",
+                    color = colors.success,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Create homework that actually persists.",
+                color = colors.textPrimary,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 31.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "This form calls the Rakizz backend. After saving, the assignment appears in the Assignments screen.",
+                color = colors.textSecondary,
+                fontSize = 14.sp,
+                lineHeight = 21.sp
+            )
         }
     }
 }
 
 @Composable
 private fun AssignmentFormCard(
-    title: String,
-    subject: String,
-    description: String,
-    dueDate: String,
-    reminderTime: String,
+    state: AddAssignmentUiState,
+    colors: AddAssignmentScreenColors,
     onTitleChange: (String) -> Unit,
-    onSubjectChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onDueDateChange: (String) -> Unit,
-    onReminderTimeChange: (String) -> Unit,
-    colors: AddAssignmentScreenColors
+    onDueTimeChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -430,7 +346,7 @@ private fun AssignmentFormCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Assignment Details",
-                subtitle = "Fill the important information for this task",
+                subtitle = "These fields are sent to the backend",
                 colors = colors
             )
 
@@ -438,29 +354,21 @@ private fun AssignmentFormCard(
 
             FormTextField(
                 label = "Assignment title",
-                value = title,
+                value = state.title,
                 placeholder = "Math worksheet",
                 colors = colors,
+                enabled = !state.isSaving,
                 onValueChange = onTitleChange
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             FormTextField(
-                label = "Subject",
-                value = subject,
-                placeholder = "Mathematics",
-                colors = colors,
-                onValueChange = onSubjectChange
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            FormTextField(
                 label = "Description",
-                value = description,
-                placeholder = "Write a short explanation",
+                value = state.description,
+                placeholder = "Solve questions 1 to 10",
                 colors = colors,
+                enabled = !state.isSaving,
                 minLines = 3,
                 onValueChange = onDescriptionChange
             )
@@ -473,20 +381,22 @@ private fun AssignmentFormCard(
             ) {
                 FormTextField(
                     label = "Due date",
-                    value = dueDate,
-                    placeholder = "May 28",
+                    value = state.dueDate,
+                    placeholder = "2026-05-28",
                     colors = colors,
+                    enabled = !state.isSaving,
                     modifier = Modifier.weight(1f),
                     onValueChange = onDueDateChange
                 )
 
                 FormTextField(
-                    label = "Reminder",
-                    value = reminderTime,
-                    placeholder = "8:00 PM",
+                    label = "Due time",
+                    value = state.dueTime,
+                    placeholder = "20:00",
                     colors = colors,
+                    enabled = !state.isSaving,
                     modifier = Modifier.weight(1f),
-                    onValueChange = onReminderTimeChange
+                    onValueChange = onDueTimeChange
                 )
             }
         }
@@ -499,12 +409,14 @@ private fun FormTextField(
     value: String,
     placeholder: String,
     colors: AddAssignmentScreenColors,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
     minLines: Int = 1,
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
+        enabled = enabled,
         onValueChange = onValueChange,
         label = {
             Text(
@@ -525,139 +437,22 @@ private fun FormTextField(
 }
 
 @Composable
-private fun OptionSectionCard(
-    title: String,
-    subtitle: String,
-    colors: AddAssignmentScreenColors,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.card),
-        border = BorderStroke(1.dp, colors.border)
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            SectionTitle(
-                title = title,
-                subtitle = subtitle,
-                colors = colors
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            content()
-        }
-    }
-}
-
-@Composable
-private fun ChoiceChip(
-    text: String,
-    iconText: String,
-    selected: Boolean,
-    colors: AddAssignmentScreenColors,
-    onClick: () -> Unit
-) {
-    val backgroundColor = if (selected) {
-        colors.primary.copy(alpha = 0.18f)
-    } else {
-        colors.cardAlt
-    }
-
-    val borderColor = if (selected) {
-        colors.primary.copy(alpha = 0.45f)
-    } else {
-        colors.border
-    }
-
-    Surface(
-        shape = RoundedCornerShape(100.dp),
-        color = backgroundColor,
-        border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = iconText,
-                fontSize = 15.sp
-            )
-
-            Spacer(modifier = Modifier.size(7.dp))
-
-            Text(
-                text = text,
-                color = if (selected) colors.primary else colors.textPrimary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun PriorityChip(
-    priority: AssignmentPriority,
-    selected: Boolean,
-    colors: AddAssignmentScreenColors,
-    onClick: () -> Unit
-) {
-    val priorityColor = when (priority) {
-        AssignmentPriority.LOW -> colors.success
-        AssignmentPriority.MEDIUM -> colors.warning
-        AssignmentPriority.HIGH -> colors.danger
-    }
-
-    val backgroundColor = if (selected) {
-        priorityColor.copy(alpha = 0.17f)
-    } else {
-        colors.cardAlt
-    }
-
-    val borderColor = if (selected) {
-        priorityColor.copy(alpha = 0.42f)
-    } else {
-        colors.border
-    }
-
-    Surface(
-        shape = RoundedCornerShape(100.dp),
-        color = backgroundColor,
-        border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Text(
-            text = priority.label,
-            color = if (selected) priorityColor else colors.textPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-        )
-    }
-}
-
-@Composable
 private fun MessageCard(
     message: String,
-    isError: Boolean,
     colors: AddAssignmentScreenColors
 ) {
-    val messageColor = if (isError) colors.danger else colors.success
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = messageColor.copy(alpha = 0.13f),
-        border = BorderStroke(1.dp, messageColor.copy(alpha = 0.32f))
+        color = colors.danger.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, colors.danger.copy(alpha = 0.32f))
     ) {
         Text(
             text = message,
-            color = messageColor,
+            color = colors.danger,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
             modifier = Modifier.padding(14.dp)
         )
     }
@@ -665,6 +460,7 @@ private fun MessageCard(
 
 @Composable
 private fun SaveAssignmentButton(
+    isSaving: Boolean,
     colors: AddAssignmentScreenColors,
     onClick: () -> Unit
 ) {
@@ -674,18 +470,27 @@ private fun SaveAssignmentButton(
             .height(58.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(
-                Brush.linearGradient(
-                    listOf(
-                        colors.primary,
-                        colors.accent
+                if (isSaving) {
+                    Brush.linearGradient(
+                        listOf(
+                            colors.primary.copy(alpha = 0.45f),
+                            colors.accent.copy(alpha = 0.45f)
+                        )
                     )
-                )
+                } else {
+                    Brush.linearGradient(
+                        listOf(
+                            colors.primary,
+                            colors.accent
+                        )
+                    )
+                }
             )
-            .clickable(onClick = onClick),
+            .clickable(enabled = !isSaving, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Save Assignment",
+            text = if (isSaving) "Saving..." else "Save Assignment",
             color = Color.White,
             fontSize = 15.sp,
             fontWeight = FontWeight.Black
@@ -696,6 +501,7 @@ private fun SaveAssignmentButton(
 @Composable
 private fun CancelAssignmentButton(
     colors: AddAssignmentScreenColors,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
@@ -703,7 +509,7 @@ private fun CancelAssignmentButton(
             .fillMaxWidth()
             .height(54.dp)
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = colors.cardAlt,
         border = BorderStroke(1.dp, colors.border)
@@ -720,90 +526,60 @@ private fun CancelAssignmentButton(
 }
 
 @Composable
-private fun AssignmentPreviewCard(
-    title: String,
-    subject: String,
-    dueDate: String,
-    priority: AssignmentPriority,
-    type: AssignmentType,
-    colors: AddAssignmentScreenColors
-) {
-    Card(
+private fun BackendFormatInfoCard(colors: AddAssignmentScreenColors) {
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.card),
-        border = BorderStroke(1.dp, colors.border)
+        shape = RoundedCornerShape(24.dp),
+        color = colors.primary.copy(alpha = 0.11f),
+        border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.28f))
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            SectionTitle(
-                title = "Live Preview",
-                subtitle = "This is how the assignment card will feel",
-                colors = colors
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Date format",
+                color = colors.primary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                color = colors.cardAlt,
-                border = BorderStroke(1.dp, colors.border)
+            Text(
+                text = "Use due date as YYYY-MM-DD and due time as HH:mm, for example 2026-05-28 and 20:00.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SavingOverlay(colors: AddAssignmentScreenColors) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.backgroundBottom.copy(alpha = 0.90f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = colors.card),
+            border = BorderStroke(1.dp, colors.border)
+        ) {
+            Column(
+                modifier = Modifier.padding(26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = type.iconText,
-                            fontSize = 23.sp
-                        )
+                CircularProgressIndicator(color = colors.primary)
 
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 12.dp)
-                        ) {
-                            Text(
-                                text = if (title.isBlank()) "Assignment title preview" else title,
-                                color = colors.textPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black
-                            )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                text = if (subject.isBlank()) "Subject preview" else subject,
-                                color = colors.textSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(100.dp),
-                            color = colors.primary.copy(alpha = 0.13f),
-                            border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.28f))
-                        ) {
-                            Text(
-                                text = if (dueDate.isBlank()) "Due date" else dueDate,
-                                color = colors.primary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    HorizontalDivider(color = colors.border)
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Priority: ${priority.label} • Type: ${type.label}",
-                        color = colors.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign = TextAlign.Start
-                    )
-                }
+                Text(
+                    text = "Saving assignment...",
+                    color = colors.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black
+                )
             }
         }
     }
@@ -828,7 +604,8 @@ private fun SectionTitle(
         Text(
             text = subtitle,
             color = colors.textSecondary,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            lineHeight = 17.sp
         )
     }
 }
@@ -851,7 +628,7 @@ private fun CircleIconButton(
         Text(
             text = text,
             color = colors.textPrimary,
-            fontSize = 21.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Black
         )
     }
@@ -894,24 +671,6 @@ private fun addAssignmentScreenColors(): AddAssignmentScreenColors {
             textSecondary = Color(0xFF64748B)
         )
     }
-}
-
-private enum class AssignmentPriority(
-    val label: String
-) {
-    LOW("Low Priority"),
-    MEDIUM("Medium Priority"),
-    HIGH("High Priority")
-}
-
-private enum class AssignmentType(
-    val label: String,
-    val iconText: String
-) {
-    HOMEWORK("Homework", "📝"),
-    EXAM("Exam", "🎯"),
-    PROJECT("Project", "💻"),
-    READING("Reading", "📚")
 }
 
 private data class AddAssignmentScreenColors(

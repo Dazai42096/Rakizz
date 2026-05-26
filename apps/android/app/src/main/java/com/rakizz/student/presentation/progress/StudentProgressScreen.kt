@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,75 +54,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.rakizz.student.domain.model.Assignment
+import com.rakizz.student.domain.model.FocusPolicy
+import com.rakizz.student.domain.model.Quiz
 import kotlinx.coroutines.delay
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun StudentProgressScreen(
-    navController: NavController? = null,
-    viewModel: Any? = null,
-
-    // Back / refresh callbacks
+    viewModel: StudentProgressViewModel? = null,
     onBackClick: () -> Unit = {},
-    onNavigateBack: () -> Unit = {},
     onRefreshClick: () -> Unit = {},
     onDownloadClick: () -> Unit = {},
-
-    // Navigation callbacks
     onOpenHome: () -> Unit = {},
-    onOpenLibrary: () -> Unit = {},
     onOpenMaterials: () -> Unit = {},
     onOpenQuizzes: () -> Unit = {},
     onOpenAssignments: () -> Unit = {},
     onOpenFocus: () -> Unit = {},
-    onOpenProfile: () -> Unit = {},
-    onOpenPairCode: () -> Unit = {},
-
-    // Extra compatibility callbacks
-    onViewQuizClick: () -> Unit = {},
-    onViewAssignmentsClick: () -> Unit = {},
-    onViewFocusClick: () -> Unit = {},
-    onViewMaterialsClick: () -> Unit = {}
+    onOpenProfile: () -> Unit = {}
 ) {
     val colors = progressColors()
+    val progressViewModel = viewModel ?: hiltViewModel()
+    val uiState by progressViewModel.uiState.collectAsState()
 
     var selectedTab by remember { mutableStateOf(ProgressTab.OVERVIEW) }
-    var message by remember { mutableStateOf("") }
-
-    val weeklyAccuracy = 88
-    val focusScore = 76
-    val assignmentScore = 82
-    val overallScore = 84
-
-    val quizItems = remember {
-        listOf(
-            ProgressItem("AI Quiz: Software Engineering", "15 questions • 92% score", 92, ProgressStatus.GOOD),
-            ProgressItem("Database Practice", "12 questions • 86% score", 86, ProgressStatus.GOOD),
-            ProgressItem("Android Compose Review", "20 questions • 78% score", 78, ProgressStatus.WARNING)
-        )
-    }
-
-    val assignmentItems = remember {
-        listOf(
-            ProgressItem("Implementation Report", "Submitted • Passed", 100, ProgressStatus.GOOD),
-            ProgressItem("Architecture Diagram", "Submitted • Reviewed", 90, ProgressStatus.GOOD),
-            ProgressItem("Testing Document", "Due soon", 65, ProgressStatus.WARNING)
-        )
-    }
-
-    val focusItems = remember {
-        listOf(
-            ProgressItem("Focus Mode Sessions", "8 hours this week", 80, ProgressStatus.GOOD),
-            ProgressItem("Blocked App Attempts", "5 attempts controlled", 74, ProgressStatus.WARNING),
-            ProgressItem("Quiz Unlock Success", "3 successful unlocks", 88, ProgressStatus.GOOD)
-        )
-    }
+    var visibleMessage by remember { mutableStateOf("") }
+    var messageIsError by remember { mutableStateOf(false) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "progress_animation")
     val glowScale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
+        initialValue = 0.94f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -129,41 +92,43 @@ fun StudentProgressScreen(
         label = "progress_glow"
     )
 
-    LaunchedEffect(message) {
-        if (message.isNotEmpty()) {
-            delay(2300)
-            message = ""
+    LaunchedEffect(Unit) {
+        progressViewModel.loadProgress()
+    }
+
+    LaunchedEffect(uiState.actionMessage) {
+        val message = uiState.actionMessage
+
+        if (!message.isNullOrBlank()) {
+            visibleMessage = message
+            messageIsError = false
+            progressViewModel.clearMessages()
         }
     }
 
-    fun goBack() {
-        if (navController != null) {
-            navController.popBackStack()
-        } else {
-            onBackClick()
-            onNavigateBack()
+    LaunchedEffect(uiState.errorMessage) {
+        val message = uiState.errorMessage
+
+        if (!message.isNullOrBlank()) {
+            visibleMessage = cleanProgressMessage(message)
+            messageIsError = true
+            progressViewModel.clearMessages()
         }
     }
 
-    fun openMaterials() {
-        onOpenLibrary()
-        onOpenMaterials()
-        onViewMaterialsClick()
+    LaunchedEffect(visibleMessage) {
+        if (visibleMessage.isNotBlank()) {
+            delay(2600)
+            visibleMessage = ""
+            messageIsError = false
+        }
     }
 
-    fun openQuizzes() {
-        onOpenQuizzes()
-        onViewQuizClick()
-    }
-
-    fun openAssignments() {
-        onOpenAssignments()
-        onViewAssignmentsClick()
-    }
-
-    fun openFocus() {
-        onOpenFocus()
-        onViewFocusClick()
+    fun refreshProgress() {
+        visibleMessage = "Refreshing progress from backend..."
+        messageIsError = false
+        progressViewModel.refreshProgress()
+        onRefreshClick()
     }
 
     Box(
@@ -205,77 +170,52 @@ fun StudentProgressScreen(
                 .fillMaxSize()
                 .padding(WindowInsets.statusBars.asPaddingValues())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(
+                    bottom = WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding()
+                )
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(18.dp))
 
             ProgressTopBar(
                 colors = colors,
-                onBackClick = { goBack() },
-                onRefreshClick = {
-                    message = "Progress refreshed."
-                    onRefreshClick()
-                }
+                onBackClick = onBackClick,
+                onRefreshClick = { refreshProgress() }
             )
 
             Spacer(modifier = Modifier.height(22.dp))
 
             ProgressHeroCard(
-                overallScore = overallScore,
-                weeklyAccuracy = weeklyAccuracy,
-                focusScore = focusScore,
-                assignmentScore = assignmentScore,
+                summary = uiState.summary,
                 colors = colors
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            AnimatedVisibility(visible = message.isNotEmpty()) {
+            AnimatedVisibility(visible = visibleMessage.isNotBlank()) {
                 ProgressMessageCard(
-                    message = message,
+                    message = visibleMessage,
+                    isError = messageIsError,
                     colors = colors
                 )
             }
 
-            if (message.isNotEmpty()) {
+            if (visibleMessage.isNotBlank()) {
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ProgressStatCard(
-                    title = "Quizzes",
-                    value = "$weeklyAccuracy%",
-                    subtitle = "accuracy",
-                    iconText = "🧠",
-                    mainColor = colors.primary,
-                    colors = colors,
-                    modifier = Modifier.weight(1f)
-                )
+            if (uiState.isLoading) {
+                LoadingProgressCard(colors = colors)
 
-                ProgressStatCard(
-                    title = "Focus",
-                    value = "$focusScore%",
-                    subtitle = "shield",
-                    iconText = "🛡",
-                    mainColor = colors.success,
-                    colors = colors,
-                    modifier = Modifier.weight(1f)
-                )
-
-                ProgressStatCard(
-                    title = "Tasks",
-                    value = "$assignmentScore%",
-                    subtitle = "done",
-                    iconText = "✓",
-                    mainColor = colors.accent,
-                    colors = colors,
-                    modifier = Modifier.weight(1f)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            ProgressStatsRow(
+                summary = uiState.summary,
+                colors = colors
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -290,111 +230,66 @@ fun StudentProgressScreen(
             when (selectedTab) {
                 ProgressTab.OVERVIEW -> {
                     OverviewProgressCard(
+                        summary = uiState.summary,
                         colors = colors,
-                        onOpenQuizzes = { openQuizzes() },
-                        onOpenAssignments = { openAssignments() },
-                        onOpenFocus = { openFocus() }
+                        onOpenQuizzes = onOpenQuizzes,
+                        onOpenAssignments = onOpenAssignments,
+                        onOpenFocus = onOpenFocus
                     )
                 }
 
                 ProgressTab.QUIZZES -> {
-                    ProgressListCard(
-                        title = "Quiz Performance",
-                        subtitle = "Scores from generated AI quizzes",
-                        items = quizItems,
+                    QuizProgressCard(
+                        quizzes = uiState.quizzes,
                         colors = colors,
-                        onActionClick = { openQuizzes() }
+                        onOpenQuizzes = onOpenQuizzes
                     )
                 }
 
                 ProgressTab.ASSIGNMENTS -> {
-                    ProgressListCard(
-                        title = "Assignment Progress",
-                        subtitle = "Homework and deadline completion",
-                        items = assignmentItems,
+                    AssignmentProgressCard(
+                        assignments = uiState.assignments,
                         colors = colors,
-                        onActionClick = { openAssignments() }
+                        onOpenAssignments = onOpenAssignments
                     )
                 }
 
                 ProgressTab.FOCUS -> {
-                    ProgressListCard(
-                        title = "Focus Activity",
-                        subtitle = "Blocking, unlocks, and focus behavior",
-                        items = focusItems,
+                    FocusProgressCard(
+                        policies = uiState.policies,
+                        protectedApps = uiState.summary.protectedApps,
                         colors = colors,
-                        onActionClick = { openFocus() }
+                        onOpenFocus = onOpenFocus
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            WeeklyTrendCard(colors = colors)
+            HonestTrendCard(colors = colors)
 
             Spacer(modifier = Modifier.height(16.dp))
 
             ProgressNavigationCard(
                 colors = colors,
                 onOpenHome = onOpenHome,
-                onOpenMaterials = { openMaterials() },
-                onOpenQuizzes = { openQuizzes() },
-                onOpenAssignments = { openAssignments() },
-                onOpenFocus = { openFocus() },
-                onOpenProfile = onOpenProfile,
-                onOpenPairCode = onOpenPairCode
+                onOpenMaterials = onOpenMaterials,
+                onOpenQuizzes = onOpenQuizzes,
+                onOpenAssignments = onOpenAssignments,
+                onOpenFocus = onOpenFocus,
+                onOpenProfile = onOpenProfile
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ProgressExplanationCard(colors = colors)
+            ReportCard(
+                colors = colors,
+                onDownloadClick = onDownloadClick
+            )
 
             Spacer(modifier = Modifier.height(28.dp))
         }
     }
-}
-
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun ProgressScreen(
-    navController: NavController? = null,
-    viewModel: Any? = null,
-    onBackClick: () -> Unit = {},
-    onNavigateBack: () -> Unit = {},
-    onRefreshClick: () -> Unit = {},
-    onDownloadClick: () -> Unit = {},
-    onOpenHome: () -> Unit = {},
-    onOpenLibrary: () -> Unit = {},
-    onOpenMaterials: () -> Unit = {},
-    onOpenQuizzes: () -> Unit = {},
-    onOpenAssignments: () -> Unit = {},
-    onOpenFocus: () -> Unit = {},
-    onOpenProfile: () -> Unit = {},
-    onOpenPairCode: () -> Unit = {},
-    onViewQuizClick: () -> Unit = {},
-    onViewAssignmentsClick: () -> Unit = {},
-    onViewFocusClick: () -> Unit = {},
-    onViewMaterialsClick: () -> Unit = {}
-) {
-    StudentProgressScreen(
-        navController = navController,
-        viewModel = viewModel,
-        onBackClick = onBackClick,
-        onNavigateBack = onNavigateBack,
-        onRefreshClick = onRefreshClick,
-        onOpenHome = onOpenHome,
-        onOpenLibrary = onOpenLibrary,
-        onOpenMaterials = onOpenMaterials,
-        onOpenQuizzes = onOpenQuizzes,
-        onOpenAssignments = onOpenAssignments,
-        onOpenFocus = onOpenFocus,
-        onOpenProfile = onOpenProfile,
-        onOpenPairCode = onOpenPairCode,
-        onViewQuizClick = onViewQuizClick,
-        onViewAssignmentsClick = onViewAssignmentsClick,
-        onViewFocusClick = onViewFocusClick,
-        onViewMaterialsClick = onViewMaterialsClick
-    )
 }
 
 @Composable
@@ -408,7 +303,7 @@ private fun ProgressTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         CircleIconButton(
-            text = "←",
+            text = "<",
             colors = colors,
             onClick = onBackClick
         )
@@ -426,14 +321,15 @@ private fun ProgressTopBar(
             )
 
             Text(
-                text = "Learning, focus, and assignment analytics",
+                text = "Real learning, assignment, and focus data",
                 color = colors.textSecondary,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
         }
 
         CircleIconButton(
-            text = "↻",
+            text = "R",
             colors = colors,
             onClick = onRefreshClick
         )
@@ -442,12 +338,23 @@ private fun ProgressTopBar(
 
 @Composable
 private fun ProgressHeroCard(
-    overallScore: Int,
-    weeklyAccuracy: Int,
-    focusScore: Int,
-    assignmentScore: Int,
+    summary: StudentProgressSummary,
     colors: ProgressColors
 ) {
+    val hasOverallScore = summary.overallScore != null
+
+    val headline = if (hasOverallScore) {
+        "${summary.overallScore}%"
+    } else {
+        "No score yet"
+    }
+
+    val description = if (hasOverallScore) {
+        "Calculated from real quiz attempts and assignment completion."
+    } else {
+        "Complete quizzes and assignments to build a real progress score."
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(34.dp),
@@ -475,7 +382,7 @@ private fun ProgressHeroCard(
                     border = BorderStroke(1.dp, colors.success.copy(alpha = 0.34f))
                 ) {
                     Text(
-                        text = "● Progress dashboard active",
+                        text = "Backend progress data",
                         color = colors.success,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
@@ -486,7 +393,7 @@ private fun ProgressHeroCard(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Overall learning score",
+                    text = "Current progress score",
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -495,16 +402,17 @@ private fun ProgressHeroCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "$overallScore%",
+                    text = headline,
                     color = colors.textPrimary,
-                    fontSize = 46.sp,
-                    fontWeight = FontWeight.Black
+                    fontSize = if (hasOverallScore) 46.sp else 34.sp,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 42.sp
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Quiz accuracy $weeklyAccuracy% • Focus score $focusScore% • Assignment score $assignmentScore%",
+                    text = description,
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -512,12 +420,35 @@ private fun ProgressHeroCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                MainProgressBar(
-                    progress = overallScore,
-                    colors = colors
-                )
+                if (hasOverallScore) {
+                    MainProgressBar(
+                        progress = summary.overallScore ?: 0,
+                        colors = colors
+                    )
+                } else {
+                    EmptyProgressNote(colors = colors)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyProgressNote(colors: ProgressColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = colors.warning.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, colors.warning.copy(alpha = 0.30f))
+    ) {
+        Text(
+            text = "No fake analytics are shown. This section will update after real activity is recorded.",
+            color = colors.warning,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(12.dp),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -529,7 +460,7 @@ private fun MainProgressBar(
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Progress strength",
+                text = "Real progress strength",
                 color = colors.textPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -546,42 +477,36 @@ private fun MainProgressBar(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(colors.track)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(colors.success, colors.accent)
-                        )
-                    )
-            )
-        }
+        MiniProgressBar(
+            progress = progress,
+            color = colors.success,
+            colors = colors,
+            height = 12
+        )
     }
 }
 
 @Composable
 private fun ProgressMessageCard(
     message: String,
+    isError: Boolean,
     colors: ProgressColors
 ) {
+    val messageColor = if (isError) {
+        colors.danger
+    } else {
+        colors.success
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = colors.success.copy(alpha = 0.13f),
-        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+        color = messageColor.copy(alpha = 0.13f),
+        border = BorderStroke(1.dp, messageColor.copy(alpha = 0.32f))
     ) {
         Text(
             text = message,
-            color = colors.success,
+            color = messageColor,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(14.dp),
@@ -591,11 +516,67 @@ private fun ProgressMessageCard(
 }
 
 @Composable
+private fun LoadingProgressCard(colors: ProgressColors) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Text(
+            text = "Loading progress from Rakizz backend...",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(18.dp),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun ProgressStatsRow(
+    summary: StudentProgressSummary,
+    colors: ProgressColors
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ProgressStatCard(
+            title = "Quizzes",
+            value = summary.quizAverage?.let { "$it%" } ?: "No data",
+            subtitle = "${summary.attemptedQuizCount}/${summary.totalQuizCount} attempted",
+            mainColor = colors.primary,
+            colors = colors,
+            modifier = Modifier.weight(1f)
+        )
+
+        ProgressStatCard(
+            title = "Tasks",
+            value = summary.assignmentCompletion?.let { "$it%" } ?: "No data",
+            subtitle = "${summary.completedAssignmentCount}/${summary.totalAssignmentCount} done",
+            mainColor = colors.accent,
+            colors = colors,
+            modifier = Modifier.weight(1f)
+        )
+
+        ProgressStatCard(
+            title = "Focus",
+            value = "${summary.focusRuleCount}",
+            subtitle = "parent rules",
+            mainColor = if (summary.focusRuleCount > 0) colors.success else colors.warning,
+            colors = colors,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
 private fun ProgressStatCard(
     title: String,
     value: String,
     subtitle: String,
-    iconText: String,
     mainColor: Color,
     colors: ProgressColors,
     modifier: Modifier = Modifier
@@ -611,19 +592,15 @@ private fun ProgressStatCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = iconText,
-                fontSize = 22.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
                 text = value,
                 color = mainColor,
-                fontSize = 20.sp,
+                fontSize = if (value.length > 6) 14.sp else 20.sp,
                 fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
             )
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = title,
@@ -637,7 +614,8 @@ private fun ProgressStatCard(
                 text = subtitle,
                 color = colors.textSecondary,
                 fontSize = 10.sp,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp
             )
         }
     }
@@ -658,7 +636,7 @@ private fun ProgressTabsCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Progress Sections",
-                subtitle = "Switch between overview, quizzes, assignments, and focus",
+                subtitle = "Switch between real data categories",
                 colors = colors
             )
 
@@ -716,6 +694,7 @@ private fun ProgressTabChip(
 
 @Composable
 private fun OverviewProgressCard(
+    summary: StudentProgressSummary,
     colors: ProgressColors,
     onOpenQuizzes: () -> Unit,
     onOpenAssignments: () -> Unit,
@@ -730,17 +709,20 @@ private fun OverviewProgressCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Overview",
-                subtitle = "Main progress signals for app overview",
+                subtitle = "Only real backend data is shown here",
                 colors = colors
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            ProgressRouteButton(
+            OverviewRouteButton(
                 title = "Quiz Performance",
-                subtitle = "AI quizzes generated from materials show strong learning progress.",
-                progress = 88,
-                iconText = "🧠",
+                subtitle = if (summary.attemptedQuizCount > 0) {
+                    "${summary.attemptedQuizCount} attempted quiz(es), ${summary.passedQuizCount} passed."
+                } else {
+                    "No completed quiz attempts yet."
+                },
+                value = summary.quizAverage?.let { "$it%" } ?: "No data",
                 color = colors.primary,
                 colors = colors,
                 onClick = onOpenQuizzes
@@ -748,11 +730,14 @@ private fun OverviewProgressCard(
 
             ItemDivider(colors)
 
-            ProgressRouteButton(
+            OverviewRouteButton(
                 title = "Assignment Completion",
-                subtitle = "Homework tracking and deadline reminders support study organization.",
-                progress = 82,
-                iconText = "📝",
+                subtitle = if (summary.totalAssignmentCount > 0) {
+                    "${summary.completedAssignmentCount} of ${summary.totalAssignmentCount} assignment(s) completed."
+                } else {
+                    "No assignments created yet."
+                },
+                value = summary.assignmentCompletion?.let { "$it%" } ?: "No data",
                 color = colors.accent,
                 colors = colors,
                 onClick = onOpenAssignments
@@ -760,12 +745,15 @@ private fun OverviewProgressCard(
 
             ItemDivider(colors)
 
-            ProgressRouteButton(
-                title = "Focus Control",
-                subtitle = "Focus mode and quiz unlock reduce distracting app usage.",
-                progress = 76,
-                iconText = "🛡",
-                color = colors.success,
+            OverviewRouteButton(
+                title = "Focus Protection",
+                subtitle = if (summary.focusRuleCount > 0) {
+                    "${summary.focusRuleCount} parent rule(s), ${summary.protectedAppCount} protected app(s)."
+                } else {
+                    "No parent focus rules active yet."
+                },
+                value = "${summary.focusRuleCount} rules",
+                color = if (summary.focusRuleCount > 0) colors.success else colors.warning,
                 colors = colors,
                 onClick = onOpenFocus
             )
@@ -774,11 +762,10 @@ private fun OverviewProgressCard(
 }
 
 @Composable
-private fun ProgressRouteButton(
+private fun OverviewRouteButton(
     title: String,
     subtitle: String,
-    progress: Int,
-    iconText: String,
+    value: String,
     color: Color,
     colors: ProgressColors,
     onClick: () -> Unit
@@ -800,8 +787,10 @@ private fun ProgressRouteButton(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = iconText,
-                fontSize = 22.sp
+                text = title.firstOrNull()?.uppercase() ?: "P",
+                color = color,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black
             )
         }
 
@@ -820,7 +809,7 @@ private fun ProgressRouteButton(
                 )
 
                 Text(
-                    text = "$progress%",
+                    text = value,
                     color = color,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black
@@ -835,25 +824,199 @@ private fun ProgressRouteButton(
                 fontSize = 12.sp,
                 lineHeight = 17.sp
             )
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(8.dp))
+@Composable
+private fun QuizProgressCard(
+    quizzes: List<Quiz>,
+    colors: ProgressColors,
+    onOpenQuizzes: () -> Unit
+) {
+    DataListCard(
+        title = "Quiz Performance",
+        subtitle = "Real quizzes loaded from backend",
+        isEmpty = quizzes.isEmpty(),
+        emptyText = "No quizzes found yet. Generate and solve a quiz from uploaded materials.",
+        colors = colors,
+        onActionClick = onOpenQuizzes
+    ) {
+        quizzes.forEachIndexed { index, quiz ->
+            QuizRow(
+                quiz = quiz,
+                colors = colors,
+                onClick = onOpenQuizzes
+            )
 
-            MiniProgressBar(
-                progress = progress,
-                color = color,
-                colors = colors
+            if (index != quizzes.lastIndex) {
+                ItemDivider(colors)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuizRow(
+    quiz: Quiz,
+    colors: ProgressColors,
+    onClick: () -> Unit
+) {
+    val score = quiz.score
+    val statusColor = when {
+        score == null -> colors.warning
+        score >= 70 -> colors.success
+        else -> colors.danger
+    }
+
+    val scoreText = score?.let { "$it%" } ?: "Not attempted"
+
+    ProgressDataRow(
+        title = quiz.title,
+        subtitle = "${quiz.totalQuestions} question(s) - $scoreText",
+        value = scoreText,
+        color = statusColor,
+        colors = colors,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun AssignmentProgressCard(
+    assignments: List<Assignment>,
+    colors: ProgressColors,
+    onOpenAssignments: () -> Unit
+) {
+    DataListCard(
+        title = "Assignment Progress",
+        subtitle = "Real assignments loaded from backend",
+        isEmpty = assignments.isEmpty(),
+        emptyText = "No assignments created yet.",
+        colors = colors,
+        onActionClick = onOpenAssignments
+    ) {
+        assignments.forEachIndexed { index, assignment ->
+            AssignmentRow(
+                assignment = assignment,
+                colors = colors,
+                onClick = onOpenAssignments
+            )
+
+            if (index != assignments.lastIndex) {
+                ItemDivider(colors)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssignmentRow(
+    assignment: Assignment,
+    colors: ProgressColors,
+    onClick: () -> Unit
+) {
+    val statusColor = if (assignment.isCompleted) {
+        colors.success
+    } else {
+        colors.warning
+    }
+
+    val statusText = if (assignment.isCompleted) {
+        "Completed"
+    } else {
+        assignment.status.ifBlank { "Pending" }
+    }
+
+    ProgressDataRow(
+        title = assignment.title,
+        subtitle = "Due: ${assignment.dueAtDisplay}",
+        value = statusText,
+        color = statusColor,
+        colors = colors,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun FocusProgressCard(
+    policies: List<FocusPolicy>,
+    protectedApps: List<String>,
+    colors: ProgressColors,
+    onOpenFocus: () -> Unit
+) {
+    DataListCard(
+        title = "Focus Protection",
+        subtitle = "Parent rules loaded from backend",
+        isEmpty = policies.isEmpty(),
+        emptyText = "No parent focus rules active yet.",
+        colors = colors,
+        onActionClick = onOpenFocus
+    ) {
+        policies.forEachIndexed { index, policy ->
+            FocusPolicyRow(
+                policy = policy,
+                colors = colors,
+                onClick = onOpenFocus
+            )
+
+            if (index != policies.lastIndex) {
+                ItemDivider(colors)
+            }
+        }
+
+        if (protectedApps.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Protected apps: ${protectedApps.joinToString(", ")}",
+                color = colors.primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 17.sp
             )
         }
     }
 }
 
 @Composable
-private fun ProgressListCard(
+private fun FocusPolicyRow(
+    policy: FocusPolicy,
+    colors: ProgressColors,
+    onClick: () -> Unit
+) {
+    val timeText = when {
+        !policy.startTime.isNullOrBlank() && !policy.endTime.isNullOrBlank() -> {
+            "${policy.startTime} - ${policy.endTime}"
+        }
+
+        policy.dailyLimitMinutes != null -> {
+            "${policy.dailyLimitMinutes} minute limit"
+        }
+
+        else -> {
+            "Parent-controlled rule"
+        }
+    }
+
+    ProgressDataRow(
+        title = policy.ruleType.ifBlank { "Focus Rule" },
+        subtitle = timeText,
+        value = "Active",
+        color = colors.success,
+        colors = colors,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun DataListCard(
     title: String,
     subtitle: String,
-    items: List<ProgressItem>,
+    isEmpty: Boolean,
+    emptyText: String,
     colors: ProgressColors,
-    onActionClick: () -> Unit
+    onActionClick: () -> Unit,
+    content: @Composable () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -870,16 +1033,13 @@ private fun ProgressListCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            items.forEachIndexed { index, item ->
-                ProgressItemRow(
-                    item = item,
-                    colors = colors,
-                    onClick = onActionClick
+            if (isEmpty) {
+                EmptySectionText(
+                    text = emptyText,
+                    colors = colors
                 )
-
-                if (index != items.lastIndex) {
-                    ItemDivider(colors)
-                }
+            } else {
+                content()
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -894,17 +1054,14 @@ private fun ProgressListCard(
 }
 
 @Composable
-private fun ProgressItemRow(
-    item: ProgressItem,
+private fun ProgressDataRow(
+    title: String,
+    subtitle: String,
+    value: String,
+    color: Color,
     colors: ProgressColors,
     onClick: () -> Unit
 ) {
-    val color = when (item.status) {
-        ProgressStatus.GOOD -> colors.success
-        ProgressStatus.WARNING -> colors.warning
-        ProgressStatus.DANGER -> colors.danger
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -922,9 +1079,9 @@ private fun ProgressItemRow(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (item.status == ProgressStatus.GOOD) "✓" else "!",
+                text = title.firstOrNull()?.uppercase() ?: "P",
                 color = color,
-                fontSize = 19.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -936,38 +1093,54 @@ private fun ProgressItemRow(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = item.title,
+                    text = title.ifBlank { "Untitled" },
                     color = colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    lineHeight = 18.sp
                 )
 
                 Text(
-                    text = "${item.progress}%",
+                    text = value,
                     color = color,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Black
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.End
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = item.subtitle,
+                text = subtitle,
                 color = colors.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 17.sp
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            MiniProgressBar(
-                progress = item.progress,
-                color = color,
-                colors = colors
-            )
         }
+    }
+}
+
+@Composable
+private fun EmptySectionText(
+    text: String,
+    colors: ProgressColors
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardAlt,
+        border = BorderStroke(1.dp, colors.border)
+    ) {
+        Text(
+            text = text,
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(14.dp),
+            textAlign = TextAlign.Center,
+            lineHeight = 19.sp
+        )
     }
 }
 
@@ -975,19 +1148,20 @@ private fun ProgressItemRow(
 private fun MiniProgressBar(
     progress: Int,
     color: Color,
-    colors: ProgressColors
+    colors: ProgressColors,
+    height: Int = 8
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(8.dp)
+            .height(height.dp)
             .clip(RoundedCornerShape(100.dp))
             .background(colors.track)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(progress.coerceIn(0, 100) / 100f)
-                .height(8.dp)
+                .height(height.dp)
                 .clip(RoundedCornerShape(100.dp))
                 .background(color)
         )
@@ -995,7 +1169,7 @@ private fun MiniProgressBar(
 }
 
 @Composable
-private fun WeeklyTrendCard(
+private fun HonestTrendCard(
     colors: ProgressColors
 ) {
     Card(
@@ -1007,76 +1181,17 @@ private fun WeeklyTrendCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Weekly Trend",
-                subtitle = "Simple visual summary for presentation",
+                subtitle = "Hidden until dated activity exists",
                 colors = colors
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            listOf(
-                "Mon" to 62,
-                "Tue" to 70,
-                "Wed" to 76,
-                "Thu" to 81,
-                "Fri" to 84,
-                "Sat" to 88,
-                "Sun" to 91
-            ).forEach { item ->
-                TrendRow(
-                    day = item.first,
-                    value = item.second,
-                    colors = colors
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun TrendRow(
-    day: String,
-    value: Int,
-    colors: ProgressColors
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = day,
-            color = colors.textPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.size(width = 38.dp, height = 20.dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(9.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(colors.track)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(value.coerceIn(0, 100) / 100f)
-                    .height(9.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(colors.primary, colors.accent)
-                        )
-                    )
+            EmptySectionText(
+                text = "Not enough dated quiz attempts, assignment updates, or usage events are available to calculate a real weekly trend yet.",
+                colors = colors
             )
         }
-
-        Text(
-            text = "$value%",
-            color = colors.textSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End,
-            modifier = Modifier.size(width = 42.dp, height = 20.dp)
-        )
     }
 }
 
@@ -1088,8 +1203,7 @@ private fun ProgressNavigationCard(
     onOpenQuizzes: () -> Unit,
     onOpenAssignments: () -> Unit,
     onOpenFocus: () -> Unit,
-    onOpenProfile: () -> Unit,
-    onOpenPairCode: () -> Unit
+    onOpenProfile: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1100,67 +1214,57 @@ private fun ProgressNavigationCard(
         Column(modifier = Modifier.padding(18.dp)) {
             SectionTitle(
                 title = "Quick Navigation",
-                subtitle = "Open screens related to student progress",
+                subtitle = "Open related real app screens",
                 colors = colors
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            SecondaryProgressButton("Home Dashboard", "Return to main app dashboard", "⌂", colors, onOpenHome)
+            SecondaryProgressButton("Home Dashboard", "Return to main dashboard", "H", colors, onOpenHome)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("Materials Library", "Open uploaded study materials", "📚", colors, onOpenMaterials)
+            SecondaryProgressButton("Materials Library", "Open uploaded study materials", "M", colors, onOpenMaterials)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("AI Quizzes", "Open generated quiz list", "🧠", colors, onOpenQuizzes)
+            SecondaryProgressButton("AI Quizzes", "Open generated quiz list", "Q", colors, onOpenQuizzes)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("Assignments", "Open homework tracking", "📝", colors, onOpenAssignments)
+            SecondaryProgressButton("Assignments", "Open homework tracking", "A", colors, onOpenAssignments)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("Focus Shield", "Open focus mode", "🛡", colors, onOpenFocus)
+            SecondaryProgressButton("Focus Shield", "Open parent-managed focus status", "F", colors, onOpenFocus)
             Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("Profile", "Open account information", "👤", colors, onOpenProfile)
-            Spacer(modifier = Modifier.height(10.dp))
-            SecondaryProgressButton("Pair Code", "Open parent-student linking code", "🔗", colors, onOpenPairCode)
+            SecondaryProgressButton("Profile", "Open account information", "P", colors, onOpenProfile)
         }
     }
 }
 
 @Composable
-private fun ProgressExplanationCard(
-    colors: ProgressColors
+private fun ReportCard(
+    colors: ProgressColors,
+    onDownloadClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(onClick = onDownloadClick),
         shape = RoundedCornerShape(24.dp),
-        color = colors.success.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.32f))
+        color = colors.primary.copy(alpha = 0.11f),
+        border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.28f))
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "✓",
-                color = colors.success,
-                fontSize = 24.sp,
+                text = "Progress Report",
+                color = colors.primary,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Black
             )
 
-            Column(modifier = Modifier.padding(start = 12.dp)) {
-                Text(
-                    text = "How Rakizz works",
-                    color = colors.success,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black
-                )
+            Spacer(modifier = Modifier.height(6.dp))
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "This screen shows how Rakizz measures progress from quizzes, assignments, and focus activity. It supports parent monitoring and student self-review.",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
-                )
-            }
+            Text(
+                text = "Share a simple progress report using the available real activity shown on this screen.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
         }
     }
 }
@@ -1224,7 +1328,9 @@ private fun SecondaryProgressButton(
             ) {
                 Text(
                     text = iconText,
-                    fontSize = 20.sp
+                    color = colors.primary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
 
@@ -1249,9 +1355,9 @@ private fun SecondaryProgressButton(
             }
 
             Text(
-                text = "›",
+                text = ">",
                 color = colors.textSecondary,
-                fontSize = 28.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -1301,7 +1407,7 @@ private fun CircleIconButton(
         Text(
             text = text,
             color = colors.textPrimary,
-            fontSize = 21.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Black
         )
     }
@@ -1314,6 +1420,34 @@ private fun ItemDivider(colors: ProgressColors) {
         thickness = 1.dp,
         modifier = Modifier.padding(start = 56.dp, top = 12.dp, bottom = 12.dp)
     )
+}
+
+private fun cleanProgressMessage(message: String): String {
+    val clean = message.lowercase()
+
+    return when {
+        "401" in clean || "403" in clean || "unauthorized" in clean -> {
+            "Your login session may have expired. Please login again."
+        }
+
+        "network" in clean ||
+            "timeout" in clean ||
+            "failed to connect" in clean ||
+            "unable to resolve host" in clean -> {
+            "Unable to reach Rakizz server. Check your connection and try again."
+        }
+
+        "500" in clean ||
+            "502" in clean ||
+            "503" in clean ||
+            "504" in clean -> {
+            "Rakizz server is temporarily unavailable. Please try again."
+        }
+
+        else -> {
+            message.ifBlank { "Something went wrong. Please try again." }
+        }
+    }
 }
 
 @Composable
@@ -1365,19 +1499,6 @@ private enum class ProgressTab(
     ASSIGNMENTS("Tasks"),
     FOCUS("Focus")
 }
-
-private enum class ProgressStatus {
-    GOOD,
-    WARNING,
-    DANGER
-}
-
-private data class ProgressItem(
-    val title: String,
-    val subtitle: String,
-    val progress: Int,
-    val status: ProgressStatus
-)
 
 private data class ProgressColors(
     val backgroundTop: Color,

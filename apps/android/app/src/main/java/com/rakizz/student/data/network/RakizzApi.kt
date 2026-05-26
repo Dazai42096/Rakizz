@@ -2,6 +2,7 @@ package com.rakizz.student.data.network
 
 import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
+import com.rakizz.student.data.remote.dto.AssignmentStatusUpdateRequestDto
 import com.rakizz.student.data.remote.dto.AuthResponseDto
 import com.rakizz.student.data.remote.dto.CurrentUserDto
 import com.rakizz.student.data.remote.dto.InstalledAppsSyncRequestDto
@@ -31,10 +32,12 @@ import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -44,7 +47,6 @@ import retrofit2.http.Streaming
 
 interface RakizzApi {
 
-    // login uses form data because FastAPI OAuth2 expects username/password fields
     @FormUrlEncoded
     @POST("api/v1/auth/login")
     suspend fun login(
@@ -107,6 +109,11 @@ interface RakizzApi {
         @Path("id") id: String
     ): Response<ResponseBody>
 
+    @DELETE("api/v1/materials/{id}")
+    suspend fun deleteMaterial(
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
     @GET("api/v1/assignments")
     suspend fun getAssignments(): List<AssignmentDto>
 
@@ -114,6 +121,17 @@ interface RakizzApi {
     suspend fun createAssignment(
         @Body request: AssignmentCreateRequestDto
     ): AssignmentDto
+
+    @PATCH("api/v1/assignments/{id}/status")
+    suspend fun updateAssignmentStatus(
+        @Path("id") id: String,
+        @Body request: AssignmentStatusUpdateRequestDto
+    ): AssignmentDto
+
+    @DELETE("api/v1/assignments/{id}")
+    suspend fun deleteAssignment(
+        @Path("id") id: String
+    ): Response<ResponseBody>
 
     @GET("api/v1/quizzes")
     suspend fun getQuizzes(): List<QuizDto>
@@ -142,15 +160,11 @@ interface RakizzApi {
         @Body request: PolicyCreateRequestDto
     ): PolicyDto
 
-    // Unlock flow:
-    // checks if the app is blocked now
     @POST("api/v1/unlock/check")
     suspend fun checkBlockedApp(
         @Body request: UnlockCheckRequestDto
     ): UnlockCheckResponseDto
 
-    // Unlock flow:
-    // unlocks app after passing quiz
     @POST("api/v1/unlock/grant")
     suspend fun grantUnlock(
         @Body request: UnlockGrantRequestDto

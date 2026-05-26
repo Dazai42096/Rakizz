@@ -3,6 +3,7 @@ package com.rakizz.student.data.repository
 import com.rakizz.student.data.network.RakizzApi
 import com.rakizz.student.data.remote.dto.AssignmentCreateRequestDto
 import com.rakizz.student.data.remote.dto.AssignmentDto
+import com.rakizz.student.data.remote.dto.AssignmentStatusUpdateRequestDto
 import com.rakizz.student.domain.model.Assignment
 import com.rakizz.student.domain.model.parseAssignmentSortEpoch
 import com.rakizz.student.domain.repository.AssignmentRepository
@@ -31,7 +32,32 @@ class AssignmentRepositoryImpl @Inject constructor(
                 studentId = null
             )
         )
+
         return created.toDomain()
+    }
+
+    override suspend fun updateAssignmentStatus(
+        assignmentId: String,
+        status: String
+    ): Assignment {
+        val updated = api.updateAssignmentStatus(
+            id = assignmentId,
+            request = AssignmentStatusUpdateRequestDto(
+                status = status
+            )
+        )
+
+        return updated.toDomain()
+    }
+
+    override suspend fun deleteAssignment(
+        assignmentId: String
+    ) {
+        val response = api.deleteAssignment(assignmentId)
+
+        if (!response.isSuccessful) {
+            throw IllegalStateException("Failed to delete assignment. HTTP ${response.code()}")
+        }
     }
 
     private fun AssignmentDto.toDomain(): Assignment {

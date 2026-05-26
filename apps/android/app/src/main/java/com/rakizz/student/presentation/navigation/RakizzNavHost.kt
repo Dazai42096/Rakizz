@@ -202,6 +202,16 @@ fun RakizzNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenQuizzes = {
+                    navController.navigate(NavRoutes.QuizzesList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenAssignments = {
+                    navController.navigate(NavRoutes.AssignmentsList.route) {
+                        launchSingleTop = true
+                    }
+                },
                 onOpenFocus = {
                     navController.navigate(NavRoutes.Focus.route) {
                         launchSingleTop = true
@@ -211,11 +221,7 @@ fun RakizzNavHost(
                     navController.navigate(NavRoutes.Profile.route) {
                         launchSingleTop = true
                     }
-                },
-                onAddMaterial = {},
-                onTakePhoto = {},
-                onWriteTextNotes = {},
-                onAddLink = {}
+                }
             )
         }
 
@@ -234,6 +240,18 @@ fun RakizzNavHost(
                         NavRoutes.QuizSetup.createRoute(selectedMaterialId)
                     ) {
                         launchSingleTop = true
+                    }
+                },
+                onMaterialDeleted = {
+                    val popped = navController.popBackStack(
+                        NavRoutes.MaterialsList.route,
+                        inclusive = false
+                    )
+
+                    if (!popped) {
+                        navController.navigate(NavRoutes.MaterialsList.route) {
+                            launchSingleTop = true
+                        }
                     }
                 }
             )
@@ -328,16 +346,6 @@ fun RakizzNavHost(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onTryBlockedAppClick = { packageName ->
-                    navController.navigate(
-                        NavRoutes.UnlockQuiz.createRoute(
-                            packageName = packageName,
-                            forceUnlock = true
-                        )
-                    ) {
-                        launchSingleTop = true
-                    }
-                },
                 onViewProgressClick = {
                     navController.navigate(NavRoutes.Progress.route) {
                         launchSingleTop = true
@@ -347,7 +355,8 @@ fun RakizzNavHost(
                     navController.navigate(NavRoutes.MaterialsList.route) {
                         launchSingleTop = true
                     }
-                }
+                },
+                onRefreshClick = {}
             )
         }
 
@@ -358,14 +367,14 @@ fun RakizzNavHost(
                     .orEmpty()
             )
 
-            val forceUnlock = backStackEntry.arguments
+            val forceUnlockFromRoute = backStackEntry.arguments
                 ?.getString("forceUnlock")
                 ?.toBooleanStrictOrNull()
                 ?: false
 
             UnlockQuizScreen(
                 packageName = packageName,
-                forceUnlock = forceUnlock,
+                forceUnlock = forceUnlockFromRoute,
                 onBackClick = {
                     navController.popBackStack()
                 }
@@ -379,6 +388,31 @@ fun RakizzNavHost(
                         popUpTo(0) {
                             inclusive = true
                         }
+                        launchSingleTop = true
+                    }
+                },
+                onOpenProfile = {
+                    navController.navigate(NavRoutes.Profile.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenPairCode = {
+                    navController.navigate(NavRoutes.PairCode.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenMaterials = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenQuizzes = {
+                    navController.navigate(NavRoutes.QuizzesList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenAssignments = {
+                    navController.navigate(NavRoutes.AssignmentsList.route) {
                         launchSingleTop = true
                     }
                 }
@@ -413,17 +447,47 @@ fun RakizzNavHost(
                 onBackClick = {
                     navController.popBackStack()
                 },
+                onRefreshClick = {},
+                onOpenHome = {
+                    navController.navigate(NavRoutes.Home.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenMaterials = {
+                    navController.navigate(NavRoutes.MaterialsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenQuizzes = {
+                    navController.navigate(NavRoutes.QuizzesList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenAssignments = {
+                    navController.navigate(NavRoutes.AssignmentsList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenFocus = {
+                    navController.navigate(NavRoutes.Focus.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenProfile = {
+                    navController.navigate(NavRoutes.Profile.route) {
+                        launchSingleTop = true
+                    }
+                },
                 onDownloadClick = {
                     val reportText = """
                         Rakizz Progress Report
 
-                        This report summarizes the student's learning and focus activity:
-                        - AI quiz practice from uploaded materials
-                        - Assignment and study progress
-                        - Focus rules and blocked-app unlock attempts
-                        - Quiz unlock flow requiring 70% pass score
+                        This report uses real progress data loaded in the app:
+                        - Quiz scores from completed quiz attempts
+                        - Assignment records from the backend
+                        - Parent focus rules from the backend
 
-                        Generated from the Rakizz student progress screen.
+                        If a section has no activity, Rakizz shows an empty state instead of fake analytics.
                     """.trimIndent()
 
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {

@@ -7,8 +7,13 @@ import kotlinx.serialization.Serializable
 data class AssignmentCreateRequestDto(
     val title: String,
     val description: String? = null,
-    @SerialName("due_at")
+    @SerialName("due_date")
     val dueAt: String,
     @SerialName("student_id")
     val studentId: String? = null
+)
+
+@Serializable
+data class AssignmentStatusUpdateRequestDto(
+    val status: String
 )

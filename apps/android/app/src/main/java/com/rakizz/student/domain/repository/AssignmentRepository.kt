@@ -10,4 +10,13 @@ interface AssignmentRepository {
         description: String,
         dueAt: String
     ): Assignment
+
+    suspend fun updateAssignmentStatus(
+        assignmentId: String,
+        status: String
+    ): Assignment
+
+    suspend fun deleteAssignment(
+        assignmentId: String
+    )
 }
